@@ -82,84 +82,91 @@
     <div class="proj-grid" style="margin-top:12px;">
     <div class="proj-left">
 <div class="card">
-      <h2>Infos dossier (cartouche)</h2>
-
+      <h2>Identification</h2>
       <div class="infoGrid3" style="margin-top:10px;">
-  <div class="field span-3">
-    <div class="small">Nom de l’intervention</div>
-    <input id="repElements" class="box" type="text" placeholder="IMPLANTATION N10" />
-  </div>
-
-  <div class="field span-3">
-    <div class="small">Type de plan</div>
-    <input id="repPlanType" class="box" type="text" placeholder="Plan de recolement" />
-  </div>
-
-  <div class="field span-3">
-    <div class="small">Ville</div>
-    <input id="repZone" class="box" type="text" placeholder="Paris 16" />
-  </div>
-
-  <div class="field span-2">
-    <div class="small">Adresse chantier</div>
-    <input id="repSiteAddress" class="box" type="text" placeholder="104 Avenue du Président Kennedy" />
-  </div>
-  <div class="field span-1">
-    <div class="small">Contact chantier</div>
-    <input id="repSiteContact" class="box" type="text" placeholder="Nom / Prénom" />
-  </div>
-
-  <div class="field span-1">
-    <div class="small">N° CHA</div>
-    <!-- CHA : on saisit uniquement les chiffres (ex: 02782). Le préfixe CHA est ajouté dans les PDFs. -->
-    <input id="repCHA" class="box" type="text" placeholder="02782" />
-  </div>
-  <div class="field span-1">
-    <div class="small">Date d’intervention</div>
-    <input id="repDate" class="box" type="date" />
-  </div>
-  <div class="field span-1">
-    <div class="small">Entreprise</div>
-    <input id="repClient" class="box" type="text" placeholder="LOGISUR" />
-  </div>
-
-  <div class="field span-1">
-    <div class="small">Phase</div>
-    <select id="repPhase" class="box">
-      <option value=""></option>
-      <option value="REC">REC</option>
-      <option value="IMP">IMP</option>
-      <option value="CTRL">CTRL</option>
-      <option value="LEV">LEV</option>
-    </select>
-  </div>
-  <div class="field span-1">
-    <div class="small">Type</div>
-    <input id="repType" class="box" type="text" placeholder="TYPE" />
-  </div>
-  <div class="field span-1">
-    <div class="small">Zone</div>
-    <input id="repCartoucheZone" class="box" type="text" placeholder="TZ" />
-  </div>
-  <div class="field span-1">
-    <div class="small">Indice</div>
-    <input id="repIndice" class="box" type="text" placeholder="A" />
-  </div>
-
-  <div class="field span-3">
-    <div class="small">Plan de référence (DWG)</div>
-    <input id="repDwg" class="box" type="text" placeholder="xxxxx.dwg" />
-  </div>
+        <div class="field span-3">
+          <div class="small">Nom de l’intervention</div>
+          <input id="repElements" class="box" type="text" placeholder="IMPLANTATION N10" />
+        </div>
+        <div class="field span-2">
+          <div class="small">Type de plan</div>
+          <input id="repPlanType" class="box" type="text" placeholder="Plan de recolement" />
+        </div>
+        <div class="field span-1">
+          <div class="small">Indice</div>
+          <input id="repIndice" class="box" type="text" placeholder="A" />
+        </div>
+        <div class="field span-1">
+          <div class="small">N° CHA</div>
+          <!-- CHA : on saisit uniquement les chiffres (ex: 02782). Le préfixe CHA est ajouté dans les PDFs. -->
+          <input id="repCHA" class="box" type="text" placeholder="02782" />
+        </div>
+        <div class="field span-1">
+          <div class="small">Date d’intervention</div>
+          <input id="repDate" class="box" type="date" />
+        </div>
+        <div class="field span-1">
+          <div class="small">Phase</div>
+          <select id="repPhase" class="box">
+            <option value=""></option>
+            <option value="REC">REC</option>
+            <option value="IMP">IMP</option>
+            <option value="CTRL">CTRL</option>
+            <option value="LEV">LEV</option>
+          </select>
+        </div>
+        <div class="field span-1">
+          <div class="small">Type</div>
+          <input id="repType" class="box" type="text" placeholder="TYPE" />
+        </div>
+        <div class="field span-1">
+          <div class="small">Zone</div>
+          <input id="repCartoucheZone" class="box" type="text" placeholder="TZ" />
+        </div>
+      </div>
 </div>
 
-      
+<div class="card" style="margin-top:12px;">
+      <h2>Adresse chantier</h2>
+      <div class="infoGrid3" style="margin-top:10px;">
+        <div class="field span-3">
+          <div class="small">Ville</div>
+          <input id="repZone" class="box" type="text" placeholder="Paris 16" />
+        </div>
+        <div class="field span-2">
+          <div class="small">Adresse chantier</div>
+          <input id="repSiteAddress" class="box" type="text" placeholder="104 Avenue du Président Kennedy" />
+        </div>
+        <div class="field span-1">
+          <div class="small">Contact chantier</div>
+          <input id="repSiteContact" class="box" type="text" placeholder="Nom / Prénom" />
+        </div>
+      </div>
+</div>
 
-      
+<div class="card" style="margin-top:12px;">
+      <h2>Intervenant</h2>
+      <div class="infoGrid3" style="margin-top:10px;">
+        <div class="field span-1">
+          <div class="small">Entreprise</div>
+          <input id="repClient" class="box" type="text" placeholder="LOGISUR" />
+        </div>
+        <div class="field span-2">
+          <div class="small">Intervenant</div>
+          <input id="metaIntervenant" class="box" type="text" placeholder="(auto)" data-mode="auto" />
+        </div>
+      </div>
+</div>
 
+<div class="card" style="margin-top:12px;">
+      <h2>Référentiel &amp; métadonnées</h2>
+      <div class="infoGrid3" style="margin-top:10px;">
+        <div class="field span-3">
+          <div class="small">Plan de référence (DWG)</div>
+          <input id="repDwg" class="box" type="text" placeholder="xxxxx.dwg" />
+        </div>
+      </div>
 
-      
-
-      <!-- Référentiel projet (déplacé ici) : même fenêtre que "Info dossier" -->
       <!-- Alignements : mêmes hauteurs + altimétrie même largeur que "Système de coordonnées" -->
       <div class="metaGrid" style="margin-top:10px;">
         <div>
@@ -188,10 +195,7 @@
           <div class="small">PPM (mm/km)</div>
           <input id="metaPPM" class="box" type="number" step="0.001" placeholder="0.000" />
         </div>
-        <div>
-          <div class="small">Intervenant</div>
-          <input id="metaIntervenant" class="box" type="text" placeholder="(auto)" data-mode="auto" />
-        </div>
+        <div class="metaPlaceholder"></div>
       </div>
 
       <div class="metaGrid" style="margin-top:8px;">
@@ -207,10 +211,8 @@
         </div>
         <div class="metaPlaceholder"></div>
         <div class="metaPlaceholder"></div>
-      
-
-  </div>
-    </div>
+      </div>
+</div>
     </div>
     <div class="proj-right">
 <!-- V2 — Bandeau Projet (placé ici pour limiter l'ascenseur) -->
