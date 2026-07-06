@@ -84,28 +84,28 @@
 <div class="card">
       <h2>Identification</h2>
       <div class="infoGrid3" style="margin-top:10px;">
-        <div class="field span-3">
+        <div class="field span-6">
           <div class="small">Nom de l’intervention</div>
           <input id="repElements" class="box" type="text" placeholder="IMPLANTATION N10" />
         </div>
-        <div class="field span-2">
+        <div class="field span-4">
           <div class="small">Type de plan</div>
           <input id="repPlanType" class="box" type="text" placeholder="Plan de recolement" />
         </div>
-        <div class="field span-1">
+        <div class="field span-2 field-narrow">
           <div class="small">Indice</div>
           <input id="repIndice" class="box" type="text" placeholder="A" />
         </div>
-        <div class="field span-1">
+        <div class="field span-2 field-narrow">
           <div class="small">N° CHA</div>
           <!-- CHA : on saisit uniquement les chiffres (ex: 02782). Le préfixe CHA est ajouté dans les PDFs. -->
           <input id="repCHA" class="box" type="text" placeholder="02782" />
         </div>
-        <div class="field span-1">
+        <div class="field span-2">
           <div class="small">Date d’intervention</div>
           <input id="repDate" class="box" type="date" />
         </div>
-        <div class="field span-1">
+        <div class="field span-2 field-narrow">
           <div class="small">Phase</div>
           <select id="repPhase" class="box">
             <option value=""></option>
@@ -115,11 +115,11 @@
             <option value="LEV">LEV</option>
           </select>
         </div>
-        <div class="field span-1">
+        <div class="field span-2 field-narrow">
           <div class="small">Type</div>
           <input id="repType" class="box" type="text" placeholder="TYPE" />
         </div>
-        <div class="field span-1">
+        <div class="field span-2 field-narrow">
           <div class="small">Zone</div>
           <input id="repCartoucheZone" class="box" type="text" placeholder="TZ" />
         </div>
@@ -129,15 +129,15 @@
 <div class="card" style="margin-top:12px;">
       <h2>Adresse chantier</h2>
       <div class="infoGrid3" style="margin-top:10px;">
-        <div class="field span-3">
+        <div class="field span-2 field-narrow">
           <div class="small">Ville</div>
           <input id="repZone" class="box" type="text" placeholder="Paris 16" />
         </div>
-        <div class="field span-2">
+        <div class="field span-4">
           <div class="small">Adresse chantier</div>
           <input id="repSiteAddress" class="box" type="text" placeholder="104 Avenue du Président Kennedy" />
         </div>
-        <div class="field span-1">
+        <div class="field span-3">
           <div class="small">Contact chantier</div>
           <input id="repSiteContact" class="box" type="text" placeholder="Nom / Prénom" />
         </div>
@@ -147,11 +147,11 @@
 <div class="card" style="margin-top:12px;">
       <h2>Intervenant</h2>
       <div class="infoGrid3" style="margin-top:10px;">
-        <div class="field span-1">
+        <div class="field span-3">
           <div class="small">Entreprise</div>
           <input id="repClient" class="box" type="text" placeholder="LOGISUR" />
         </div>
-        <div class="field span-2">
+        <div class="field span-3">
           <div class="small">Intervenant</div>
           <input id="metaIntervenant" class="box" type="text" placeholder="(auto)" data-mode="auto" />
         </div>
@@ -161,7 +161,7 @@
 <div class="card" style="margin-top:12px;">
       <h2>Référentiel &amp; métadonnées</h2>
       <div class="infoGrid3" style="margin-top:10px;">
-        <div class="field span-3">
+        <div class="field span-6">
           <div class="small">Plan de référence (DWG)</div>
           <input id="repDwg" class="box" type="text" placeholder="xxxxx.dwg" />
         </div>
@@ -392,7 +392,7 @@
       Analyse : points mesurés (levé) regroupés par N° (ex : 204.1/204.2/204.3). Exclusion automatique si N° présent dans ApplStakeout. Min 3 pts, max 10 pts.
     </div>
 
-    <div id="pieuxTableWrap" style="margin-top:10px; overflow:auto; max-height:280px;">
+    <div id="pieuxTableWrap" style="margin-top:10px;">
       <table id="pieuxTable">
         <thead>
           <tr>
@@ -477,7 +477,7 @@
       Lecture stricte : seules les lignes Leica ApplicationStakeout avec StakeoutDTMHeight=true sont exploitees. Les implantations simples ne sont pas lues par ce module.
     </div>
 
-    <div id="mntTableWrap" style="margin-top:10px; overflow:auto; max-height:300px;">
+    <div id="mntTableWrap" style="margin-top:10px;">
       <table id="mntTable">
         <thead>
           <tr>
@@ -559,7 +559,7 @@
             <button id="btnKmzPointsAll">Tout inclure</button>
             <button id="btnKmzPointsNone">Tout exclure</button>
           </div>
-          <div id="kmzTableWrap" style="overflow:auto; max-height:260px;">
+          <div id="kmzTableWrap">
             <table id="kmzTable">
               <thead>
                 <tr>

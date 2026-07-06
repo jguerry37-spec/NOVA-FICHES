@@ -1408,7 +1408,7 @@ function tableHtml(headers, rows){
 
   return `
     ${warningHtml}
-    <div style="overflow:auto; max-height:520px;">
+    <div>
       <table>
         <thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead>
         <tbody>${displayedRows.map(r=>{

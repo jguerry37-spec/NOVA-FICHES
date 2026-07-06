@@ -6,10 +6,12 @@
     .dz-toggle input{ transform: scale(2); transform-origin:left center; }
     .dz-toggle .small{ font-weight:700; font-size:13px; color:var(--txt); }
 
-    /* Grille 3 colonnes pour un alignement strict (Infos dossier) */
+    /* Grille 6 colonnes pour un alignement strict (Infos dossier) - v2 : plus fine
+       que l'ancienne grille 3 colonnes pour laisser les champs courts (Indice, N° CHA,
+       Phase, Type, Zone...) prendre moins de place et en caser plusieurs par ligne. */
     .infoGrid3{
       display:grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: repeat(6, 1fr);
       gap:12px;
       align-items:end;
     }
@@ -17,10 +19,26 @@
     .infoGrid3 .span-1{ grid-column: span 1; }
     .infoGrid3 .span-2{ grid-column: span 2; }
     .infoGrid3 .span-3{ grid-column: span 3; }
+    .infoGrid3 .span-4{ grid-column: span 4; }
+    .infoGrid3 .span-5{ grid-column: span 5; }
+    .infoGrid3 .span-6{ grid-column: span 6; }
+
+    /* Champ court "extensible" : étroit par défaut, s'élargit au focus pour ne
+       jamais gêner la saisie d'une valeur plus longue que prévu. */
+    .infoGrid3 .field-narrow{ position:relative; }
+    .infoGrid3 .field-narrow input:focus,
+    .infoGrid3 .field-narrow select:focus{
+      position:relative;
+      z-index:6;
+      min-width: 220px;
+    }
 
     @media (max-width: 980px){
       .infoGrid3{ grid-template-columns: 1fr; }
-      .infoGrid3 .span-1, .infoGrid3 .span-2, .infoGrid3 .span-3{ grid-column: span 1; }
+      .infoGrid3 .span-1, .infoGrid3 .span-2, .infoGrid3 .span-3,
+      .infoGrid3 .span-4, .infoGrid3 .span-5, .infoGrid3 .span-6{ grid-column: span 1; }
+      .infoGrid3 .field-narrow input:focus,
+      .infoGrid3 .field-narrow select:focus{ min-width:0; }
     }
 
 /* ETAPE 4.1 — layout stable (single grid) */
