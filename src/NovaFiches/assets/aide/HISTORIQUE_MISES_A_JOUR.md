@@ -2,6 +2,23 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.8
+
+- Refonte ergonomique complete de l'interface : design maison (moins "generique IA"), formulaire "Infos dossier" reorganise en sous-blocs, grille a 6 colonnes avec champs extensibles au clic, reduction des doubles ascenseurs, feedback visuel pendant les exports PDF/KMZ et confirmation de validation dans le module Pieux.
+  - Pourquoi : rendre l'interface plus rapide a utiliser sur le terrain et plus proche d'une presentation professionnelle NOVATLAS.
+- Activation par licence hors-ligne (ECDSA) au demarrage de l'application.
+  - Pourquoi : reserver l'usage de Nova-Fiches aux postes NOVATLAS autorises, sans dependance reseau.
+- Ajout d'une verification de mise a jour non bloquante (bandeau discret, jamais de fenetre bloquante, echec silencieux si pas de reseau).
+  - Pourquoi : prevenir qu'une nouvelle version est disponible sans jamais gener le travail terrain.
+- Suite de tests automatises et pipeline d'integration continue (GitHub Actions) mis en place sur le depot.
+  - Pourquoi : detecter une regression avant qu'elle n'atteigne un poste de travail.
+- Rapport complet (implantation + ligne de reference) : correction de l'etiquette d'intervention qui affichait a tort "POINTS TOPO (LEVE)" au lieu du champ "Elements" du dossier.
+- Implantation : quand un point est reimplante sur le terrain (2e passage Leica, ex. `IPt_337@96`), la coordonnee mesuree de la 1re tentative est desormais reconstituee (theorique + ecart d'origine) au lieu de rester vide dans le tableau et le PDF.
+- Recolement de pieux : correction de l'attribution de chaque pieu a sa station de mesure lorsque l'appareil a ete stationne plusieurs fois sur le meme point (ex. `ST1`, `ST1 (2)`, `ST1 (3)`) ; auparavant, tous les pieux retombaient a tort sur la 1re station.
+- Interface : correction d'une incoherence visuelle sur les cases "Tolerance XY / Tolerance Z" (poids de police et couleur desormais identiques).
+- Pourquoi : fiabiliser les rapports terrain generes a partir de fichiers Leica avec reimplantations et changements de station multiples.
+- Build : passage de l'application et du moteur PDF en **2.3.1.8**.
+
 ## 2.3.1.7
 
 - Export KMZ : lecture des polylignes DXF `POLYLINE` 3D et `LWPOLYLINE`, converties en segments exportables.
