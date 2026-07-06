@@ -804,8 +804,21 @@ function computeResiduals(points, fit){
     state.lastControlledKey = g.key;
     state.lastControlledBase = Number.isFinite(g.base) ? g.base : null;
 
-    closeReview();
-    render();
+    // Confirmation visuelle (audit V2) : la validation n'affichait auparavant aucun
+    // retour, la fermeture était immédiate et silencieuse. On affiche brièvement un
+    // état de succès avant de fermer, pour que l'utilisateur voie que c'est pris en compte.
+    const confirmEl = qs('pieuxReviewConfirm');
+    if(confirmEl){
+      confirmEl.classList.remove('nf-hidden');
+      setTimeout(() => {
+        confirmEl.classList.add('nf-hidden');
+        closeReview();
+        render();
+      }, 600);
+    }else{
+      closeReview();
+      render();
+    }
   }
 
   // --------- Enable buttons

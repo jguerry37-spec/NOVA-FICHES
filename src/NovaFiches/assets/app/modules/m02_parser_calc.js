@@ -1762,7 +1762,9 @@ function renderAll(data){
   nfViewPointIds.implant = impPointsAll.map(p=>nfRowPid_(p)).filter(Boolean);
   const impPointsSorted = nfSortByZoneThenId_(impPoints);
   const impDupMeta = nfImplDuplicateMeta_(impPointsSorted);
-  const imp = nfImplDuplicateSummaryHtml_(impDupMeta) + nfZoneSummaryHtml_(impPointsSorted) + tableHtml(
+  const imp = (impPointsSorted.length === 0)
+    ? `<div class="small">Aucun point d'implantation détecté. Importez un fichier LandXML pour afficher les données.</div>`
+    : nfImplDuplicateSummaryHtml_(impDupMeta) + nfZoneSummaryHtml_(impPointsSorted) + tableHtml(
     ["Incl.","Code","Affectation","ID","Point metier","Occurrence","Horodatage","Station","X calc","Y calc","Z calc","X mes","Y mes","Z mes","Dx","Dy","Dz","STATUT"],
     impPointsSorted.map(p=>{
       const pointKey = (typeof window.NF_buildPointAssignKey === 'function') ? String(window.NF_buildPointAssignKey(p) || '') : '';
@@ -1804,7 +1806,9 @@ function renderAll(data){
   nfViewPointIds.lineref = lrPointsAll.map(rp=>nfRowPid_(rp)).filter(Boolean);
   const lrPointsSorted = nfSortByZoneThenId_(lrPoints);
   const lrDupMeta = nfImplDuplicateMeta_(lrPointsSorted);
-  const lr = nfImplDuplicateSummaryHtml_(lrDupMeta) + nfZoneSummaryHtml_(lrPointsSorted) + tableHtml(
+  const lr = (lrPointsSorted.length === 0)
+    ? `<div class="small">Aucun point de ligne de référence détecté. Importez un fichier LandXML pour afficher les données.</div>`
+    : nfImplDuplicateSummaryHtml_(lrDupMeta) + nfZoneSummaryHtml_(lrPointsSorted) + tableHtml(
     ["Incl.","Code","Affectation","ID point","Point metier","Occurrence","Horodatage","Station","X calc","Y calc","Z calc","X mes","Y mes","Z mes","Dx","Dy","Dz","STATUT"],
     lrPointsSorted.map(rp=>{
       const pointKey = (typeof window.NF_buildPointAssignKey === 'function') ? String(window.NF_buildPointAssignKey(rp) || '') : '';

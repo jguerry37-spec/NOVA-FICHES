@@ -37,6 +37,7 @@ document.getElementById("btnPdfInterventionPdfSharp")?.addEventListener("click",
     try{ delete window.__NF_IMPLANTATION_PDF_OVERRIDE; }catch(_){ window.__NF_IMPLANTATION_PDF_OVERRIDE = null; }
     if(!lastData){ setStatus("Aucune donnée chargée (import LandXML)", true); return; }
     if(!isPdfSharpAvailable()){ setStatus("PdfSharp indisponible côté C#.", true); return; }
+    setStatus("Génération du PDF en cours…");
 
     const tolTxt = (typeof buildTolText === "function") ? buildTolText() : "";
     const R = (typeof rf === "function") ? rf() : {};
@@ -144,6 +145,7 @@ stationLibre: (lastData && lastData.stationLibre) ? lastData.stationLibre : null
 document.getElementById("btnPdfCompletPdfSharp")?.addEventListener("click", async () => {
   try{
     if(!lastData){ setStatus("Aucune donnée chargée (import LandXML)", true); return; }
+    setStatus("Génération du rapport complet en cours…");
     const R = (typeof rf === "function") ? rf() : {};
     const O = (typeof getOptions === "function") ? getOptions() : { tolOn:false, xyOn:true, zOn:true, tXY: NaN, tZ: NaN };
     const tolTxt = (typeof buildTolText === "function") ? buildTolText() : "";
@@ -451,6 +453,11 @@ async function exportPdf(kind){
       showErrorDialog("Aucune donnée à exporter (import TXT requis).");
       return;
     }
+
+    // Retour visuel immédiat (audit V2 : le clic était muet jusqu'au résultat).
+    // Pour les rapports PdfSharp, le statut sera mis à jour à nouveau par le
+    // handler "pdf_result" (voir m01_core.js) une fois la génération C# terminée.
+    setStatus("Génération du PDF en cours…");
 
     const k = String(kind || "").toLowerCase();
     if(k === "implantation" || k === "intervention") return await buildPdfIntervention(data);

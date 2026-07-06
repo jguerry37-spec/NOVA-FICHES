@@ -431,7 +431,10 @@
     const sel = el('kmzCoordSys');
     if(bImport) bImport.addEventListener('click', () => post({ type:'kmz_import_txt', sourceCrs: sel ? sel.value : '__AUTO__' }));
     if(bImportDxf) bImportDxf.addEventListener('click', () => post({ type:'kmz_import_dxf' }));
-    if(bExport) bExport.addEventListener('click', () => post(combinedExportPayload()));
+    if(bExport) bExport.addEventListener('click', () => {
+      setStatus('Export KMZ en cours…');
+      post(combinedExportPayload());
+    });
     if(sel) sel.addEventListener('change', () => {
       if(state.txtPoints.length) post({ type:'kmz_reproject', sourceCrs: sel.value });
       if(state.dxfPoints.length) requestDxfPreview();
