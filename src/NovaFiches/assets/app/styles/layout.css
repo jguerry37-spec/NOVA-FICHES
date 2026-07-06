@@ -109,3 +109,19 @@ main.nf-content{ flex:1; padding:10px 20px; max-width:none; margin:0; overflow:a
   .nf-sidebar{ width:200px; flex-basis:200px; }
 }
 
+/* V2 Phase 6 — bandeau de mise à jour disponible (non intrusif, fermable) */
+.nf-update-banner{
+  display:flex; align-items:center; gap:14px;
+  background: rgba(18,103,243,.08);
+  border:1px solid rgba(18,103,243,.30);
+  border-radius: var(--radius-sm);
+  padding:8px 12px; margin:8px 0 0;
+  font-size:13px; color:var(--txt);
+}
+.nf-update-banner a{ color:#1267f3; font-weight:700; text-decoration:underline; }
+.nf-update-banner button{
+  margin-left:auto; background:none; border:none; cursor:pointer;
+  font-size:16px; line-height:1; color:var(--mut); padding:2px 6px;
+}
+.nf-update-banner button:hover{ color:var(--txt); }
+

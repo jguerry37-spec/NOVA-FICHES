@@ -1374,3 +1374,33 @@ try{
   });
 }catch(_){}
 
+// V2 Phase 6 — bandeau de mise à jour disponible, appelé depuis MainForm (UpdateCheck.cs)
+// via ExecuteScriptAsync. Purement informatif, jamais bloquant.
+window.NOVA_showUpdateBanner = function(latestVersion, downloadUrl){
+  try{
+    const banner = document.getElementById('updateBanner');
+    const text = document.getElementById('updateBannerText');
+    const link = document.getElementById('updateBannerLink');
+    if(!banner || !text || !link) return;
+
+    text.textContent = 'Nouvelle version disponible : ' + latestVersion;
+    if(downloadUrl){
+      link.href = downloadUrl;
+      link.classList.remove('nf-hidden');
+    }else{
+      link.classList.add('nf-hidden');
+    }
+    banner.classList.remove('nf-hidden');
+  }catch(_){ }
+};
+
+try{
+  const closeBtn = document.getElementById('updateBannerClose');
+  if(closeBtn){
+    closeBtn.addEventListener('click', () => {
+      const banner = document.getElementById('updateBanner');
+      if(banner) banner.classList.add('nf-hidden');
+    });
+  }
+}catch(_){ }
+

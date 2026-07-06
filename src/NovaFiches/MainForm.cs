@@ -621,6 +621,10 @@ _webView.CoreWebView2.NavigationCompleted += async (_, __) =>
     catch { }
 };
 
+// V2 Phase 6 — vérification de mise à jour, non bloquante, échec silencieux
+// (voir UpdateCheck.cs). Fire-and-forget : ne retarde jamais l'affichage de l'appli.
+_webView.CoreWebView2.NavigationCompleted += (_, __) => _ = CheckForUpdateAsync();
+
 HookDiagnostics(_webView);
             HookDownloadSaveAs(_webView);      // PDF typiquement
             HookWebMessageSaveAs(_webView);    // PDF via base64 + mimeType
@@ -645,6 +649,26 @@ HookDiagnostics(_webView);
             AppLog.Error("WebView2 init failed", ex);
             MessageBox.Show(this, "Erreur au démarrage WebView2.\nVoir logs.", "Nova-Fiches",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async System.Threading.Tasks.Task CheckForUpdateAsync()
+    {
+        try
+        {
+            var update = await UpdateCheck.CheckAsync();
+            if (update == null) return;
+
+            if (_webView?.CoreWebView2 == null) return;
+            var versionJs = System.Text.Json.JsonSerializer.Serialize(update.Value.LatestVersion);
+            var urlJs = System.Text.Json.JsonSerializer.Serialize(update.Value.DownloadUrl);
+            await _webView.CoreWebView2.ExecuteScriptAsync(
+                $"window.NOVA_showUpdateBanner && NOVA_showUpdateBanner({versionJs}, {urlJs});");
+            AppLog.Info($"UpdateCheck: nouvelle version disponible ({update.Value.LatestVersion}).");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Info($"UpdateCheck: échec silencieux — {ex.GetType().Name}: {ex.Message}");
         }
     }
 
