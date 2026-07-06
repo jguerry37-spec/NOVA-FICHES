@@ -1,0 +1,12 @@
+# Fichiers vendor (librairies tierces figées, hash SHA256 vérifié par
+# tools/vendor/check_vendor.ps1) : jamais de conversion de fins de ligne LF/CRLF,
+# sinon le hash diffère après un checkout Git sur une autre machine/OS (ex: runner
+# CI Windows) — cause réelle de l'échec CI "Vendor hash differs: jspdf.umd.min.js".
+src/NovaFiches/assets/vendor/** binary
+
+# Assets binaires : jamais de conversion de fins de ligne ni de diff texte.
+*.png binary
+*.ico binary
+*.pdf binary
+*.dll binary
+*.exe binary
