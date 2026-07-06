@@ -32,6 +32,12 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2739.15" />
   </ItemGroup>
 
+  <!-- Permet à NovaFiches.Tests d'appeler les services "internal" (LicenseService,
+       MachineId, LicensePayloadFormat) sans les rendre public. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="NovaFiches.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="assets\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

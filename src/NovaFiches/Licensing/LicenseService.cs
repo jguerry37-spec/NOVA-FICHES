@@ -40,10 +40,18 @@ internal static class LicenseService
     }
 
     /// <summary>
-    /// Valide le contenu JSON d'un fichier de licence (déjà lu en mémoire), sans toucher au disque.
-    /// Utilisé à la fois pour la licence installée et pour valider un fichier candidat avant installation.
+    /// Valide le contenu JSON d'un fichier de licence (déjà lu en mémoire), sans toucher au disque,
+    /// avec la clé publique de production embarquée. Utilisé à la fois pour la licence installée
+    /// et pour valider un fichier candidat avant installation.
     /// </summary>
-    public static LicenseValidationResult Validate(string licenseFileJson)
+    public static LicenseValidationResult Validate(string licenseFileJson) => Validate(licenseFileJson, PublicKeyBase64);
+
+    /// <summary>
+    /// Surcharge testable : accepte une clé publique arbitraire au lieu de la constante de
+    /// production, pour permettre aux tests de signer avec une paire de clés jetable sans
+    /// jamais manipuler la vraie clé privée.
+    /// </summary>
+    internal static LicenseValidationResult Validate(string licenseFileJson, string publicKeyBase64)
     {
         byte[] payloadBytes;
         byte[] signature;
@@ -60,7 +68,7 @@ internal static class LicenseService
         }
 
         using var ecdsa = ECDsa.Create();
-        ecdsa.ImportSubjectPublicKeyInfo(Convert.FromBase64String(PublicKeyBase64), out _);
+        ecdsa.ImportSubjectPublicKeyInfo(Convert.FromBase64String(publicKeyBase64), out _);
 
         if (!ecdsa.VerifyData(payloadBytes, signature, HashAlgorithmName.SHA256))
         {
