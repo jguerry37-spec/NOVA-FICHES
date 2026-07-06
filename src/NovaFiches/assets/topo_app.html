@@ -1062,7 +1062,12 @@ main.nf-content{ flex:1; padding:10px 20px; max-width:none; margin:0; overflow:a
 <script src="./app/modules/m01_core.js" defer></script>
 <script src="./app/modules/m02_parser_calc.js" defer></script>
 <script src="./app/modules/m04_pdf_post.js" defer></script>
-<script src="./app/modules/m03_pdf_reports.js" defer></script>
+<!-- m03_pdf_reports.js (3698 lignes) découpé en 4 fichiers le 06/07/2026 (même contenu,
+     même ordre, aucune logique modifiée) pour la maintenabilité. Voir AUDIT_VERIFIE_2.3.1.7.md. -->
+<script src="./app/modules/m03a_pdf_reports_core.js" defer></script>
+<script src="./app/modules/m03b_pdf_reports_zones.js" defer></script>
+<script src="./app/modules/m03c_pdf_reports_export.js" defer></script>
+<script src="./app/modules/m03d_pdf_reports_render.js" defer></script>
 <script src="./app/modules/m05_recollement_pieux.js" defer></script>
 <script src="./app/modules/m08_implantation_pieux.js" defer></script>
 <script src="./app/modules/m06_recolement_mnt.js" defer></script>

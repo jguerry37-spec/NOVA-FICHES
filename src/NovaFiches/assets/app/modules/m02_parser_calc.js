@@ -290,7 +290,7 @@ try{
         const parts = String(ip.textContent).trim().split(/\s+/);
         if(parts.length>=3){ N=num(parts[0]); E=num(parts[1]); H=num(parts[2]); }
       }
-    }catch(_){}
+    }catch(e){ console.warn('[Nova-Fiches][TXT] Points topo : InstrumentPoint illisible pour la station', sid || '(sans id)', e); }
     const stationKey = nfNormalizeStationKey(sid);
     const o = { setupId:stationKey, stationId:stationKey, idStation:stationKey, stationName:name, __xmlOrder: idx, station:{E,N,H}, observations:[], results:[] };
     setups.push(o);
@@ -314,7 +314,7 @@ try{
           if(parts.length>=3){ tE=num(parts[0]); tN=num(parts[1]); tH=num(parts[2]); }
         }
       }
-    }catch(_){}
+    }catch(e){ console.warn('[Nova-Fiches][TXT] Points topo : TargetPoint illisible pour la station', sid || '(sans id)', e); }
     if(!pid) return;
     if(excluded.has(pid)) return;
     if(pid === st.stationName) return;
@@ -348,10 +348,10 @@ try{
   });
 
   out.topoStations = setups.filter(st => (st.observations?.length||0)>0 || (st.results?.length||0)>0);
-}catch(_){}
+}catch(e){ console.warn('[Nova-Fiches][TXT] Section "Points topo" ignorée suite à une erreur de parsing (out.topoStations reste vide).', e); }
 
 // Expose CgPoints for TXT exports (name => {E,N,H,t})
-  try{ out.cgPoints = cg; }catch(_){ }
+  try{ out.cgPoints = cg; }catch(e){ console.warn('[Nova-Fiches][TXT] Exposition de cgPoints impossible.', e); }
 
   return out;
 }
@@ -1243,7 +1243,7 @@ try{
         const parts = String(ip.textContent).trim().split(/\s+/);
         if(parts.length>=3){ N=num(parts[0]); E=num(parts[1]); H=num(parts[2]); }
       }
-    }catch(_){}
+    }catch(e){ console.warn('[Nova-Fiches][LandXML] Points topo : InstrumentPoint illisible pour la station', sid || '(sans id)', e); }
     const o = { setupId:sid, stationName:name, __xmlOrder: idx, station:{E,N,H}, observations:[], results:[] };
     setups.push(o);
     if(sid) setupById[sid]=o;
@@ -1267,7 +1267,7 @@ try{
           if(parts.length>=3){ tE=num(parts[0]); tN=num(parts[1]); tH=num(parts[2]); }
         }
       }
-    }catch(_){ }
+    }catch(e){ console.warn('[Nova-Fiches][LandXML] Points topo : TargetPoint illisible pour la station', sid || '(sans id)', e); }
     if(!pid) return;
     if(excluded.has(pid)) return;
     if(pid === st.stationName) return;
@@ -1310,15 +1310,54 @@ try{
   });
 
   out.topoStations = setups.filter(st => (st.observations?.length||0)>0 || (st.results?.length||0)>0);
-}catch(_){}
+}catch(e){ console.warn('[Nova-Fiches][LandXML] Section "Points topo" ignorée suite à une erreur de parsing (out.topoStations reste vide).', e); }
 
 // Expose CgPoints for TXT exports (name => {E,N,H,t})
-  try{ out.cgPoints = cg; }catch(_){ }
+  try{ out.cgPoints = cg; }catch(e){ console.warn('[Nova-Fiches][LandXML] Exposition de cgPoints impossible.', e); }
 
   return out;
 }
 
-window.parseLandXmlLeica = parseLandXmlLeica;
+// Garde-fou (audit 06/07/2026) : les coordonnées LandXML ne sont jamais validées en plage
+// plausible avant usage (parsing/export/rendu). On journalise ici les anomalies sans jamais
+// modifier les données ni interrompre le traitement : un fichier corrompu ou une valeur
+// aberrante (ex. 1e12, NaN) reste utilisable tel quel, mais devient diagnosticable.
+const NF_COORD_ABS_LIMIT = 20000000; // couvre largement Lambert legacy, RGF93/CC et WGS84*1e6
+
+function nfIsPlausibleCoordinateValue(value){
+  return typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= NF_COORD_ABS_LIMIT;
+}
+
+function nfScanCoordinateAnomalies(data, fileName){
+  const KEYS = new Set(["E", "N", "H", "X", "Y", "Z"]);
+  const seen = new Set();
+  let anomalies = 0;
+
+  function walk(node, path){
+    if(!node || typeof node !== "object" || seen.has(node)) return;
+    seen.add(node);
+    for(const key of Object.keys(node)){
+      const value = node[key];
+      if(KEYS.has(key) && typeof value === "number"){
+        if(!nfIsPlausibleCoordinateValue(value)){
+          anomalies++;
+          console.warn(`[Nova-Fiches] Coordonnée suspecte (${key}=${value}) dans ${fileName || "fichier importé"} (${path}.${key}).`);
+        }
+      }else if(value && typeof value === "object"){
+        walk(value, path ? `${path}.${key}` : key);
+      }
+    }
+  }
+
+  try{ walk(data, ""); }catch(e){ console.warn("[Nova-Fiches] Analyse de plausibilité des coordonnées interrompue.", e); }
+  return anomalies;
+}
+
+window.parseLandXmlLeica = function(xmlText, fileName){
+  const data = parseLandXmlLeica(xmlText, fileName);
+  try{ nfScanCoordinateAnomalies(data, fileName); }catch(_){ }
+  return data;
+};
 
 window.nfEnterLandXmlModule = function(targetId){
   try{
@@ -1333,6 +1372,12 @@ window.nfEnterLandXmlModule = function(targetId){
 /* =========================
    HTML rendering
 ========================= */
+// Garde-fou (audit 06/07/2026) : aucune limite n'existait sur le nombre de lignes rendues,
+// un LandXML anormalement volumineux pouvait créer des dizaines de milliers de <tr> et
+// bloquer/planter la WebView2. Le rendu est plafonné ; les données réelles (analyse, export,
+// PDF) ne sont pas affectées, seul l'affichage de ce tableau est tronqué.
+const NF_TABLE_MAX_ROWS = 3000;
+
 function tableHtml(headers, rows){
   const cell = (c) => {
     // Allow inline HTML only via explicit opt-in ({__html:true, value:...}) for cells we
@@ -1343,11 +1388,21 @@ function tableHtml(headers, rows){
     return esc(String(c ?? ""));
   };
 
+  const totalRows = Array.isArray(rows) ? rows.length : 0;
+  const truncated = totalRows > NF_TABLE_MAX_ROWS;
+  const displayedRows = truncated ? rows.slice(0, NF_TABLE_MAX_ROWS) : rows;
+  const warningHtml = truncated
+    ? `<div class="small" style="margin:0 0 8px;padding:6px 10px;border:1px solid #ffb020;background:#fff7d6;border-radius:8px;color:#5f3b00;">
+         Affichage limité à ${NF_TABLE_MAX_ROWS} lignes sur ${totalRows} (le calcul et l'export portent bien sur l'ensemble des données).
+       </div>`
+    : "";
+
   return `
+    ${warningHtml}
     <div style="overflow:auto; max-height:520px;">
       <table>
         <thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead>
-        <tbody>${rows.map(r=>{
+        <tbody>${displayedRows.map(r=>{
           const cells = (r && typeof r === "object" && r.__row) ? (Array.isArray(r.cells) ? r.cells : []) : r;
           const style = (r && typeof r === "object" && r.__row && r.style) ? ` style="${String(r.style)}"` : "";
           return `<tr${style}>${(Array.isArray(cells)?cells:[]).map(c=>`<td class="mono">${cell(c)}</td>`).join("")}</tr>`;
@@ -2745,7 +2800,11 @@ function drawStationBlock(doc, y, R){
 // buttons remain disabled because the import handler can't reach these functions.
 try {
   window.renderAll = renderAll;
-  window.parseTxtLeica1200 = parseTxtLeica1200;
+  window.parseTxtLeica1200 = function(text, fileName){
+    const data = parseTxtLeica1200(text);
+    try{ nfScanCoordinateAnomalies(data, fileName); }catch(_){ }
+    return data;
+  };
 } catch (_) {}
 
 
