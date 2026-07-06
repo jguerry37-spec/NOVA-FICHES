@@ -1170,15 +1170,21 @@ if(txtIn){
           // Build stationId -> timestamp (ms) index from LandXML CgPoints
           const stationTimes = new Map();
           const stationIds = [];
+          const stationNameById = new Map();
           for(const r of runsAll){
             const sid = r?.results?.idStation || null;
             if(sid && !stationIds.includes(sid)) stationIds.push(sid);
+            if(sid && !stationNameById.has(sid)) stationNameById.set(sid, r?.results?.stationName || null);
           }
           try{
             const dom = new DOMParser().parseFromString(state.landXmlText || '', 'text/xml');
             for(const sid of stationIds){
-              // exact match on name attribute
-              const node = dom.querySelector(`CgPoint[name="${CSS.escape(String(sid))}"]`);
+              // Le CgPoint d'une station est nommé d'après stationName (ex: "ST1 (2)" pour une
+              // 2e mise en station sur le même point), jamais d'après l'identifiant interne de
+              // mise en station (idStation, ex: "TPSSetupID_3_5") — sans quoi la recherche
+              // échoue toujours et tous les pieux retombent sur la 1re station du LandXML.
+              const name = stationNameById.get(sid) || sid;
+              const node = dom.querySelector(`CgPoint[name="${CSS.escape(String(name))}"]`);
               const tsAttr = node ? (node.getAttribute('timeStamp') || '') : '';
               const ts = Number.isFinite(Date.parse(tsAttr)) ? Date.parse(tsAttr) : null;
               stationTimes.set(sid, ts);

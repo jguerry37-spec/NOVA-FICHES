@@ -1046,13 +1046,21 @@ purpose: o.purpose ?? null
         const theoH = num(n.getAttribute('DesignPointOrthoHeight'));
 
         const mes = stakedId && cg[stakedId] ? cg[stakedId] : null;
-        const mesE = mes ? mes.E : null;
-        const mesN = mes ? mes.N : null;
-        const mesH = mes ? mes.H : null;
+        let mesE = mes ? mes.E : null;
+        let mesN = mes ? mes.N : null;
+        let mesH = mes ? mes.H : null;
 
         let dx = (mesE!=null && theoE!=null) ? (mesE-theoE) : num(n.getAttribute('StakeoutEastingDiff'));
         let dy = (mesN!=null && theoN!=null) ? (mesN-theoN) : num(n.getAttribute('StakeoutNorthingDiff'));
         let dz = (mesH!=null && theoH!=null) ? (mesH-theoH) : num(n.getAttribute('StakeoutHeightDiff'));
+
+        // Reprise d'implantation (ex: "IPt_337@96" généré par Leica quand un point est
+        // réimplanté) : la position mesurée n'est pas conservée sous ce nom exact dans le
+        // LandXML (seul l'écart Stakeout*Diff de cette tentative l'est). On la reconstruit
+        // depuis théo + écart plutôt que de laisser les cellules "mesuré" vides.
+        if(mesE==null && theoE!=null && dx!=null) mesE = theoE + dx;
+        if(mesN==null && theoN!=null && dy!=null) mesN = theoN + dy;
+        if(mesH==null && theoH!=null && dz!=null) mesH = theoH + dz;
 
         const appTime = n.getAttribute('ApplicationStartDateTime') || null;
         // Deterministic station attribution:

@@ -176,7 +176,7 @@ document.getElementById("btnPdfCompletPdfSharp")?.addEventListener("click", asyn
       // Cartouche / meta (same keys as other PdfSharp reports)
       // En PDF levé, on conserve le cartouche commun mais le libellé central doit être
       // celui du rapport, pas l'intitulé Implantation du projet.
-      elements: "POINTS TOPO (LEVÉ)",
+      elements: (R && R.elements) ? R.elements : "",
       entreprise: (R && (R.client || R.entreprise || R.ent)) ? (R.client || R.entreprise || R.ent) : "",
       contactClient: (R && (R.siteContact || R.contactClient || R.contact)) ? (R.siteContact || R.contactClient || R.contact) : "",
       systemeCoord: (R && (R.sysCoord || R.systemeCoord || R.coordSystem)) ? (R.sysCoord || R.systemeCoord || R.coordSystem) : "",
