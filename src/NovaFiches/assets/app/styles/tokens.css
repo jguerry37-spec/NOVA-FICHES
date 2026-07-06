@@ -2,6 +2,10 @@
 
 :root { --bg:#ffffff; --card:#ffffff; --txt:#0b1020; --mut:#4b5563; --err:#b91c1c; --brand:#1267f3; }
 
+/* V2 : échelle de rayons resserrée (outil métier, pas dashboard "bulle") et
+   bordure de séparation à la place des ombres portées génériques. */
+:root{ --radius-sm: 6px; --radius-md: 8px; --border-card: 1px solid rgba(11,16,32,.16); }
+
     :root{ --nf-field-h: 44px; }
 
 /* ETAPE 5 — Responsive terrain (1366x768 + 1920x1080) — v1
@@ -21,7 +25,7 @@
 }
 .btn{
   padding: var(--nf-btn-pad-y) var(--nf-btn-pad-x) !important;
-  border-radius: 10px !important;
+  border-radius: var(--radius-sm) !important;
   white-space: normal;
 }
 input[type="text"], input[type="date"], select{
