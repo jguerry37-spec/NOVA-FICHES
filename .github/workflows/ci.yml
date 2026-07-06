@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-and-test:
+    # WinForms + WebView2 (net8.0-windows) : ne peut pas builder sur linux/macos.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Setup Node (requis par tools/smoke)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build application (Release)
+        run: dotnet build "src/NovaFiches/TopoRapportWin.csproj" -c Release
+
+      - name: Build outil license-gen (Release)
+        run: dotnet build "tools/license-gen/LicenseGen.csproj" -c Release
+
+      - name: Run tests
+        run: dotnet test "src/NovaFiches.Tests/NovaFiches.Tests.csproj" -c Release --logger "console;verbosity=normal"
+
+      - name: Smoke check (syntaxe JS + symboles + HTML)
+        shell: pwsh
+        run: ./tools/smoke/smoke_check.ps1
+
+      - name: Vendor / offline check
+        shell: pwsh
+        run: ./tools/vendor/check_vendor.ps1
+
+      - name: Validation publish (sans packaging Inno)
+        shell: pwsh
+        run: |
+          $outDir = "publish-validation"
+          dotnet publish "src/NovaFiches/TopoRapportWin.csproj" -c Release -r win-x64 --self-contained false -o $outDir
+          if (-not (Test-Path (Join-Path $outDir "assets/topo_app.html"))) {
+            throw "Asset manquant après publish : assets/topo_app.html"
+          }
+          Write-Host "Publish de validation OK -> $outDir"
