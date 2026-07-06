@@ -1,0 +1,81 @@
+/* Design tokens : couleurs, espacements, densité responsive. Source unique de vérité. */
+
+:root { --bg:#ffffff; --card:#ffffff; --txt:#0b1020; --mut:#4b5563; --err:#b91c1c; --brand:#1267f3; }
+
+    :root{ --nf-field-h: 44px; }
+
+/* ETAPE 5 — Responsive terrain (1366x768 + 1920x1080) — v1
+   Objectif: zéro chevauchement, lisible, limiter scroll inutile.
+*/
+:root{
+  --nf-gap: 14px;
+  --nf-card-pad: 16px;
+  --nf-btn-pad-y: 10px;
+  --nf-btn-pad-x: 14px;
+  --nf-input-h: 36px;
+}
+
+/* Base compact (sans casser le style) */
+.card{
+  padding: var(--nf-card-pad) !important;
+}
+.btn{
+  padding: var(--nf-btn-pad-y) var(--nf-btn-pad-x) !important;
+  border-radius: 10px !important;
+  white-space: normal;
+}
+input[type="text"], input[type="date"], select{
+  height: var(--nf-input-h) !important;
+}
+textarea{
+  min-height: 84px !important;
+}
+
+/* Large screens */
+@media (min-width: 1600px){
+  :root{
+    --nf-gap: 16px;
+    --nf-card-pad: 18px;
+    --nf-btn-pad-y: 10px;
+    --nf-btn-pad-x: 16px;
+    --nf-input-h: 38px;
+  }
+}
+
+/* Terrain 1366x768: densifier */
+@media (max-width: 1400px){
+  :root{
+    --nf-gap: 12px;
+    --nf-card-pad: 14px;
+    --nf-btn-pad-y: 9px;
+    --nf-btn-pad-x: 12px;
+    --nf-input-h: 34px;
+  }
+
+  .nf-row2{ gap: 12px !important; }
+  .card{ margin-bottom: 10px !important; }
+  .btn{ font-size: 12.5px !important; line-height: 1.15 !important; }
+}
+
+/* Empiler Infos/Tolérances */
+@media (max-width: 1200px){
+  .nf-row2{
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Très petit */
+@media (max-width: 900px){
+  :root{
+    --nf-card-pad: 12px;
+    --nf-btn-pad-y: 8px;
+    --nf-btn-pad-x: 10px;
+    --nf-input-h: 32px;
+  }
+  textarea{ min-height: 74px !important; }
+}
+
+/* Visualisation tabs */
+@media (max-width: 1400px){
+  .tabs{ gap: 12px !important; }
+}

@@ -1,0 +1,111 @@
+/* Squelette de page : header, footer, sidebar, navigation, structure des modules. */
+
+
+    
+  .nf-hidden{display:none!important;}
+    body{ margin:0; font-family:system-ui,Segoe UI,Arial; background:var(--bg); color:var(--txt); }
+    header{ padding:8px 20px; border-bottom:0; position:sticky; top:0; backdrop-filter: blur(10px); background: rgba(255,255,255,.85); z-index:5; }
+    h1{ margin:0; font-size:18px; font-weight:800; }
+    main{ padding:10px 20px; max-width:1600px; margin:0 auto; }
+
+    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    
+    .headerRow{ align-items:center; }
+    .headerRow h1{ flex:1; }
+    #uiLogo{ width:220px; height:auto; display:block; margin-left:auto; }
+.row.nowrap{ flex-wrap:nowrap; overflow-x:auto; }
+    .grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:12px; }
+    @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
+
+    /* UI polish */
+footer#pageFooter{ padding:14px 20px; border-top:1px solid rgba(0,0,0,.10); color:var(--mut); font-size:12px; }
+    footer#pageFooter .addr{ font-weight:800; color:var(--txt); }
+    footer#pageFooter .legal{ margin-top:4px; line-height:1.35; }
+
+
+/* ETAPE 4.1a — header clean + logo bigger */
+header, .header, #header, .topbar, .app-header{
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+header hr, .header hr, #header hr, .topbar hr, .app-header hr{
+  display:none !important;
+}
+
+/* Logo sizing */
+.header-logo img, header img.logo, .topbar img, .app-header img{
+  height: 46px !important;
+  max-height: 52px !important;
+  width: auto !important;
+}
+/* If logo is SVG */
+.header-logo svg, header svg.logo, .topbar svg, .app-header svg{
+  height: 46px !important;
+  max-height: 52px !important;
+  width: auto !important;
+}
+
+
+
+/* ETAPE 4.1a RF1c — force header line removal + logo size + tighter top */
+#topBar{ border-bottom:none !important; box-shadow:none !important; }
+#uiLogo{ width:220px !important; height:auto !important; }
+main{ padding-top:10px !important; }
+
+
+
+/* RF1d — footer compact */
+footer, .footer {
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+
+
+
+/* 1.7.8 — Sticky footer (remove big blank area below) */
+html, body { height: 100%; }
+body{
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+main{ flex: 1 0 auto; }
+footer#pageFooter{ margin-top: auto; padding:10px 20px; }
+footer#pageFooter .row{ margin-top:4px !important; }
+#aboutLink{ margin-top:0 !important; }
+
+
+
+/* UX-1 (2.3.0.0) — Sidebar navigation + modules */
+.nf-app{ display:flex; min-height:100vh; }
+.nf-sidebar{
+  width:240px; flex:0 0 240px;
+  background:#f4f6f8;
+  border-right:1px solid rgba(0,0,0,.10);
+  /* Descendre le header NOVA-FICHES (menu WinForms en haut) */
+  padding:22px 12px 14px;
+  position:sticky; top:0; height:100vh; overflow:auto;
+}
+.nf-sb-title{ font-weight:900; letter-spacing:.3px; font-size:14px; margin:6px 0 2px; }
+.nf-sb-sub{ color:var(--mut); font-size:12px; margin-bottom:10px; }
+.nf-nav{ display:flex; flex-direction:column; gap:8px; }
+.nf-nav-item{
+  display:flex; align-items:center; gap:10px;
+  background:#fff; color:var(--txt);
+  border:1px solid rgba(0,0,0,.10);
+  padding:10px 10px; border-radius:12px;
+  cursor:pointer; font-weight:850; text-align:left;
+}
+.nf-nav-item:hover{ background: rgba(18,103,243,.06); border-color: rgba(18,103,243,.25); }
+.nf-nav-item.active{ background: rgba(18,103,243,.10); border-color: rgba(18,103,243,.45); }
+.nf-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+main.nf-content{ flex:1; padding:10px 20px; max-width:none; margin:0; overflow:auto; }
+.nf-module{ display:none; }
+.nf-module.active{ display:block; }
+@media (max-width: 980px){
+  .nf-sidebar{ width:200px; flex-basis:200px; }
+}
+
