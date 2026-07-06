@@ -2,14 +2,16 @@
 
 **Date :** 06 juillet 2026
 **Méthode :** chaque affirmation ci-dessous a été vérifiée directement contre le code source réel
-(C# + modules JS), pas seulement contre `BILAN_AUDIT_NOVA_FICHES_2.3.1.7.md` (rapport précédent,
-03 juillet 2026) qui contenait des erreurs factuelles — voir `_OBSOLETE_OPTION_A/POURQUOI_OBSOLETE.md`
-pour le détail de ces erreurs et pourquoi le pack de corrections qu'il avait généré ne devait pas
-être intégré tel quel.
+(C# + modules JS), pas seulement contre un rapport d'audit antérieur qui contenait des erreurs
+factuelles (voir section 1).
 
 ---
 
-## 1. Ce qui était faux dans l'audit précédent
+## 1. Ce qui était faux dans l'audit précédent (BILAN_AUDIT_NOVA_FICHES_2.3.1.7.md, 03/07/2026)
+
+Ce rapport et le pack de corrections "Option A" qu'il avait généré ont été retirés du dépôt lors du
+ménage du 06/07/2026 (voir section 6) — ils sont conservés dans l'historique Git si besoin de les
+consulter (commit `f31be20`, baseline initiale). Ce qui avait été identifié comme faux :
 
 - **"Bug critique" BUILD_INSTALLER** : faux. Tous les scripts `BUILD_INSTALLER_2.3.1.x.bat`
   réutilisent volontairement `NovaFiches_2.3.0.100.iss` comme template Inno Setup paramétré par
@@ -23,59 +25,69 @@ pour le détail de ces erreurs et pourquoi le pack de corrections qu'il avait g�
 
 ## 2. Ce qui était vrai et confirmé
 
-- Absence totale de tests automatisés touchant le vrai code (confirmé).
-- `m03_pdf_reports.js` est bien monolithique (3698 lignes).
+- Absence totale de tests automatisés touchant le vrai code (confirmé, corrigé — voir section 3).
+- `m03_pdf_reports.js` était bien monolithique (3698 lignes) — découpé depuis (section 3).
 - Conversion LandXML Y X Z → X Y Z et extraction de nom générique de pieu (`T62.1` → `T62`) sont
-  **correctement implémentées** dans `m02_parser_calc.js` (lignes ~243-248, ~482-485) et
-  `m05_recollement_pieux.js` (lignes 82-137) — vérifié directement dans le code, pas supposé.
+  **correctement implémentées** dans `m02_parser_calc.js` et `m05_recollement_pieux.js` — vérifié
+  directement dans le code, pas supposé.
 
-## 3. Corrections appliquées dans cette passe
+## 3. Corrections appliquées
 
 | # | Fichier | Correction |
 |---|---|---|
-| 1 | `src/NovaFiches/MainForm.cs` (12 sites) | `Process.Start(...)` n'était jamais disposé après ouverture d'un fichier/dossier généré (PDF, exports, aide) → ajout de `using var process =` sur les 12 occurrences. Fuite de handle mineure mais réelle sur une session longue avec beaucoup d'exports. |
-| 2 | `src/NovaFiches/DxfKmzService.cs` | `Load()` forçait l'encodage Windows-1252 sur tout DXF. Ajout d'une détection de BOM UTF-8 (`DecodeDxfText`) pour ne pas corrompre les DXF ré-exportés en UTF-8 (QGIS, LibreCAD...) contenant des accents, sans changer le comportement par défaut pour les DXF existants. |
-| 3 | `src/NovaFiches/assets/app/modules/m02_parser_calc.js` | **Faille XSS réelle** : la fonction `cell()` de `tableHtml()` laissait passer tout texte brut commençant par `<span` sans échappement (heuristique de confiance basée sur le contenu de la chaîne). Un code/ID de point importé d'un fichier LandXML/TXT malveillant construit pour commencer par `<span` pouvait injecter du HTML/JS dans la vue WebView2. Remplacé par le mécanisme d'opt-in explicite déjà utilisé ailleurs (`{__html:true, value:...}`), et converti les deux badges de statut qui reposaient sur ce contournement (lignes ~1727 et ~1769) vers ce même mécanisme sûr. |
-| 4 | `src/NovaFiches.Tests/` (nouveau projet) | Projet xUnit réel référençant `TopoRapportWin.csproj` et `NovaFiches.PdfSharpEngine.csproj`. 19 tests qui appellent le vrai code de production (`KmzExportService`, `DxfKmzService`, `Units`) — pas de réimplémentation. Tous verts. Voir section 4. |
-| 5 | Racine du dépôt | Pack "Option A" (tests fictifs, logger redondant, fix incorrect) déplacé dans `_OBSOLETE_OPTION_A/` avec explication, pour ne pas induire un futur mainteneur en erreur. |
-| 6 | Racine du dépôt | Dépôt Git initialisé (aucun n'existait avant) avec `.gitignore` adapté (bin/obj, `Installer/out`/`staging` générés, exécutables). |
+| 1 | `src/NovaFiches/MainForm.cs` (12 sites) | `Process.Start(...)` jamais disposé après ouverture d'un fichier/dossier généré (PDF, exports, aide) → `using var process =` sur les 12 occurrences. |
+| 2 | `src/NovaFiches/DxfKmzService.cs` | `Load()` forçait Windows-1252 sur tout DXF. Détection de BOM UTF-8 (`DecodeDxfText`) pour ne pas corrompre les DXF ré-exportés en UTF-8 (QGIS, LibreCAD...) contenant des accents. |
+| 3 | `src/NovaFiches/assets/app/modules/m02_parser_calc.js` | **Faille XSS réelle** : `cell()` de `tableHtml()` laissait passer tout texte brut commençant par `<span` sans échappement. Un code/ID de point importé pouvait injecter du HTML/JS. Remplacé par l'opt-in explicite `{__html:true, value:...}` partout. |
+| 4 | `src/NovaFiches/assets/app/modules/m02_parser_calc.js` | Plafond d'affichage (3000 lignes) dans `tableHtml()` — un LandXML anormalement volumineux ne bloque plus la WebView2 (calcul/export non affectés, seul l'affichage est tronqué). |
+| 5 | `src/NovaFiches/assets/app/modules/m02_parser_calc.js` | Détection de coordonnées implausibles (>20 000 km, NaN) après `parseLandXmlLeica`/`parseTxtLeica1200`, journalisée en `console.warn` sans modifier les données. |
+| 6 | `src/NovaFiches/assets/app/modules/m02_parser_calc.js` | Remplacement de plusieurs `catch(_){}` silencieux (section "Points topo" des deux parseurs) par des `console.warn` contextualisés. |
+| 7 | `src/NovaFiches/assets/app/modules/m03_pdf_reports.js` | Découpé en 4 fichiers (`m03a_pdf_reports_core.js`, `m03b_pdf_reports_zones.js`, `m03c_pdf_reports_export.js`, `m03d_pdf_reports_render.js`) — même contenu, même ordre, aucune logique modifiée. Vérifié par équilibre des accolades identique à l'original et par chargement réel en navigateur (self-check interne : toutes les fonctions principales présentes, 0 erreur console). |
+| 8 | `src/NovaFiches.Tests/` (nouveau projet) | Projet xUnit réel référençant `TopoRapportWin.csproj` et `NovaFiches.PdfSharpEngine.csproj`. 19 tests qui appellent le vrai code de production (`KmzExportService`, `DxfKmzService`, `Units`) — pas de réimplémentation. Tous verts. |
+| 9 | Racine du dépôt | Dépôt Git initialisé (aucun n'existait avant), `.gitignore` adapté. |
 
-## 4. Le nouveau projet de tests — ce qu'il couvre réellement
+### Bug introduit puis corrigé pendant cette même session
 
-`src/NovaFiches.Tests/` (19 tests, tous verts au 06/07/2026) :
+Les garde-fous ajoutés en #5 ont introduit une **récursion infinie** (`window.parseLandXmlLeica`/
+`window.parseTxtLeica1200` s'appelaient eux-mêmes via leur identifiant global, réaffecté) —
+détecté au premier import réel par l'utilisateur ("Maximum call stack size exceeded"), corrigé en
+capturant la référence d'origine avant réaffectation, et revérifié par appel réel (pas seulement
+présence) des deux fonctions avant de considérer le correctif validé. Leçon retenue : pour ce genre
+de wrapper sur une fonction globale de script classique, toujours capturer `const original = fn;`
+avant `window.fn = wrapper`.
 
-- **`KmzExportServiceTests.cs`** : détection de système de coordonnées depuis le nom de fichier et
-  les métadonnées, projection WGS84 (passthrough vérifié exactement), projection Lambert-93 → WGS84
-  (vérifiée par plage de cohérence géographique France métropolitaine, faute de disposer d'un outil
-  de référence externe pour valider une valeur exacte au mm près — voir commentaire dans le test),
-  export KMZ réel (ZIP valide + contenu KML avec le bon Placemark), rejet sur liste vide ou CRS inconnu.
-- **`DxfKmzServiceTests.cs`** : parsing d'un DXF minimal réel (POINT + LINE), et surtout un test
-  dédié à la régression corrigée (DXF UTF-8 avec BOM et calque accentué).
+## 4. Le projet de tests — ce qu'il couvre réellement
+
+`src/NovaFiches.Tests/` (19 tests, tous verts) :
+
+- **`KmzExportServiceTests.cs`** : détection de système de coordonnées, projection WGS84
+  (passthrough exact), projection Lambert-93 → WGS84 (cohérence géographique France métropolitaine),
+  export KMZ réel (ZIP valide + contenu KML), rejet sur liste vide ou CRS inconnu.
+- **`DxfKmzServiceTests.cs`** : parsing DXF minimal réel, régression UTF-8 BOM + calque accentué.
 - **`UnitsTests.cs`** : conversion mm↔pt.
 
-**Non couvert dans cette passe** (recommandation pour la suite) : `AutoCadExportService.cs`
-(dépend d'un schéma JSON `stateJson`/`payloadJson` non entièrement documenté — nécessiterait de
-clarifier le contrat avec le JS avant d'écrire des tests fiables), le rendu PDF (`PdfSharpEngine`,
-testable mais nécessiterait une comparaison d'image ou de structure PDF, hors scope de cette passe),
-et les modules JS (non testables par Node.js en l'état car ce sont des scripts globaux sans
-`export`/`import` — migrer vers des modules ES6 exportés serait un prérequis si des tests JS
-automatisés sont souhaités).
+**Non couvert** (recommandation pour la suite) : `AutoCadExportService.cs` (schéma JSON
+`stateJson`/`payloadJson` non entièrement documenté), le rendu PDF (`PdfSharpEngine`, nécessiterait
+une comparaison d'image/structure), les modules JS (scripts globaux sans `export`/`import` — migrer
+vers des modules ES6 serait un prérequis pour des tests Node.js).
 
-## 5. Recommandations restantes (non traitées dans cette passe, par priorité)
+## 5. Recommandations restantes (non traitées, par priorité)
 
-1. **Validation d'entrée côté JS** : pas de limite de taille de fichier LandXML/TXT, pas de
-   validation de plage de coordonnées, pas de limite du nombre de points — risque de blocage
-   navigateur/mémoire sur un fichier anormalement gros ou corrompu.
-2. **`catch(_){}` silencieux dans les modules JS** (ex. `m02_parser_calc.js` ~ligne 275-351) :
-   une erreur de parsing d'un point isolé échoue sans aucune trace exploitable.
-3. **Refactoriser `m03_pdf_reports.js`** (3698 lignes, mélange génération PDF + calculs + UI).
-4. **Vendors JS non versionnés** (jsPDF, Leaflet) : pas de `package.json`, versions figées sans
+1. Étendre la traçabilité aux ~140 autres `catch(_){}` silencieux du dossier JS (seule la section
+   "Points topo" des deux parseurs a été traitée dans cette passe).
+2. Vendors JS non versionnés (jsPDF, Leaflet) : pas de `package.json`, versions figées sans
    traçabilité — impossible de corriger une vulnérabilité connue sans resnapshotter à la main.
-5. **`AutoCadExportService.Sanitize`** accepte un fallback silencieux (`"NO_CHA"`) si tous les
-   champs attendus sont vides/nuls côté JSON — pas d'avertissement remonté à l'utilisateur.
+3. `AutoCadExportService.Sanitize` accepte un fallback silencieux (`"NO_CHA"`) si tous les champs
+   attendus sont vides/nuls côté JSON — pas d'avertissement remonté à l'utilisateur.
+4. Étendre `NovaFiches.Tests` à `AutoCadExportService` une fois le contrat JSON stabilisé/documenté.
 
----
+## 6. Ménage du 06/07/2026
 
-*Ce rapport remplace `BILAN_AUDIT_NOVA_FICHES_2.3.1.7.md` comme référence pour les décisions futures
-sur ce dépôt. L'ancien rapport reste conservé pour historique mais ne doit plus être utilisé comme
-source de vérité sans revérification.*
+Supprimés (préservés dans l'historique Git, commit `f31be20` et suivants, si besoin de les
+retrouver) : les 3 anciens audits (`AUDIT_2.2.0.13_to_2.2.0.14.md`, `AUDIT_BASELINE_2.2.0.25/26.md`),
+`BILAN_AUDIT_NOVA_FICHES_2.3.1.7.md` (superseded, contenait des erreurs — voir section 1), le dossier
+`_OBSOLETE_OPTION_A/` (pack de corrections invalide déjà expliqué et neutralisé), les scripts
+`BUILD_INSTALLER_*.bat` et `.iss` de versions antérieures à 2.3.1.7 (un seul script/template actif
+suffit, le `.iss` est un template partagé paramétré), `patch_infos_dossier.pl` et `_new_cartouche.txt`
+(aucune référence trouvée dans le code actif), les dossiers vides `files/` et `out/` (racine), et
+30 des 31 exécutables archivés dans `Installer/out/` (ne conservant que `NovaFiches_Setup_2.3.1.7.exe`
+comme référence de production actuelle — décision explicite de l'utilisateur, pas automatique).
