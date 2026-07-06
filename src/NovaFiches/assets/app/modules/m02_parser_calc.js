@@ -1353,8 +1353,17 @@ function nfScanCoordinateAnomalies(data, fileName){
   return anomalies;
 }
 
+// IMPORTANT : on capture la référence de la fonction d'origine AVANT de réaffecter
+// window.parseLandXmlLeica. `function parseLandXmlLeica(){}` déclarée au niveau supérieur
+// d'un script classique crée à la fois la variable globale "parseLandXmlLeica" ET la
+// propriété window.parseLandXmlLeica, sur le MÊME binding. Si le wrapper ci-dessous
+// appelait l'identifiant nu "parseLandXmlLeica" directement, cet appel se résoudrait -
+// au moment de l'exécution - vers la valeur COURANTE du binding global, c'est-à-dire le
+// wrapper lui-même (puisqu'il vient d'être réaffecté à window.parseLandXmlLeica) :
+// récursion infinie ("Maximum call stack size exceeded") au premier import LandXML.
+const nfOriginalParseLandXmlLeica = parseLandXmlLeica;
 window.parseLandXmlLeica = function(xmlText, fileName){
-  const data = parseLandXmlLeica(xmlText, fileName);
+  const data = nfOriginalParseLandXmlLeica(xmlText, fileName);
   try{ nfScanCoordinateAnomalies(data, fileName); }catch(_){ }
   return data;
 };
@@ -2800,8 +2809,12 @@ function drawStationBlock(doc, y, R){
 // buttons remain disabled because the import handler can't reach these functions.
 try {
   window.renderAll = renderAll;
+  // Même précaution que pour parseLandXmlLeica ci-dessus : capturer la référence
+  // d'origine AVANT de réaffecter window.parseTxtLeica1200, pour éviter une
+  // récursion infinie au premier appel.
+  const nfOriginalParseTxtLeica1200 = parseTxtLeica1200;
   window.parseTxtLeica1200 = function(text, fileName){
-    const data = parseTxtLeica1200(text);
+    const data = nfOriginalParseTxtLeica1200(text);
     try{ nfScanCoordinateAnomalies(data, fileName); }catch(_){ }
     return data;
   };
