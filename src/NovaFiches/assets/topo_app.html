@@ -1,0 +1,1211 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Topo — Rapport d’intervention</title>
+
+  <!-- Offline vendor fallback (place files in ./vendor/ ) -->
+  <script src="./app/boot.js" defer></script>
+  <script src="./app/inline_01.js" defer></script>
+  <script src="./vendor/jspdf.umd.min.js" defer></script>
+  <script src="./vendor/jspdf.plugin.autotable.min.js" defer></script>
+  <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
+  <script src="./vendor/leaflet/leaflet.js" defer></script>
+
+
+  <!-- PDF libs -->
+  <!-- PDF canonical overrides (offline-safe) -->
+  <script src="./app/inline_02.js" defer></script>
+<style>
+
+    
+  .nf-hidden{display:none!important;}
+:root { --bg:#ffffff; --card:#ffffff; --txt:#0b1020; --mut:#4b5563; --err:#b91c1c; --brand:#1267f3; }
+    body{ margin:0; font-family:system-ui,Segoe UI,Arial; background:var(--bg); color:var(--txt); }
+    header{ padding:8px 20px; border-bottom:0; position:sticky; top:0; backdrop-filter: blur(10px); background: rgba(255,255,255,.85); z-index:5; }
+    h1{ margin:0; font-size:18px; font-weight:800; }
+    main{ padding:10px 20px; max-width:1600px; margin:0 auto; }
+
+    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    
+    .headerRow{ align-items:center; }
+    .headerRow h1{ flex:1; }
+    #uiLogo{ width:220px; height:auto; display:block; margin-left:auto; }
+.row.nowrap{ flex-wrap:nowrap; overflow-x:auto; }
+    .grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:12px; }
+    @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
+
+    .card{ background: var(--card); border:1px solid rgba(0,0,0,.10); border-radius:14px; padding:14px; box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+    .card h2{ margin:0 0 10px; font-size:13px; color:var(--mut); font-weight:800; letter-spacing:.2px; text-transform:uppercase; }
+
+    button, .btn {
+      background:var(--brand); color:#fff; border:1px solid rgba(0,0,0,.06);
+      padding:10px 12px; border-radius:12px; cursor:pointer; font-weight:750;
+    }
+    button:hover{ filter:brightness(0.98); }
+    button:disabled{ opacity:.45; cursor:not-allowed; }
+    /* Default: keep inputs off-screen (most pickers are driven by associated UI) */
+    input[type="file"]{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+
+    /* WebView2-safe file picker: input overlays its button so the user click targets the <input> */
+    .nf-filepick{ position:relative; display:inline-block; }
+    .nf-filepick > button{ position:relative; z-index:1; }
+    .nf-filepick > input[type="file"]{
+      position:absolute; inset:0; width:100%; height:100%;
+      opacity:0; cursor:pointer; z-index:2;
+      left:auto; /* override off-screen */
+    }
+    .pill{ padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14); color:var(--mut); font-size:12px; font-weight:800; }
+    /* Lisibilité: on garde le vert en fond/contour mais on passe le texte en noir (contraste) */
+    .pill.ok{ border-color: rgba(46,204,113,.60); color: var(--txt); background: rgba(46,204,113,.18); }
+    .pill.err{ border-color: rgba(255,154,168,.6); color: var(--err); }
+    .pill.warn{ border-color: rgba(255,198,122,.85); color: var(--txt); background: rgba(255, 214, 153, .22); }
+    .small{ font-size:12px; color:var(--mut); }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    /* DZ mis en avant (implantation) */
+    .nf-dz-big{ font-weight:900; font-size:14px; color:var(--txt); }
+
+    
+    /* Toggle Calculer Dz (Implantation) : plus gros et aligné avec les boutons */
+    .dz-toggle{ display:flex; gap:8px; align-items:center; margin-left:12px; }
+    .dz-toggle input{ transform: scale(2); transform-origin:left center; }
+    .dz-toggle .small{ font-weight:700; font-size:13px; color:var(--txt); }
+.nf-clickable{ cursor:pointer; }
+    .nf-clickable:hover{ background: rgba(18,103,243,.05); }
+
+
+    .box {
+      width:100%; margin-top:6px; padding:10px; border-radius:12px;
+      border:1px solid rgba(0,0,0,.12); background:#fff; color:var(--txt);
+    }
+
+    /* Uniformiser la hauteur/alignement de toutes les zones de saisie */
+    :root{ --nf-field-h: 44px; }
+    input.box, select.box{
+      height: var(--nf-field-h);
+      min-height: var(--nf-field-h);
+      line-height: 1.2;
+      box-sizing: border-box;
+    }
+    input.box[readonly]{ opacity:1; }
+
+    /* Grille 3 colonnes pour un alignement strict (Infos dossier) */
+    .infoGrid3{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap:12px;
+      align-items:end;
+    }
+    .infoGrid3 .field{ min-width:0; }
+    .infoGrid3 .span-1{ grid-column: span 1; }
+    .infoGrid3 .span-2{ grid-column: span 2; }
+    .infoGrid3 .span-3{ grid-column: span 3; }
+
+    @media (max-width: 980px){
+      .infoGrid3{ grid-template-columns: 1fr; }
+      .infoGrid3 .span-1, .infoGrid3 .span-2, .infoGrid3 .span-3{ grid-column: span 1; }
+    }
+
+    table{ width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px; }
+    th, td{ padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.08); font-size:12.5px; }
+    th{ text-align:left; color:var(--mut); font-weight:800; background: rgba(18,103,243,.08); position:sticky; top:0; z-index:2; }
+
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+    .tab { display:inline-flex; align-items:center; justify-content:center; padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14); cursor:pointer; color:var(--mut); background: rgba(255,255,255,.03); white-space:nowrap; user-select:none; }
+    .tab.active { color: var(--txt); background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.20); }
+    .tabs{ align-items:center; }
+    .tab{ display:inline-flex; white-space:nowrap; }
+
+  
+    /* Step 2.2 + 2.3 — clarif métier + confort */
+    .st{display:inline-block;padding:2px 8px;border-radius:999px;font-weight:800;font-size:11px;letter-spacing:.2px;border:1px solid rgba(255,255,255,.14)}
+    /* Statuts (tableaux) : lisibilité avant tout (fond léger + texte noir) */
+    .st-ok{background:rgba(46,204,113,.22);color:#111;border-color:rgba(46,204,113,.55)}
+    .st-ko{background:rgba(231,76,60,.18);color:#111;border-color:rgba(231,76,60,.55)}
+    .st-na{background:rgba(255,255,255,.10);color:#333}
+    .hintBox{display:none !important}
+    .hintTitle{font-weight:850;margin-bottom:6px;color:var(--txt)}
+
+    /* UI polish */
+footer#pageFooter{ padding:14px 20px; border-top:1px solid rgba(0,0,0,.10); color:var(--mut); font-size:12px; }
+    footer#pageFooter .addr{ font-weight:800; color:var(--txt); }
+    footer#pageFooter .legal{ margin-top:4px; line-height:1.35; }
+
+
+
+/* ETAPE 4.1 — layout stable (single grid) */
+.nf-row2{
+  display:grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap:14px;
+  /* Colonnes meme hauteur -> limite l'ascenseur inutile */
+  align-items:stretch;
+}
+.nf-col{ min-width:0; }
+.nf-col-right{
+  display:flex;
+  flex-direction:column;
+  /* Empilement compact : PROJET + TOLÉRANCES collés (pas d'espace vide) */
+  gap:12px;
+}
+.tolCard{ margin-top:0; }
+
+
+/* PROJET — layout 2 colonnes (Infos dossier à gauche, Projet+Tolérances à droite) */
+.proj-grid{
+  display:grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap:14px;
+  align-items:stretch;
+}
+.proj-left{ min-width:0; }
+.proj-right{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+@media (max-width: 1200px){
+  .proj-grid{ grid-template-columns: 1fr; }
+}
+
+/* Référentiel projet (coords/PPM/intervenant/altim) : alignements cohérents */
+.metaGrid{
+  display:grid;
+  grid-template-columns: 1.2fr 0.7fr 1fr;
+  gap:10px;
+  align-items:end;
+}
+.metaPlaceholder{ visibility:hidden; }
+@media (max-width: 1200px){
+  .nf-row2{ grid-template-columns: 1fr; }
+}
+
+/* Tolérances: XY + Z côte à côte */
+.tol-row{ display:flex; gap:12px; align-items:flex-end; flex-wrap:nowrap; }
+#tolXY,#tolZ{ width:120px; max-width:120px; }
+.tol-actions-row{ display:flex; justify-content:flex-end; }
+#btnRecalc{ min-width:140px; height:36px; border-radius:10px; }
+#repObs,#repSurveyor{ max-width:520px; }
+@media (max-width: 1200px){
+  .tol-row{ flex-wrap:wrap; }
+  #tolXY,#tolZ{ width:160px; max-width:100%; }
+  #repObs,#repSurveyor{ max-width:100%; }
+}
+
+
+
+/* ETAPE 4.1a — header clean + logo bigger */
+header, .header, #header, .topbar, .app-header{
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+header hr, .header hr, #header hr, .topbar hr, .app-header hr{
+  display:none !important;
+}
+
+/* Logo sizing */
+.header-logo img, header img.logo, .topbar img, .app-header img{
+  height: 46px !important;
+  max-height: 52px !important;
+  width: auto !important;
+}
+/* If logo is SVG */
+.header-logo svg, header svg.logo, .topbar svg, .app-header svg{
+  height: 46px !important;
+  max-height: 52px !important;
+  width: auto !important;
+}
+
+
+
+/* ETAPE 4.1a RF1c — force header line removal + logo size + tighter top */
+#topBar{ border-bottom:none !important; box-shadow:none !important; }
+#uiLogo{ width:220px !important; height:auto !important; }
+main{ padding-top:10px !important; }
+
+
+
+/* RF1d — footer compact */
+footer, .footer {
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+
+
+
+/* 1.7.8 — Sticky footer (remove big blank area below) */
+html, body { height: 100%; }
+body{
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+main{ flex: 1 0 auto; }
+footer#pageFooter{ margin-top: auto; padding:10px 20px; }
+footer#pageFooter .row{ margin-top:4px !important; }
+#aboutLink{ margin-top:0 !important; }
+
+
+
+/* ETAPE 5 — Responsive terrain (1366x768 + 1920x1080) — v1
+   Objectif: zéro chevauchement, lisible, limiter scroll inutile.
+*/
+:root{
+  --nf-gap: 14px;
+  --nf-card-pad: 16px;
+  --nf-btn-pad-y: 10px;
+  --nf-btn-pad-x: 14px;
+  --nf-input-h: 36px;
+}
+
+/* Base compact (sans casser le style) */
+.card{
+  padding: var(--nf-card-pad) !important;
+}
+.btn{
+  padding: var(--nf-btn-pad-y) var(--nf-btn-pad-x) !important;
+  border-radius: 10px !important;
+  white-space: normal;
+}
+input[type="text"], input[type="date"], select{
+  height: var(--nf-input-h) !important;
+}
+textarea{
+  min-height: 84px !important;
+}
+
+/* Large screens */
+@media (min-width: 1600px){
+  :root{
+    --nf-gap: 16px;
+    --nf-card-pad: 18px;
+    --nf-btn-pad-y: 10px;
+    --nf-btn-pad-x: 16px;
+    --nf-input-h: 38px;
+  }
+}
+
+/* Terrain 1366x768: densifier */
+@media (max-width: 1400px){
+  :root{
+    --nf-gap: 12px;
+    --nf-card-pad: 14px;
+    --nf-btn-pad-y: 9px;
+    --nf-btn-pad-x: 12px;
+    --nf-input-h: 34px;
+  }
+
+  .nf-row2{ gap: 12px !important; }
+  .card{ margin-bottom: 10px !important; }
+  .btn{ font-size: 12.5px !important; line-height: 1.15 !important; }
+}
+
+/* Empiler Infos/Tolérances */
+@media (max-width: 1200px){
+  .nf-row2{
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Très petit */
+@media (max-width: 900px){
+  :root{
+    --nf-card-pad: 12px;
+    --nf-btn-pad-y: 8px;
+    --nf-btn-pad-x: 10px;
+    --nf-input-h: 32px;
+  }
+  textarea{ min-height: 74px !important; }
+}
+
+/* Tolérances : éviter débordements */
+.tol-row{ flex-wrap: wrap !important; }
+#tolXY,#tolZ{ width: 140px; max-width: 100%; }
+#btnRecalc{ min-width: 140px; }
+
+/* Visualisation tabs */
+@media (max-width: 1400px){
+  .tabs{ gap: 12px !important; }
+}
+
+
+/* UX-1 (2.3.0.0) — Sidebar navigation + modules */
+.nf-app{ display:flex; min-height:100vh; }
+.nf-sidebar{
+  width:240px; flex:0 0 240px;
+  background:#f4f6f8;
+  border-right:1px solid rgba(0,0,0,.10);
+  /* Descendre le header NOVA-FICHES (menu WinForms en haut) */
+  padding:22px 12px 14px;
+  position:sticky; top:0; height:100vh; overflow:auto;
+}
+.nf-sb-title{ font-weight:900; letter-spacing:.3px; font-size:14px; margin:6px 0 2px; }
+.nf-sb-sub{ color:var(--mut); font-size:12px; margin-bottom:10px; }
+.nf-nav{ display:flex; flex-direction:column; gap:8px; }
+.nf-nav-item{
+  display:flex; align-items:center; gap:10px;
+  background:#fff; color:var(--txt);
+  border:1px solid rgba(0,0,0,.10);
+  padding:10px 10px; border-radius:12px;
+  cursor:pointer; font-weight:850; text-align:left;
+}
+.nf-nav-item:hover{ background: rgba(18,103,243,.06); border-color: rgba(18,103,243,.25); }
+.nf-nav-item.active{ background: rgba(18,103,243,.10); border-color: rgba(18,103,243,.45); }
+.nf-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+main.nf-content{ flex:1; padding:10px 20px; max-width:none; margin:0; overflow:auto; }
+.nf-module{ display:none; }
+.nf-module.active{ display:block; }
+@media (max-width: 980px){
+  .nf-sidebar{ width:200px; flex-basis:200px; }
+}
+
+  .kmz-dxf-text{
+    background:rgba(255,255,255,.82);
+    border:0;
+    box-shadow:none;
+    color:#111;
+    font:600 12px "Segoe UI",Arial,sans-serif;
+    padding:1px 3px;
+    white-space:nowrap;
+  }
+  .kmz-dxf-text::before{display:none;}
+</style>
+</head>
+
+<body>
+<div class="nf-app">
+  <aside class="nf-sidebar">
+    <div class="nf-sb-title">NOVA-FICHES</div>
+    <div class="nf-sb-sub">Navigation</div>
+    <nav class="nf-nav">
+      <button class="nf-nav-item active" data-target="module-projet">📁 Projet</button>
+      <button class="nf-nav-item" data-target="module-implantation">📐 Implantation / ligne de réf</button>
+      <button class="nf-nav-item" data-target="module-suivi">📊 Station / Levé topo</button>
+      <button class="nf-nav-item" data-target="module-recolement">🧱 Pieux - Implantation et récolement</button>
+      <button class="nf-nav-item" data-target="module-recolement-mnt">&#128739;&#65039; Récolement MNT</button>
+      <button class="nf-nav-item" data-target="module-export-kmz">🌍 Export KMZ Google Earth</button>
+      <button class="nf-nav-item" data-target="module-reportage-photo">&#128247; Reportage photo</button>
+    </nav>
+    <div class="small" style="margin-top:12px;">
+      <div id="sbStatus">Prêt</div>
+      <div id="sbBuild" class="mono"></div>
+    </div>
+  </aside>
+
+  <div class="nf-main">
+    <header id="topBar">
+      <div class="row" style="justify-content:flex-end;">
+        <img id="uiLogo" alt="NOVATLAS" src="novatlas_logo.png" />
+      </div>
+    </header>
+
+    <main class="nf-content">
+      <section id="module-projet" class="nf-module active">
+
+  <div class="card">
+    <h2>Import</h2>
+    <div class="row">
+      <label class="btn" for="landXmlInput">Importer un fichier LandXML</label>
+      <input id="landXmlInput" type="file" accept=".xml,application/xml,text/xml" />
+
+      <!-- Champ caché (compat) : utilisé comme "texte de référence" (saisie WinForms) -->
+      <input id="repLandXml" type="text" value="" style="display:none" />
+      <!-- Nom du fichier LandXML importé (technique) : ne doit PAS polluer "Plan de référence" -->
+      <input id="repLandXmlFile" type="text" value="" style="display:none" />
+      <span id="fileStatus" class="pill nf-hidden">LandXML : aucun</span>
+
+      <span id="exXmlStatus" class="pill nf-hidden">LandXML : aucun</span>
+
+      <label class="btn" for="sigInput">Importer sa signature</label>
+      <input id="sigInput" type="file" accept="image/*" />
+      <span id="sigStatus" class="pill">Signature : aucune</span>
+</div>
+    <div class="small" style="margin-top:10px;">
+      Si le PDF ne se génère pas : vérifier WebView2, les droits d’écriture dans “Exports”, et les logs.
+    </div>
+  </div>
+
+  
+
+  
+    <div class="proj-grid" style="margin-top:12px;">
+    <div class="proj-left">
+<div class="card">
+      <h2>Infos dossier (cartouche)</h2>
+
+      <div class="infoGrid3" style="margin-top:10px;">
+  <div class="field span-3">
+    <div class="small">Nom de l’intervention</div>
+    <input id="repElements" class="box" type="text" placeholder="IMPLANTATION N10" />
+  </div>
+
+  <div class="field span-3">
+    <div class="small">Type de plan</div>
+    <input id="repPlanType" class="box" type="text" placeholder="Plan de recolement" />
+  </div>
+
+  <div class="field span-3">
+    <div class="small">Ville</div>
+    <input id="repZone" class="box" type="text" placeholder="Paris 16" />
+  </div>
+
+  <div class="field span-2">
+    <div class="small">Adresse chantier</div>
+    <input id="repSiteAddress" class="box" type="text" placeholder="104 Avenue du Président Kennedy" />
+  </div>
+  <div class="field span-1">
+    <div class="small">Contact chantier</div>
+    <input id="repSiteContact" class="box" type="text" placeholder="Nom / Prénom" />
+  </div>
+
+  <div class="field span-1">
+    <div class="small">N° CHA</div>
+    <!-- CHA : on saisit uniquement les chiffres (ex: 02782). Le préfixe CHA est ajouté dans les PDFs. -->
+    <input id="repCHA" class="box" type="text" placeholder="02782" />
+  </div>
+  <div class="field span-1">
+    <div class="small">Date d’intervention</div>
+    <input id="repDate" class="box" type="date" />
+  </div>
+  <div class="field span-1">
+    <div class="small">Entreprise</div>
+    <input id="repClient" class="box" type="text" placeholder="LOGISUR" />
+  </div>
+
+  <div class="field span-1">
+    <div class="small">Phase</div>
+    <select id="repPhase" class="box">
+      <option value=""></option>
+      <option value="REC">REC</option>
+      <option value="IMP">IMP</option>
+      <option value="CTRL">CTRL</option>
+      <option value="LEV">LEV</option>
+    </select>
+  </div>
+  <div class="field span-1">
+    <div class="small">Type</div>
+    <input id="repType" class="box" type="text" placeholder="TYPE" />
+  </div>
+  <div class="field span-1">
+    <div class="small">Zone</div>
+    <input id="repCartoucheZone" class="box" type="text" placeholder="TZ" />
+  </div>
+  <div class="field span-1">
+    <div class="small">Indice</div>
+    <input id="repIndice" class="box" type="text" placeholder="A" />
+  </div>
+
+  <div class="field span-3">
+    <div class="small">Plan de référence (DWG)</div>
+    <input id="repDwg" class="box" type="text" placeholder="xxxxx.dwg" />
+  </div>
+</div>
+
+      
+
+      
+
+
+      
+
+      <!-- Référentiel projet (déplacé ici) : même fenêtre que "Info dossier" -->
+      <!-- Alignements : mêmes hauteurs + altimétrie même largeur que "Système de coordonnées" -->
+      <div class="metaGrid" style="margin-top:10px;">
+        <div>
+          <div class="small">Système de coordonnées</div>
+          <select id="metaCoordSys" class="box">
+            <option value="-----">-----</option>
+            <option value="Local">Local</option>
+            <option value="Lambert I">Lambert I</option>
+            <option value="Lambert II">Lambert II</option>
+            <option value="Lambert III">Lambert III</option>
+            <option value="Lambert IV">Lambert IV</option>
+            <option value="RGF93 CC41">RGF93 CC41</option>
+            <option value="RGF93 CC42">RGF93 CC42</option>
+            <option value="RGF93 CC43">RGF93 CC43</option>
+            <option value="RGF93 CC44">RGF93 CC44</option>
+            <option value="RGF93 CC45">RGF93 CC45</option>
+            <option value="RGF93 CC46">RGF93 CC46</option>
+            <option value="RGF93 CC47">RGF93 CC47</option>
+            <option value="RGF93 CC48">RGF93 CC48</option>
+            <option value="RGF93 CC49">RGF93 CC49</option>
+            <option value="RGF93 CC50">RGF93 CC50</option>
+            <option value="Lambert 93">Lambert 93</option>
+          </select>
+        </div>
+        <div>
+          <div class="small">PPM (mm/km)</div>
+          <input id="metaPPM" class="box" type="number" step="0.001" placeholder="0.000" />
+        </div>
+        <div>
+          <div class="small">Intervenant</div>
+          <input id="metaIntervenant" class="box" type="text" placeholder="(auto)" data-mode="auto" />
+        </div>
+      </div>
+
+      <div class="metaGrid" style="margin-top:8px;">
+        <div>
+          <div class="small">Système altimétrique</div>
+          <select id="metaAltSys" class="box">
+            <option value="-----">-----</option>
+            <option value="Local">Local</option>
+            <option value="IGN 69">IGN 69</option>
+            <option value="IGN 78">IGN 78</option>
+            <option value="Orthométrique / Paris">Orthométrique / Paris</option>
+          </select>
+        </div>
+        <div class="metaPlaceholder"></div>
+        <div class="metaPlaceholder"></div>
+      
+
+  </div>
+    </div>
+    </div>
+    <div class="proj-right">
+<!-- V2 — Bandeau Projet (placé ici pour limiter l'ascenseur) -->
+      <div id="projectBanner" class="card">
+        <h2>Projet</h2>
+        <div class="row">
+          <span id="projLandXml" class="pill err">LandXML : non</span>
+          <span id="projReady" class="pill warn">Projet incomplet</span>
+        </div>
+        <div id="projHint" class="small" style="margin-top:6px;"></div>
+      </div>
+
+<div class="card tolCard">
+      <h2>Tolérances + Observations + Contrôle interne</h2>
+
+      <div class="row">
+        <label class="dz-toggle">
+          <input id="optTol" type="checkbox" />
+          <span class="small">Activer STATUT (VALIDE / REFUSÉ)</span>
+        </label>
+        <label style="display:flex;gap:8px;align-items:center; margin-left:10px;">
+          <input id="tolXYOn" type="checkbox" checked />
+          <span class="small">Tolérance XY</span>
+        </label>
+        <label class="dz-toggle">
+          <input id="tolZOn" type="checkbox" checked />
+          <span class="small">Tolérance Z</span>
+        </label>
+</div>
+
+      <div class="row" style="margin-top:8px;">
+        <div style="flex:1; min-width:180px;">
+          <div class="small">Tolérance XY (m)</div>
+          <input id="tolXY" class="box" type="number" step="0.001" value="0.020" />
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div class="small">Tolérance Z (m)</div>
+          <input id="tolZ" class="box" type="number" step="0.001" value="0.020" />
+        </div>
+</div>
+
+      <div class="row tol-actions-row" style="margin-top:8px; justify-content:flex-end;">
+        <button id="btnRecalc" disabled style="min-width:160px;">Recalculer</button>
+      </div>
+
+      
+      
+      <div class="row" style="margin-top:10px; gap:12px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:240px;">
+          <div class="small">Commentaire</div>
+          <textarea id="repObs" class="box" rows="3" placeholder="(optionnel)"></textarea>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div style="flex:1; min-width:240px;">
+          <div class="small">Nom / prénom du signataire</div>
+          <input id="repSurveyor" class="box" type="text" placeholder="Nom Prénom" />
+        </div>
+      </div>
+
+<div id="tolWarn" class="pill err" style="display:none; margin-top:10px;">Tolérances : valeur invalide (doit être > 0) pour les composantes activées.</div>
+
+      <div class="hintBox">
+        <div class="hintTitle">Règle métier</div>
+        <div class="small">
+          <div><b>Écarts</b> : Dx = X<sub>mes</sub> − X<sub>calc</sub> ; Dy = Y<sub>mes</sub> − Y<sub>calc</sub> ; Dz = Z<sub>mes</sub> − Z<sub>calc</sub>.</div>
+          <div style="margin-top:4px;"><b>STATUT</b> : <span class="st st-ok">VALIDE</span> si toutes les composantes <u>activées</u> respectent les tolérances (|Dx|,|Dy| ≤ Tol XY ; |Dz| ≤ Tol Z). Sinon <span class="st st-ko">REFUSÉ</span>.
+    </div>
+  </div>
+
+</section>
+
+      <section id="module-implantation" class="nf-module">
+
+  <div class="card">
+    <h2>Implantation / Ligne de référence</h2>
+    <div class="row nowrap" style="margin-top:6px;">
+      <button id="btnPdfInterventionPdfSharp" disabled title="Génère le PDF Implantation (moteur PdfSharp).">PDF — Implantation</button>
+      <button id="btnPdfLigneRef" disabled title="Génère le PDF Rabattement (mesure sur ligne) uniquement.">PDF — Ligne de référence (rabattement)</button>
+      <button id="btnPdfCompletPdfSharp" disabled title="Génère le PDF Rapport complet (implantation + rabattement) (moteur PdfSharp).">PDF — Rapport complet (implantation + rabattement)</button>
+      <button id="btnExportImplantTxt" disabled title="Exporte les points Implantation + Ligne de référence au format TXT (N°\tX\tY\tZ).">Export — Points (TXT)</button>
+      <label class="dz-toggle">
+        <input id="calcDzOn" type="checkbox" checked />
+        <span class="small">Calculer Dz</span>
+      </label>
+    </div>
+    <div class="row" style="margin-top:10px; align-items:flex-start; gap:14px; flex-wrap:wrap;">
+      <label class="dz-toggle" title="Regroupe les points dans les PDF Implantation / Ligne de référence par code (code LandXML)">
+        <input id="pdfGroupByZone" type="checkbox" />
+        <span class="small">Classer le PDF par code</span>
+      </label>
+      <div style="flex:1; min-width:320px;">
+        <div class="small" style="margin-bottom:4px;">Libellés PDF des codes</div>
+        <div id="zoneLabelsWrap" class="box" style="padding:8px 10px; min-height:44px;">
+          <div class="small" style="color:var(--mut);">Aucun code détecté.</div>
+        </div>
+      </div>
+    </div>
+    <div class="small" style="margin-top:10px;">
+      Les boutons s’activent selon le contenu du LandXML (zéro PDF inutile).
+    </div>
+  </div>
+
+  <!-- Visualisation (station + implantation + ligne de réf) -->
+  <div id="vizHostImplant" style="margin-top:12px;"></div>
+
+      </section>
+
+      <section id="module-suivi" class="nf-module">
+
+  <div class="card">
+    <h2>Station / Levé topo</h2>
+    <div class="row nowrap" style="margin-top:6px;">
+      <button id="btnPdfStation" disabled title="Génère le PDF Station uniquement (bloc station du rapport complet).">PDF — Station (station uniquement)</button>
+      <button id="btnPdfPointsTopo" disabled title="Génère le PDF Points topo (levé) (hors implantation / hors ligne de référence).">PDF — Points topo (levé)</button>
+      <button id="btnPdfHeightTransfer" disabled title="Génère le PDF Transfert d'altitude avec analyse et contrôles.">PDF — Transfert altitude</button>
+      <button id="btnExportLeveTxt" disabled title="Exporte les points du levé topo au format TXT (N°\tX\tY\tZ).">Export — Points (TXT)</button>
+    </div>
+    <div class="small" style="margin-top:10px;">
+      Rapports issus du levé (hors implantation / hors ligne de référence).
+    </div>
+  </div>
+
+  <!-- Visualisation (station + levé topo + LandXML brut) -->
+  <div id="vizHostSuivi" style="margin-top:12px;"></div>
+
+      </section>
+
+      <section id="module-recolement" class="nf-module">
+  <div class="card">
+    <h2>Pieux - Implantation et récolement</h2>
+    <div class="row" role="tablist" aria-label="Fonction pieux">
+      <button type="button" id="btnPieuxModeImplantation" class="tab active" role="tab" aria-selected="true">Implantation</button>
+      <button type="button" id="btnPieuxModeRecolement" class="tab" role="tab" aria-selected="false">Récolement</button>
+    </div>
+  </div>
+
+  <div id="pieuxImplantationPanel">
+    <div class="card">
+      <h2>Implantation de pieux</h2>
+      <div class="row">
+        <div class="nf-filepick" title="Importer le fichier TXT des points théoriques utilisé uniquement pour la vue en plan">
+          <button type="button" class="btn" id="btnPieuxImplTxtPick">Importer TXT théorique pour le plan</button>
+          <input id="pieuxImplTxtInput" type="file" accept=".txt,text/plain" />
+        </div>
+        <span id="pieuxImplTxtStatus" class="pill">TXT plan : aucun</span>
+        <button id="btnPieuxImplPdfPlan" disabled title="Génère le rapport depuis les données d’implantation du LandXML et ajoute la vue en plan issue du TXT.">PDF - Implantation pieux + plan</button>
+      </div>
+      <div class="small" style="margin-top:8px;">
+        Le tableau et les écarts proviennent uniquement du LandXML. Le TXT sert uniquement au plan : tous ses points sont affichés, seuls les points inclus dans le rapport sont entourés et nommés.
+      </div>
+      <div id="pieuxImplMatchStatus" class="small" style="margin-top:6px;"></div>
+    </div>
+    <div id="vizHostPieuxImpl" style="margin-top:12px;"></div>
+  </div>
+
+  <div id="pieuxRecolementPanel" class="nf-hidden">
+<div class="card" id="pieuxCard">
+    <h2>Récolement de pieux</h2>
+    <div class="row">
+      <!-- WebView2: programmatic click() on hidden file inputs may be blocked.
+           Use an invisible input overlay so the user gesture targets the <input>. -->
+      <div class="nf-filepick" title="Importer le fichier TXT de référence (points théoriques)">
+        <button type="button" class="btn" id="btnPieuxTxtPick">Importer TXT de référence (PI…)</button>
+        <input id="pieuxTxtInput" type="file" accept=".txt,text/plain" />
+      </div>
+      <span id="pieuxTxtStatus" class="pill">TXT : aucun</span>
+      <!-- Analyse auto : bouton supprimé (évite confusion). -->
+<button id="btnPieuxPdf" disabled title="Génère le PDF Récolement de pieux (moteur PdfSharp) à partir du TXT (théorique) et des centres calculés (mesuré).">PDF — Récolement de pieux</button>
+      <button id="btnPieuxPdfPlan" disabled title="Génère le PDF Récolement de pieux + une page Vue en plan (points théoriques TXT + surlignage du pieu contrôlé).">PDF — Récolement pieux + plan</button>
+      <button id="btnPieuxExportTxt" disabled title="Exporte uniquement les pieux contrôlés/validés au format TXT (N°\tX\tY\tZ).">Export — Points contrôlés (TXT)</button>
+      <span id="pieuxAnalyseStatus" class="pill nf-hidden">Pieux : aucun</span>
+    </div>
+
+    <div class="small" style="margin-top:8px;">
+      Analyse : points mesurés (levé) regroupés par N° (ex : 204.1/204.2/204.3). Exclusion automatique si N° présent dans ApplStakeout. Min 3 pts, max 10 pts.
+    </div>
+
+    <div id="pieuxTableWrap" style="margin-top:10px; overflow:auto; max-height:280px;">
+      <table id="pieuxTable">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Nb pts</th>
+            <th>Stakeout</th>
+            <th>Min/Max</th>
+            <th>Réf TXT</th>
+            <th>Centre X</th>
+            <th>Centre Y</th>
+            <th>Max résidu</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal contrôle pieu (déplacé du module Projet vers Récolement pieux) -->
+  <div id="pieuxReviewOverlay" class="nf-modal-overlay nf-hidden" role="dialog" aria-modal="true">
+    <div class="nf-modal card">
+      <div class="row" style="justify-content:space-between; gap:10px;">
+        <div>
+          <div class="small" style="font-weight:800; color:var(--txt);">Contrôle pieu</div>
+          <div class="small" id="pieuxReviewTitle">Pieu —</div>
+        </div>
+        <button id="btnPieuxReviewClose" class="nf-secondary" title="Fermer">Fermer</button>
+      </div>
+
+      <div class="small" style="margin-top:8px;">
+        Décoche un point pour l’exclure du calcul. Minimum 3 points inclus.
+      </div>
+
+      <div style="margin-top:10px; overflow:auto; max-height:360px; border:1px solid rgba(0,0,0,.08); border-radius:12px;">
+        <table id="pieuxReviewTable">
+          <thead>
+            <tr>
+              <th>Inclure</th>
+              <th>Point</th>
+              <th>X</th>
+              <th>Y</th>
+              <th>Résidu</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="row" style="margin-top:10px; align-items:flex-end;">
+        <div style="flex:1;">
+          <div class="small">Centre recalculé (XY)</div>
+          <div class="mono" id="pieuxReviewCenter">—</div>
+          <div class="small" style="margin-top:6px;">Max résidu</div>
+          <div class="mono" id="pieuxReviewMaxResid">—</div>
+        </div>
+        <button id="btnPieuxReviewApply" title="Valider et conserver cette sélection">Valider</button>
+      </div>
+
+      <div class="small" id="pieuxReviewWarn" style="margin-top:8px; color:var(--err);"></div>
+    </div>
+  </div>
+  </div>
+      </section>
+
+      <!-- Visualisation (déplacée depuis Projet, et réutilisée selon le module actif) -->
+      
+      <section id="module-recolement-mnt" class="nf-module">
+<div class="card" id="mntCard">
+    <h2>Récolement MNT</h2>
+    <div class="row">
+      <button id="btnMntAnalyse" title="Analyse les données MNT/DTM Leica, ou compare les points topo avec un DXF 3D si aucun MNT Leica n'est présent.">Analyser MNT / DXF</button>
+      <label class="btn" for="mntDxfInput" title="Importer une surface DXF 3D composée de 3DFACE.">Importer DXF 3D</label>
+      <input id="mntDxfInput" type="file" accept=".dxf,application/dxf,text/plain" />
+      <span id="mntDxfStatus" class="pill nf-hidden">DXF : aucun</span>
+      <button id="btnMntPdf" disabled title="Génère le PDF Récolement MNT avec X/Y/Z relevé, Z théorique MNT et Dz Leica.">PDF - Récolement MNT</button>
+      <button id="btnMntExportTxt" disabled title="Exporte les données MNT au format TXT.">Export - Récolement MNT (TXT)</button>
+      <span id="mntStatus" class="pill nf-hidden">MNT : aucun</span>
+    </div>
+    <div class="small" style="margin-top:8px;">
+      Lecture stricte : seules les lignes Leica ApplicationStakeout avec StakeoutDTMHeight=true sont exploitees. Les implantations simples ne sont pas lues par ce module.
+    </div>
+
+    <div id="mntTableWrap" style="margin-top:10px; overflow:auto; max-height:300px;">
+      <table id="mntTable">
+        <thead>
+          <tr>
+            <th>ID point</th>
+            <th>X releve</th>
+            <th>Y releve</th>
+            <th>Z releve</th>
+            <th>Z théo MNT</th>
+            <th>Dz</th>
+            <th>Station</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <h2>Visualisation MNT</h2>
+    <canvas id="mntCanvas" width="1100" height="360" style="width:100%; height:360px; display:block; border-radius:8px;"></canvas>
+    <div id="mntVisualStatus" class="small" style="margin-top:8px;">Aucun point MNT à afficher.</div>
+  </div>
+      </section>
+
+      <section id="module-export-kmz" class="nf-module">
+        <div class="card" id="kmzCard">
+          <h2>Export KMZ Google Earth</h2>
+          <div class="row" style="align-items:flex-end;">
+            <button id="btnKmzImportTxt" title="Ajouter ou remplacer le fichier TXT du projet KMZ.">Charger TXT</button>
+            <button id="btnKmzImportDxf" title="Ajouter ou remplacer le fichier DXF du projet KMZ.">Charger DXF</button>
+            <div style="min-width:260px;">
+              <div class="small">Système de coordonnées source</div>
+              <select id="kmzCoordSys" class="box">
+                <option value="__AUTO__" selected>Détection automatique</option>
+                <option value="RGF93 / Lambert-93 (EPSG:2154)">RGF93 / Lambert-93 (EPSG:2154)</option>
+                <option value="NTF / Lambert 1 (EPSG:27561)">NTF / Lambert 1 (EPSG:27561)</option>
+                <option value="NTF / Lambert 2 (EPSG:27562)">NTF / Lambert 2 (EPSG:27562)</option>
+                <option value="NTF / Lambert 3 (EPSG:27563)">NTF / Lambert 3 (EPSG:27563)</option>
+                <option value="NTF / Lambert 2 étendu (EPSG:27572)">NTF / Lambert 2 étendu (EPSG:27572)</option>
+                <option value="RGF93 / CC42 (EPSG:3942)">RGF93 / CC42 (EPSG:3942)</option>
+                <option value="RGF93 / CC43 (EPSG:3943)">RGF93 / CC43 (EPSG:3943)</option>
+                <option value="RGF93 / CC44 (EPSG:3944)">RGF93 / CC44 (EPSG:3944)</option>
+                <option value="RGF93 / CC45 (EPSG:3945)">RGF93 / CC45 (EPSG:3945)</option>
+                <option value="RGF93 / CC46 (EPSG:3946)">RGF93 / CC46 (EPSG:3946)</option>
+                <option value="RGF93 / CC47 (EPSG:3947)">RGF93 / CC47 (EPSG:3947)</option>
+                <option value="RGF93 / CC48 (EPSG:3948)">RGF93 / CC48 (EPSG:3948)</option>
+                <option value="RGF93 / CC49 (EPSG:3949)">RGF93 / CC49 (EPSG:3949)</option>
+                <option value="RGF93 / CC50 (EPSG:3950)">RGF93 / CC50 (EPSG:3950)</option>
+                <option value="WGS84 lon/lat (EPSG:4326)">WGS84 lon/lat (EPSG:4326)</option>
+              </select>
+            </div>
+            <button id="btnKmzExport" disabled title="Exporte dans un seul KMZ tous les éléments TXT et DXF cochés.">Exporter KMZ</button>
+            <span id="kmzStatus" class="pill">Fichier : aucun</span>
+          </div>
+          <div class="small" style="margin-top:8px;">
+            Le TXT et le DXF peuvent être chargés ensemble. Le KMZ reprend le nom du TXT lorsqu'il est présent, sinon celui du DXF.
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <h2>Carte de contrôle</h2>
+          <div id="kmzDxfOptions" class="nf-hidden" style="margin-bottom:12px;">
+            <h3>Calques DXF</h3>
+            <div class="row" style="margin-bottom:8px;">
+              <button id="btnKmzLayersAll">Tout inclure</button>
+              <button id="btnKmzLayersNone">Tout exclure</button>
+            </div>
+            <div id="kmzLayerList" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:6px;"></div>
+          </div>
+          <div id="kmzMap" style="height:430px; width:100%; border-radius:8px; overflow:hidden; border:1px solid rgba(0,0,0,.10); background:#eef2f7;"></div>
+          <canvas id="kmzCanvas" width="1100" height="430" style="width:100%; height:430px; display:none; border-radius:8px; border:1px solid rgba(0,0,0,.10);"></canvas>
+          <div id="kmzMapStatus" class="small" style="margin-top:8px;">Charge un TXT pour afficher les points sur fond de plan en ligne.</div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <h2 id="kmzPointsTitle">Points importés</h2>
+          <div id="kmzPointActions" class="row nf-hidden" style="margin-bottom:8px;">
+            <button id="btnKmzPointsAll">Tout inclure</button>
+            <button id="btnKmzPointsNone">Tout exclure</button>
+          </div>
+          <div id="kmzTableWrap" style="overflow:auto; max-height:260px;">
+            <table id="kmzTable">
+              <thead>
+                <tr>
+                  <th id="kmzIncludeHead" class="nf-hidden">Incl.</th>
+                  <th>ID</th>
+                  <th id="kmzLayerHead" class="nf-hidden">Source / calque</th>
+                  <th>X</th>
+                  <th>Y</th>
+                  <th>Z</th>
+                  <th>Longitude</th>
+                  <th>Latitude</th>
+                  <th>Code</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section id="module-reportage-photo" class="nf-module">
+        <div class="card">
+          <h2>Reportage photo</h2>
+          <div class="row nowrap" style="margin-top:6px;">
+            <button id="btnPhotoReportOpen" type="button" title="Ajouter, legender et annoter les photos du reportage.">Ajouter photos</button>
+            <button id="btnPhotoReportPdf" type="button" disabled title="Genere un rapport photo PDF autonome avec le cartouche du projet.">PDF - Reportage photo</button>
+            <div style="min-width:170px;">
+              <div class="small">Photos par page</div>
+              <select id="photoReportPerPage" class="box">
+                <option value="1">1 photo</option>
+                <option value="2">2 photos</option>
+                <option value="3">3 photos</option>
+                <option value="4" selected>4 photos</option>
+              </select>
+            </div>
+            <span id="photoReportStatus" class="pill">Photos : 0</span>
+          </div>
+          <div class="small" style="margin-top:10px;">
+            Rapport autonome base sur les parametres du projet. Les photos restent separees des annexes photos des autres modules.
+          </div>
+        </div>
+      </section>
+<div id="vizStash" class="nf-hidden">
+        <div id="vizCard" class="card">
+          <h2>Visualisation</h2>
+          <div class="tabs" id="vizTabs">
+            <div class="tab active" data-view="station">Station libre</div>
+            <div class="tab" data-view="implant">Implantation</div>
+            <div class="tab" data-view="lineref">Ligne de référence</div>
+            <div class="tab" data-view="refalti">Réf alti</div>
+            <div class="tab" data-view="topo">Levé topo</div>
+            <div class="tab" data-view="heighttransfer">Transfert alti</div>
+            <div class="tab" data-view="raw">LandXML brut</div>
+          </div>
+
+          <div id="view_station" style="display:block;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 0 10px; flex-wrap:wrap;">
+              <div class="small" id="stationCount">—</div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn" id="stationBtnAllIn" style="padding:6px 10px; border-radius:10px;">Tout inclure</button>
+                <button class="btn" id="stationBtnAllOut" style="padding:6px 10px; border-radius:10px;">Tout exclure</button>
+                <button class="btn" id="stationBtnReset" style="padding:6px 10px; border-radius:10px;">Réinitialiser</button>
+              </div>
+            </div>
+            <div id="stationContainer" class="small">—</div>
+          </div>
+          <div id="view_implant" style="display:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 0 10px; flex-wrap:wrap;">
+              <div class="small" id="implantCount">—</div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn" id="implantBtnAllIn" style="padding:6px 10px; border-radius:10px;">Tout inclure</button>
+                <button class="btn" id="implantBtnAllOut" style="padding:6px 10px; border-radius:10px;">Tout exclure</button>
+                <button class="btn" id="implantBtnReset" style="padding:6px 10px; border-radius:10px;">Réinitialiser</button>
+              </div>
+            </div>
+            <div id="implantContainer" class="small">—</div>
+          </div>
+          <div id="view_lineref" style="display:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 0 10px; flex-wrap:wrap;">
+              <div class="small" id="linerefCount">—</div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn" id="linerefBtnAllIn" style="padding:6px 10px; border-radius:10px;">Tout inclure</button>
+                <button class="btn" id="linerefBtnAllOut" style="padding:6px 10px; border-radius:10px;">Tout exclure</button>
+                <button class="btn" id="linerefBtnReset" style="padding:6px 10px; border-radius:10px;">Réinitialiser</button>
+              </div>
+            </div>
+            <div id="linerefContainer" class="small">—</div>
+          </div>
+          <div id="view_refalti" style="display:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 0 10px; flex-wrap:wrap;">
+              <div class="small" id="refaltiCount">—</div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn" id="refaltiBtnAllIn" style="padding:6px 10px; border-radius:10px;">Tout sélectionner</button>
+                <button class="btn" id="refaltiBtnAllOut" style="padding:6px 10px; border-radius:10px;">Tout vider</button>
+                <button class="btn" id="refaltiBtnReset" style="padding:6px 10px; border-radius:10px;">Réinitialiser</button>
+              </div>
+            </div>
+            <div class="small" style="margin:0 0 8px; color:var(--mut);">Les points sélectionnés en Réf alti sont exclus des tableaux Implantation et Ligne de référence.</div>
+            <div id="refaltiContainer" class="small">—</div>
+          </div>
+          <div id="view_topo" style="display:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 0 10px; flex-wrap:wrap;">
+              <div class="small" id="topoCount">—</div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn" id="topoBtnAllIn" style="padding:6px 10px; border-radius:10px;">Tout inclure</button>
+                <button class="btn" id="topoBtnAllOut" style="padding:6px 10px; border-radius:10px;">Tout exclure</button>
+                <button class="btn" id="topoBtnReset" style="padding:6px 10px; border-radius:10px;">Réinitialiser</button>
+              </div>
+            </div>
+            <div id="topoContainer" class="small">—</div>
+          </div>
+          <div id="view_heighttransfer" style="display:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 0 10px; flex-wrap:wrap;">
+              <div class="small" id="heighttransferCount">—</div>
+            </div>
+            <div id="heighttransferContainer" class="small">—</div>
+          </div>
+          <div id="view_raw" style="display:none;">
+            <textarea id="rawArea" class="box mono" style="height:360px; resize:vertical;" readonly></textarea>
+          </div>
+        </div>
+      </div>
+</main>
+
+
+<footer id="pageFooter">
+  <div class="addr">NOVATLAS — 24 boulevard Paul Vaillant Couturier — 94200 IVRY SUR SEINE</div>
+  <div class="legal">© NOVATLAS 2025 — Document interne confidentiel. Toute reproduction ou diffusion, totale ou partielle, sans autorisation écrite est interdite. Rapport généré automatiquement à partir des données importées et des paramètres définis dans ce document.</div>
+
+  <div class="row" style="justify-content:space-between; margin-top:6px;">
+    <div id="footerStatus" class="small">Prêt</div>
+    <div id="footerBuild" class="small mono"></div>
+  </div>
+
+  <div style="margin-top:8px; display:flex; justify-content:flex-end;">
+    <a href="#" id="aboutLink" style="color:inherit; text-decoration:underline;">À propos</a>
+  </div>
+
+</footer>
+
+
+  </div>
+</div>
+<!-- IMPORTANT : Base stable = un seul module applicatif.
+     Les anciens modules m02/m03 introduisaient des regressions (fonctions dupliquees / overrides). -->
+
+<!-- IMPORTANT : Base stable = un seul module applicatif.
+     Les anciens modules m02/m03 introduisaient des régressions (fonctions dupliquées / overrides). -->
+<script src="./app/modules/m01_core.js" defer></script>
+<script src="./app/modules/m02_parser_calc.js" defer></script>
+<script src="./app/modules/m04_pdf_post.js" defer></script>
+<script src="./app/modules/m03_pdf_reports.js" defer></script>
+<script src="./app/modules/m05_recollement_pieux.js" defer></script>
+<script src="./app/modules/m08_implantation_pieux.js" defer></script>
+<script src="./app/modules/m06_recolement_mnt.js" defer></script>
+<script src="./app/modules/m07_export_kmz.js" defer></script>
+<script src="./app/modules/m09_photos.js" defer></script>
+<script src="./app/inline_03.js" defer></script>
+
+<!-- About modal -->
+<div id="aboutModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; color:#0b1020; width:min(520px, 100%); border-radius:16px; border:1px solid rgba(0,0,0,.12); box-shadow:0 20px 60px rgba(0,0,0,.25); padding:16px 16px 14px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div style="font-weight:800; font-size:16px;">À propos — Topo Rapport</div>
+      <button id="aboutClose" class="btn" style="padding:8px 10px; border-radius:10px;">Fermer</button>
+    </div>
+    <div style="margin-top:10px; font-size:13px; color:#4b5563; line-height:1.45;">
+      <div><b>Version</b> : <span id="aboutVersion"></span></div>
+      <div><b>Build</b> : <span id="aboutBuild"></span></div>
+      <div style="margin-top:8px;"><b>Fonctions</b> : Import LandXML Leica • Export PDF (implantation / ligne / complet / station) • Enregistrer sous… via l'application Windows.</div>
+      <div style="margin-top:8px;"><b>Éditeur</b> : NOVATLAS</div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+(function(){
+  function placeVisualisation(targetId){
+    const viz = document.getElementById('vizCard');
+    const stash = document.getElementById('vizStash');
+    const hostImplant = document.getElementById('vizHostImplant');
+    const hostPieuxImpl = document.getElementById('vizHostPieuxImpl');
+    const hostSuivi = document.getElementById('vizHostSuivi');
+    const tabsWrap = document.getElementById('vizTabs');
+    if(!viz || !stash || !tabsWrap) return;
+
+    let allowed = [];
+    let host = stash;
+    let preferred = null;
+    let context = targetId;
+    if(targetId === 'module-implantation'){
+      allowed = ['station','implant','lineref','refalti'];
+      host = hostImplant || stash;
+      preferred = 'implant';
+    }else if(targetId === 'module-recolement' && window.__NF_PIEUX_MODE === 'implantation'){
+      allowed = ['station','implant','refalti'];
+      host = hostPieuxImpl || stash;
+      preferred = 'implant';
+      context = 'module-recolement:implantation';
+    }else if(targetId === 'module-suivi'){
+      allowed = ['station','refalti','topo','heighttransfer','raw'];
+      host = hostSuivi || stash;
+      preferred = 'station';
+    }else{
+      allowed = [];
+      host = stash;
+    }
+
+    // Move the single visualisation card into the right module.
+    try{ host.appendChild(viz); }catch(e){ /* ignore */ }
+
+    // Show/hide tabs according to allowed views.
+    const tabs = Array.from(tabsWrap.querySelectorAll('.tab'));
+    const allowedSet = new Set(allowed);
+    tabs.forEach(t=>{
+      const v = t.getAttribute('data-view');
+      const ok = allowedSet.has(v);
+      t.style.display = ok ? 'inline-flex' : 'none';
+    });
+
+    // Hide views not allowed.
+    ['station','implant','lineref','refalti','topo','heighttransfer','raw'].forEach(v=>{
+      const el = document.getElementById('view_' + v);
+      if(!el) return;
+      if(allowed.length === 0){
+        el.style.display = 'none';
+      }else{
+        el.style.display = allowedSet.has(v) ? el.style.display : 'none';
+      }
+    });
+
+    // Ensure an allowed tab is active and its view visible.
+    if(allowed.length === 0){
+      viz.classList.add('nf-hidden');
+      return;
+    }
+    viz.classList.remove('nf-hidden');
+
+    const current = tabsWrap.querySelector('.tab.active');
+    const curView = current ? current.getAttribute('data-view') : null;
+    const contextChanged = window.__NF_VIZ_CONTEXT !== context;
+    window.__NF_VIZ_CONTEXT = context;
+    if(contextChanged || !curView || !allowedSet.has(curView)){
+      tabs.forEach(t=>t.classList.remove('active'));
+      const first = tabs.find(t=>t.getAttribute('data-view') === preferred)
+        || tabs.find(t=>allowedSet.has(t.getAttribute('data-view')));
+      if(first){
+        first.classList.add('active');
+        const v = first.getAttribute('data-view');
+        ['station','implant','lineref','refalti','topo','heighttransfer','raw'].forEach(x=>{
+          const el = document.getElementById('view_' + x);
+          if(el) el.style.display = (x === v) ? 'block' : 'none';
+        });
+      }
+    }
+  }
+  window.NOVA_placeVisualisation = placeVisualisation;
+
+  function setActive(targetId){
+    document.querySelectorAll('.nf-module').forEach(s=>s.classList.remove('active'));
+    const el = document.getElementById(targetId);
+    if(el) el.classList.add('active');
+
+    document.querySelectorAll('.nf-nav-item').forEach(b=>b.classList.remove('active'));
+    const btn = document.querySelector('.nf-nav-item[data-target="'+targetId+'"]');
+    if(btn) btn.classList.add('active');
+
+    const fStatus = document.getElementById('footerStatus');
+    const sStatus = document.getElementById('sbStatus');
+    if(fStatus && sStatus) sStatus.textContent = fStatus.textContent || 'Prêt';
+    const fBuild = document.getElementById('footerBuild');
+    const sBuild = document.getElementById('sbBuild');
+    if(fBuild && sBuild) sBuild.textContent = fBuild.textContent || '';
+
+    // Visualisation : déplacée hors Projet et affichée uniquement dans Implantation / Suivi
+    placeVisualisation(targetId);
+  }
+
+  document.addEventListener('click', function(ev){
+    const btn = ev.target.closest && ev.target.closest('.nf-nav-item');
+    if(!btn) return;
+    ev.preventDefault();
+    const target = btn.getAttribute('data-target');
+    if(target) setActive(target);
+  });
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setActive('module-projet');
+  });
+})();
+</script>
+
+</body>
+</html>
+
+
+

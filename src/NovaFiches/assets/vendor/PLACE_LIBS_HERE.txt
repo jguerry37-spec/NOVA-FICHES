@@ -1,0 +1,1 @@
+Place ici les librairies JS offline: jspdf.umd.min.js, jspdf.plugin.autotable.min.js

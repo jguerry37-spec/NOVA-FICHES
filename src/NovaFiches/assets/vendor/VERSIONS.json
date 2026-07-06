@@ -1,0 +1,7 @@
+{
+  "policy": "offline-only",
+  "files": {
+    "jspdf.umd.min.js": "98ccf17aa10c20bb1301762618fcc9b6ab3a4e7f26b6071d64d0b41154df3875",
+    "jspdf.plugin.autotable.min.js": "97180367a2824369b51bd662b8d3b9847a3cce87e63fd7a404fb707da2c6c919"
+  }
+}

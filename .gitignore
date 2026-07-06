@@ -1,0 +1,28 @@
+# Build artifacts
+[Bb]in/
+[Oo]bj/
+staging/
+
+# Installer generated binaries (archive, not source)
+Installer/out/
+Installer/staging/
+*.exe
+*.rar
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+
+# User-specific files
+*.user
+*.suo
+
+# OS files
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# IDE
+.vs/
+.vscode/
+*.userosscache

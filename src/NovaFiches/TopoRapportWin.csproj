@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+     <!-- Version unique de la release -->
+	<Version>2.3.1.7</Version>
+
+  <!-- Version binaire Windows -->
+	<AssemblyVersion>2.3.1.7</AssemblyVersion>
+	<FileVersion>2.3.1.7</FileVersion>
+
+  <!-- Version “lisible” affichable côté app / logs -->
+	<InformationalVersion>2.3.1.7</InformationalVersion>
+  
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Identité application -->
+    <AssemblyName>NovaFiches</AssemblyName>
+    <Product>Nova-Fiches</Product>
+    <ApplicationIcon>assets\NovaFiches.ico</ApplicationIcon>
+
+    <!-- IMPORTANT : aligne le namespace par défaut.
+         Choisis l’un des 2 (voir note juste en dessous). -->
+    <RootNamespace>TopoRapportWin</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2739.15" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="assets\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+
+    <Content Include="vendor\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+    <ItemGroup>
+  <!-- WebView2 native loader (OBLIGATOIRE pour le runtime) -->
+  <Content Include="$(NuGetPackageRoot)microsoft.web.webview2\**\WebView2Loader.dll">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+  </Content>
+</ItemGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\NovaFiches.PdfSharpEngine\NovaFiches.PdfSharpEngine.csproj" />
+  </ItemGroup>
+
+</Project>

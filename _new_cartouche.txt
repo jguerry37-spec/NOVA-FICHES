@@ -1,0 +1,76 @@
+    private static double DrawInfoCartouche(XGraphics g, PdfPage page, double y, JsonElement root)
+    {
+        // Cartouche 3 lignes — DOIT être identique au rendu validé "STATION" (géométrie + centrages).
+        // Mesures (ratios) relevées sur le PDF station validé :
+        // - Bord gauche/droite : marge standard (MarginL/MarginR)
+        // - Séparateur 1 (colonne gauche) : ~29.5% de la largeur utile
+        // - Séparateur 2 (lignes 1-2) : ~66.4% de la largeur utile
+        // - Séparateur 2 (ligne 3) : ~49.5% de la largeur utile
+        double w = page.Width.Point - MarginL - MarginR;
+        double rowH = Units.MmToPt(14);
+
+        double x0 = MarginL;
+        double xR = x0 + w;
+
+        double x1 = x0 + w * 0.295;
+        double x2 = x0 + w * 0.664;
+        double x2Row3 = x0 + w * 0.495;
+
+        // Style station-like : bordures noires, labels centrés, valeurs en gras centrées.
+        var pen = new XPen(XColors.Black, 0.8);
+        var fLabel = NovatlasTheme.FontBody(10.0);
+        var fValue = NovatlasTheme.FontBold(11.0);
+
+        void CellLabelValue(double xL, double yy, double xRight, string label, string value)
+        {
+            double ww = xRight - xL;
+            g.DrawRectangle(pen, xL, yy, ww, rowH);
+
+            // Label (centré en haut)
+            g.DrawString(label, fLabel, XBrushes.Black,
+                new XRect(xL, yy + Units.MmToPt(1.0), ww, Units.MmToPt(6.0)),
+                XStringFormats.TopCenter);
+
+            // Valeur (gras, centrée)
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                g.DrawString(value, fValue, XBrushes.Black,
+                    new XRect(xL, yy + Units.MmToPt(6.0), ww, rowH - Units.MmToPt(7.0)),
+                    XStringFormats.Center);
+            }
+        }
+
+        // Values from JSON (best-effort)
+        string date = GetString(root, "date");
+        if (string.IsNullOrWhiteSpace(date)) date = GetString(root, "interventionDate");
+        string entreprise = GetString(root, "entreprise");
+        string contact = GetString(root, "contactClient");
+        string coordSys = GetString(root, "systemeCoord");
+        string ppm = GetString(root, "ppm");
+        string planRef = GetString(root, "planRef");
+        string altSys = GetString(root, "systemeAlti");
+        string appareil = GetString(root, "appareil");
+        string intervenant = GetString(root, "intervenant");
+        if (string.IsNullOrWhiteSpace(intervenant)) intervenant = GetString(root, "operator");
+        if (string.IsNullOrWhiteSpace(intervenant)) intervenant = GetString(root, "operateur");
+
+        // Ligne 1 : Intervention du | Entreprise | Contact client
+        CellLabelValue(x0, y, x1, "Intervention du", date);
+        CellLabelValue(x1, y, x2, "Entreprise", entreprise);
+        CellLabelValue(x2, y, xR, "Contact client", contact);
+        y += rowH;
+
+        // Ligne 2 : Système de coordonnées | PPM | Plan de référence
+        CellLabelValue(x0, y, x1, "Système de coordonnées", coordSys);
+        CellLabelValue(x1, y, x2, "PPM", ppm);
+        CellLabelValue(x2, y, xR, "Plan de référence", planRef);
+        y += rowH;
+
+        // Ligne 3 : Système altimétrique | Appareil | Intervenant
+        CellLabelValue(x0, y, x1, "Système altimétrique", altSys);
+        CellLabelValue(x1, y, x2Row3, "Appareil", appareil);
+        CellLabelValue(x2Row3, y, xR, "Intervenant", intervenant);
+        y += rowH + Units.MmToPt(4);
+
+        return y;
+    }
