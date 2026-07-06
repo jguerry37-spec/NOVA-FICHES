@@ -59,7 +59,7 @@ public static class DxfKmzService
             bytes = new byte[stream.Length];
             stream.ReadExactly(bytes);
         }
-        var text = Encoding.GetEncoding(1252).GetString(bytes);
+        var text = DecodeDxfText(bytes);
         var pairs = ParsePairs(text);
         var points = new List<DxfPoint>();
         var lines = new List<DxfLine>();
@@ -232,6 +232,23 @@ public static class DxfKmzService
         var detectionPoints = points.Select(p => new KmzExportService.KmzPoint(p.Id, p.X, p.Y, p.Z, p.Code, p.HasZ));
         var detection = KmzExportService.DetectCoordinateSystem(path, text, detectionPoints);
         return new DxfDocument(Path.GetFileName(path), text, points, lines, texts, layers, detection);
+    }
+
+    /// <summary>
+    /// Les DXF ASCII classiques sont encodés selon le codepage Windows (1252 par défaut,
+    /// caractères accentués via échappement \U+XXXX). Certains exports plus récents
+    /// (QGIS, LibreCAD...) produisent en revanche de l'UTF-8 avec BOM : on le détecte
+    /// pour éviter de corrompre les accents dans ce cas, sans changer le comportement
+    /// par défaut pour les DXF existants.
+    /// </summary>
+    private static string DecodeDxfText(byte[] bytes)
+    {
+        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        {
+            return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+        }
+
+        return Encoding.GetEncoding(1252).GetString(bytes);
     }
 
     private static List<Pair> ParsePairs(string text)

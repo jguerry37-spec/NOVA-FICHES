@@ -1335,11 +1335,12 @@ window.nfEnterLandXmlModule = function(targetId){
 ========================= */
 function tableHtml(headers, rows){
   const cell = (c) => {
-    // Allow minimal inline HTML for cells we generate (status badges), else escape.
+    // Allow inline HTML only via explicit opt-in ({__html:true, value:...}) for cells we
+    // generate ourselves (status badges). Never infer trust from string content (e.g. a
+    // "starts with <span" heuristic) : a point code/ID imported from a LandXML/TXT file
+    // could otherwise be crafted to bypass escaping and inject HTML/script.
     if(c && typeof c === "object" && c.__html === true) return String(c.value ?? "");
-    const s = String(c ?? "");
-    if(s.trim().startsWith("<span")) return s; // generated badge
-    return esc(s);
+    return esc(String(c ?? ""));
   };
 
   return `
@@ -1724,7 +1725,7 @@ function renderAll(data){
         fmt(p.theo.E), fmt(p.theo.N), fmt(p.theo.H),
         fmt(p.mes.E), fmt(p.mes.N), fmt(p.mes.H),
         fmt(p.d.dx), fmt(p.d.dy), { __html:true, value:`<span class="nf-dz-big">${esc(fmt(p.d.dz))}</span>` },
-        (function(){ const st=statusFromTol(p.d.dx, p.d.dy, p.d.dz); const cls= st==="VALIDE" ? "st st-ok" : (st==="REFUSÉ" ? "st st-ko" : "st st-na"); return `<span class="${cls}">${esc(st||"—")}</span>`; })()
+        { __html:true, value:(function(){ const st=statusFromTol(p.d.dx, p.d.dy, p.d.dz); const cls= st==="VALIDE" ? "st st-ok" : (st==="REFUSÉ" ? "st st-ko" : "st st-na"); return `<span class="${cls}">${esc(st||"—")}</span>`; })() }
       ];
       return dupInfo
         ? { __row:true, style:nfDupRowStyle_(dupInfo), cells }
@@ -1766,7 +1767,7 @@ function renderAll(data){
         fmt(rp.calc.E), fmt(rp.calc.N), fmt(rp.calc.H),
         fmt(rp.mes.E), fmt(rp.mes.N), fmt(rp.mes.H),
         fmt(rp.d.dx), fmt(rp.d.dy), fmt(rp.d.dz),
-        (function(){ const st=statusFromTol(rp.d.dx, rp.d.dy, rp.d.dz); const cls= st==="VALIDE" ? "st st-ok" : (st==="REFUSÉ" ? "st st-ko" : "st st-na"); return `<span class="${cls}">${esc(st||"—")}</span>`; })()
+        { __html:true, value:(function(){ const st=statusFromTol(rp.d.dx, rp.d.dy, rp.d.dz); const cls= st==="VALIDE" ? "st st-ok" : (st==="REFUSÉ" ? "st st-ko" : "st st-na"); return `<span class="${cls}">${esc(st||"—")}</span>`; })() }
       ];
       return dupInfo
         ? { __row:true, style:nfDupRowStyle_(dupInfo), cells }

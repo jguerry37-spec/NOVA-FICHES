@@ -710,7 +710,7 @@ HookDiagnostics(_webView);
         try
         {
             Directory.CreateDirectory(ExportsDir);
-            Process.Start(new ProcessStartInfo { FileName = ExportsDir, UseShellExecute = true });
+            using var process = Process.Start(new ProcessStartInfo { FileName = ExportsDir, UseShellExecute = true });
         }
         catch (Exception ex)
         {
@@ -1909,7 +1909,7 @@ if (string.Equals(type, "nextDownloadName", StringComparison.OrdinalIgnoreCase))
                         var proof = GetPdfFooterVersion();
                         NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateImplantationFullFromJson(sfd.FileName, payloadJson, proof);
 
-                        try { Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+                        try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
 
                         // Comfort: signal end of generation to the WebView UI.
                         SendToUi(new { type = "pdf_result", report = "implantation", ok = true, filePath = sfd.FileName });
@@ -1968,7 +1968,7 @@ if (string.Equals(type, "nextDownloadName", StringComparison.OrdinalIgnoreCase))
                             lrJson,
                             proof);
 
-                        try { Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { /* ignore */ }
+                        try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { /* ignore */ }
 
                         SendToUi(new { type = "pdf_result", report = "rapport_complet_v2", ok = true, filePath = sfd.FileName });
                     }
@@ -2076,7 +2076,7 @@ if (string.Equals(type, "pdfsharp_rapport_complet", StringComparison.OrdinalIgno
                         dto.MesureSurLigne.FooterLeft ??= "NOVATLAS — Nova-Fiches";
 
                         NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateRapportComplet(sfd.FileName, dto, proof);
-                        try { Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+                        try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
 
                         SendToUi(new { type = "pdf_result", report = "rapport_complet", ok = true, filePath = sfd.FileName });
                     }
@@ -2125,7 +2125,7 @@ if (string.Equals(type, "pdfsharp_rapport_complet", StringComparison.OrdinalIgno
 						var proof = GetPdfFooterVersion();
                             NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateLigneReferenceFromJson(sfd.FileName, payloadJson, proof);
 
-                            try { Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+                            try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
 
                             SendToUi(new { type = "pdf_result", report = "ligne_reference", ok = true, filePath = sfd.FileName });
                         }
@@ -2177,7 +2177,7 @@ if (string.Equals(type, "pdfsharp_points_topo", StringComparison.OrdinalIgnoreCa
 			var proof = GetPdfFooterVersion();
 
             NovaFiches.PdfSharpEngine.PdfSharpReports.GeneratePointsTopoFromJson(sfd.FileName, payloadJson, proof);
-            try { Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+            try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
 
             SendToUi(new { type = "pdf_result", report = "points_topo", ok = true, filePath = sfd.FileName });
         }
@@ -2216,7 +2216,7 @@ if (string.Equals(type, "pdfsharp_height_transfer", StringComparison.OrdinalIgno
         {
             var proof = GetPdfFooterVersion();
             NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateHeightTransferFromJson(sfd.FileName, payloadJson, proof);
-            try { Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+            try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
             SendToUi(new { type = "pdf_result", report = "height_transfer", ok = true, filePath = sfd.FileName });
         }
     }
@@ -2253,7 +2253,7 @@ if (string.Equals(type, "pdfsharp_height_transfer", StringComparison.OrdinalIgno
                         var proof = GetPdfFooterVersion();
 
                         NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateStationFromJson(sfd.FileName, payloadJson, proof);
-                        try { Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+                        try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
 
                         SendToUi(new { type = "pdf_result", report = "station", ok = true, filePath = sfd.FileName });
                     }
@@ -2290,7 +2290,7 @@ if (string.Equals(type, "pdfsharp_photo_report", StringComparison.OrdinalIgnoreC
 
         var proof = GetPdfFooterVersion();
         NovaFiches.PdfSharpEngine.PdfSharpReports.GeneratePhotoReportFromJson(sfd.FileName, payloadJson, proof);
-        try { Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+        try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
 
         SendToUi(new { type = "pdf_result", report = "reportage_photo", ok = true, filePath = sfd.FileName });
     }
@@ -2400,7 +2400,7 @@ private void OpenFolder(string dir)
         try
         {
             Directory.CreateDirectory(dir);
-            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            using var process = Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
         }
         catch (Exception ex)
         {
@@ -2427,7 +2427,7 @@ private void OpenFolder(string dir)
                 return;
             }
 
-            Process.Start(new ProcessStartInfo
+            using var process = Process.Start(new ProcessStartInfo
             {
                 FileName = helpPdf,
                 UseShellExecute = true
@@ -2461,7 +2461,7 @@ private void OpenFolder(string dir)
                 return;
             }
 
-            Process.Start(new ProcessStartInfo
+            using var process = Process.Start(new ProcessStartInfo
             {
                 FileName = historyPath,
                 UseShellExecute = true
