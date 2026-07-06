@@ -1,5 +1,6 @@
 using System;
 using System.Windows.Forms;
+using TopoRapportWin.Licensing;
 
 namespace TopoRapportWin;
 
@@ -35,6 +36,21 @@ internal static class Program
         // Log de démarrage
         AppLog.Info("=== Application start ===");
         AppLog.Info($"BaseDirectory: {AppContext.BaseDirectory}");
+
+        // Activation par licence hors-ligne (V2). Bloquant : sans licence valide,
+        // l'application ne va pas jusqu'à MainForm. Pas de vérification réseau,
+        // pas de mode dégradé (cohérent avec un usage interne Novatlas).
+        var licenseResult = LicenseService.LoadAndValidate();
+        if (!licenseResult.IsValid)
+        {
+            AppLog.Info($"License: statut au démarrage = {licenseResult.Status} ({licenseResult.Message})");
+            using var licenseForm = new LicenseForm(licenseResult);
+            if (licenseForm.ShowDialog() != DialogResult.OK)
+            {
+                AppLog.Info("License: activation annulée par l'utilisateur — fermeture de l'application.");
+                return;
+            }
+        }
 
         Application.Run(new MainForm());
     }

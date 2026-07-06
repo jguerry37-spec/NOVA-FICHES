@@ -26,3 +26,7 @@ desktop.ini
 .vs/
 .vscode/
 *.userosscache
+
+# Clé privée de licence (JAMAIS commitée) - voir tools/license-gen/README.md
+tools/license-gen/keys/
+*.lickey
