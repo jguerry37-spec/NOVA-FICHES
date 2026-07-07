@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.11
+
+- Infos dossier : inversion des champs "Intervenant" et "Contact chantier" entre les encadres "Adresse chantier" et "Intervenant" (Intervenant est desormais dans l'encadre Adresse chantier, Contact chantier dans l'encadre Intervenant).
+- Build : passage de l'application et du moteur PDF en **2.3.1.11**.
+
 ## 2.3.1.10
 
 - Version affichee (PDF, appli, journal) : suppression du suffixe technique "+hash" ajoute automatiquement par l'outil de compilation depuis que le depot est sous Git. Seul le numero de version propre (ex. 2.3.1.10) reste visible.
