@@ -2,14 +2,14 @@
 
   <PropertyGroup>
      <!-- Version unique de la release -->
-	<Version>2.3.1.8</Version>
+	<Version>2.3.1.9</Version>
 
   <!-- Version binaire Windows -->
-	<AssemblyVersion>2.3.1.8</AssemblyVersion>
-	<FileVersion>2.3.1.8</FileVersion>
+	<AssemblyVersion>2.3.1.9</AssemblyVersion>
+	<FileVersion>2.3.1.9</FileVersion>
 
   <!-- Version “lisible” affichable côté app / logs -->
-	<InformationalVersion>2.3.1.8</InformationalVersion>
+	<InformationalVersion>2.3.1.9</InformationalVersion>
   
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>

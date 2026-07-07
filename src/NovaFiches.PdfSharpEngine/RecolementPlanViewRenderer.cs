@@ -190,10 +190,10 @@ public static class RecolementPlanViewRenderer
                     if (it.ValueKind != JsonValueKind.Object) continue;
                     string id = it.TryGetProperty("id", out var idEl) ? (idEl.GetString() ?? "") : "";
                     string key = it.TryGetProperty("key", out var keyEl) ? (keyEl.GetString() ?? "") : "";
-                    double x = it.TryGetProperty("x", out var xEl) && xEl.TryGetDouble(out var xd) ? xd : double.NaN;
-                    double y = it.TryGetProperty("y", out var yEl) && yEl.TryGetDouble(out var yd) ? yd : double.NaN;
+                    double x = it.TryGetProperty("x", out var xEl) && xEl.ValueKind == JsonValueKind.Number && xEl.TryGetDouble(out var xd) ? xd : double.NaN;
+                    double y = it.TryGetProperty("y", out var yEl) && yEl.ValueKind == JsonValueKind.Number && yEl.TryGetDouble(out var yd) ? yd : double.NaN;
                     double? b = null;
-                    if (it.TryGetProperty("base", out var bEl) && bEl.TryGetDouble(out var bd)) b = bd;
+                    if (it.TryGetProperty("base", out var bEl) && bEl.ValueKind == JsonValueKind.Number && bEl.TryGetDouble(out var bd)) b = bd;
                     if (string.IsNullOrWhiteSpace(id)) id = !string.IsNullOrWhiteSpace(key) ? key : (b?.ToString() ?? "");
                     if (!double.IsFinite(x) || !double.IsFinite(y)) continue;
                     string identity = !string.IsNullOrWhiteSpace(key)
@@ -216,8 +216,8 @@ public static class RecolementPlanViewRenderer
                 x = double.NaN;
                 y = double.NaN;
                 if (!item.TryGetProperty(key, out var p) || p.ValueKind != JsonValueKind.Object) return false;
-                if (!p.TryGetProperty("x", out var xEl) || !xEl.TryGetDouble(out x)) return false;
-                if (!p.TryGetProperty("y", out var yEl) || !yEl.TryGetDouble(out y)) return false;
+                if (!p.TryGetProperty("x", out var xEl) || xEl.ValueKind != JsonValueKind.Number || !xEl.TryGetDouble(out x)) return false;
+                if (!p.TryGetProperty("y", out var yEl) || yEl.ValueKind != JsonValueKind.Number || !yEl.TryGetDouble(out y)) return false;
                 return double.IsFinite(x) && double.IsFinite(y);
             }
 

@@ -1569,9 +1569,22 @@ private static double DrawBar(
                 RecolementPlanViewRenderer.Render(doc, root, pv);
             }
         }
-        catch
+        catch (System.Exception ex)
         {
-            // Never block report generation if plan rendering fails.
+            // Never block report generation if plan rendering fails, but always leave a
+            // trace: this used to fail completely silently, making the missing page
+            // impossible to diagnose from a user report alone.
+            try
+            {
+                var logDir = System.IO.Path.Combine(
+                    System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
+                    "NOVATLAS", "Nova-Fiches", "Logs");
+                System.IO.Directory.CreateDirectory(logDir);
+                var logPath = System.IO.Path.Combine(logDir, $"Nova-Fiches_{System.DateTime.Now:yyyy-MM-dd}.log");
+                System.IO.File.AppendAllText(logPath,
+                    $"{System.DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [ERROR] RecolementPlanViewRenderer.Render a échoué (page plan absente du PDF){System.Environment.NewLine}{ex}{System.Environment.NewLine}");
+            }
+            catch { /* le logging ne doit jamais faire planter la génération du PDF */ }
         }
 
         // Stamp footer on all pages (with total pages)

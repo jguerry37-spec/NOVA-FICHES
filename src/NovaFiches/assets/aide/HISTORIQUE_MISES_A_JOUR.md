@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.9
+
+- Recolement de pieux : correction du bouton "PDF - Recolement pieux + plan", qui ne produisait jamais la page "Vue en plan". Cause : le rendu plantait silencieusement des qu'un point theorique du TXT sans numero de pieu (ex. un repere nomme "A", "B"...) etait present dans la liste, a cause d'une lecture de donnee JSON non protegee.
+  - Pourquoi : rendre visible l'echec pour la prochaine fois (trace desormais ecrite dans le journal de l'application) et corriger la cause reelle plutot que de contourner le symptome.
+- Build : passage de l'application et du moteur PDF en **2.3.1.9**.
+
 ## 2.3.1.8
 
 - Refonte ergonomique complete de l'interface : design maison (moins "generique IA"), formulaire "Infos dossier" reorganise en sous-blocs, grille a 6 colonnes avec champs extensibles au clic, reduction des doubles ascenseurs, feedback visuel pendant les exports PDF/KMZ et confirmation de validation dans le module Pieux.
