@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.12
+
+- Bandeau de mise a jour : remplace par une pastille compacte alignee avec le logo dans l'en-tete, au lieu d'une barre pleine largeur qui poussait le logo sur une deuxieme ligne.
+  - Pourquoi : meilleure integration visuelle, coherente avec les autres pastilles (pill) deja utilisees dans l'application.
+- Build : passage de l'application et du moteur PDF en **2.3.1.12**.
+
 ## 2.3.1.11
 
 - Infos dossier : inversion des champs "Intervenant" et "Contact chantier" entre les encadres "Adresse chantier" et "Intervenant" (Intervenant est desormais dans l'encadre Adresse chantier, Contact chantier dans l'encadre Intervenant).
