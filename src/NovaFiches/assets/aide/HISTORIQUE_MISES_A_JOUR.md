@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.10
+
+- Version affichee (PDF, appli, journal) : suppression du suffixe technique "+hash" ajoute automatiquement par l'outil de compilation depuis que le depot est sous Git. Seul le numero de version propre (ex. 2.3.1.10) reste visible.
+  - Pourquoi : ces informations internes n'ont rien a faire dans un document remis a un client ou affiche a l'ecran.
+- Build : passage de l'application et du moteur PDF en **2.3.1.10**.
+
 ## 2.3.1.9
 
 - Recolement de pieux : correction du bouton "PDF - Recolement pieux + plan", qui ne produisait jamais la page "Vue en plan". Cause : le rendu plantait silencieusement des qu'un point theorique du TXT sans numero de pieu (ex. un repere nomme "A", "B"...) etait present dans la liste, a cause d'une lecture de donnee JSON non protegee.
