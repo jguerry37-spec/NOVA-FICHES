@@ -15,7 +15,7 @@ internal static class PhotoAppendixRenderer
     private static readonly XColor BrandBlue = XColor.FromArgb(18, 103, 243);
     private static readonly XColor LineGray = XColor.FromArgb(200, 200, 200);
 
-    internal sealed record PhotoItem(string ModuleLabel, string Name, string Caption, string ImageData);
+    internal sealed record PhotoItem(string ModuleLabel, string Name, string Caption, string ImageData, string LinkedPointId, int? OrderKey);
 
     public static void AppendFromPayload(PdfDocument doc, string payloadJson, string buildFooter)
     {
@@ -150,18 +150,37 @@ internal static class PhotoAppendixRenderer
             {
                 var image = Get(p, "imageData");
                 if (string.IsNullOrWhiteSpace(image)) continue;
+                int? orderKey = (p.ValueKind == JsonValueKind.Object
+                    && p.TryGetProperty("orderKey", out var okEl)
+                    && okEl.ValueKind == JsonValueKind.Number
+                    && okEl.TryGetInt32(out var okVal))
+                    ? okVal
+                    : null;
                 yield return new PhotoItem(
                     First(Get(p, "moduleLabel"), "Photos"),
                     Get(p, "name"),
                     Get(p, "caption"),
-                    image);
+                    image,
+                    Get(p, "linkedPointId"),
+                    orderKey);
             }
         }
+    }
+
+    // Photos liees a un point du rapport passent en premier, dans l'ordre d'apparition de ce
+    // point dans le rapport (OrderKey). Les photos non liees (OrderKey == null) gardent leur
+    // ordre d'origine : OrderBy est un tri stable, donc si aucune photo n'a de lien, ce tri est
+    // un no-op et le comportement existant est preserve a l'identique.
+    internal static List<PhotoItem> SortForAppendix(List<PhotoItem> photos)
+    {
+        return photos.OrderBy(p => p.OrderKey ?? int.MaxValue).ToList();
     }
 
     private static void Append(PdfDocument doc, List<PhotoItem> photos, string buildFooter, string pageTitle = "ANNEXE PHOTOS", Dictionary<string, string>? reportInfo = null, int photosPerPage = 4)
     {
         photosPerPage = Math.Clamp(photosPerPage, 1, 4);
+        photos = SortForAppendix(photos);
+
         int index = 0;
         while (index < photos.Count)
         {
@@ -201,13 +220,23 @@ internal static class PhotoAppendixRenderer
         for (int i = 0; i < photos.Count; i++)
         {
             var slot = slots[Math.Min(i, slots.Count - 1)];
-            var imageBox = new XRect(slot.Left, slot.Top, slot.Width, Math.Max(Units.MmToPt(20), slot.Height - captionH));
-            var captionBox = new XRect(slot.Left, imageBox.Bottom + Units.MmToPt(2), slot.Width, captionH - Units.MmToPt(2));
+            var photo = photos[i];
+            bool hasLink = !string.IsNullOrWhiteSpace(photo.LinkedPointId);
+            double pointLabelH = hasLink ? Units.MmToPt(4.5) : 0;
+            var imageBox = new XRect(slot.Left, slot.Top, slot.Width, Math.Max(Units.MmToPt(20), slot.Height - captionH - pointLabelH));
 
             g.DrawRectangle(new XPen(LineGray, 0.6), imageBox);
-            DrawImage(g, photos[i].ImageData, imageBox);
+            DrawImage(g, photo.ImageData, imageBox);
 
-            var caption = First(photos[i].Caption, photos[i].Name);
+            double textY = imageBox.Bottom + Units.MmToPt(2);
+            if (hasLink)
+            {
+                var pointBox = new XRect(slot.Left, textY, slot.Width, pointLabelH);
+                g.DrawString("Point : " + photo.LinkedPointId, NovatlasTheme.FontBold(8), XBrushes.Black, pointBox, XStringFormats.TopLeft);
+                textY += pointLabelH;
+            }
+            var captionBox = new XRect(slot.Left, textY, slot.Width, captionH - Units.MmToPt(2));
+            var caption = First(photo.Caption, photo.Name);
             g.DrawString(caption, NovatlasTheme.FontBody(8), XBrushes.Black, captionBox, XStringFormats.TopLeft);
         }
     }

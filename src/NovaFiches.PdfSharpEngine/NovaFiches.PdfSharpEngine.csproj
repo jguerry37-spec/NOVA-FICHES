@@ -1,14 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
-	<Version>2.3.1.12</Version>
-	<AssemblyVersion>2.3.1.12</AssemblyVersion>
-	<FileVersion>2.3.1.12</FileVersion>
-	<InformationalVersion>2.3.1.12</InformationalVersion>
+	<Version>2.3.1.13</Version>
+	<AssemblyVersion>2.3.1.13</AssemblyVersion>
+	<FileVersion>2.3.1.13</FileVersion>
+	<InformationalVersion>2.3.1.13</InformationalVersion>
 	<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <!-- Permet a NovaFiches.Tests d'appeler des methodes/records "internal" (ex:
+       PhotoAppendixRenderer.SortForAppendix/PhotoItem) sans les rendre public. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="NovaFiches.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Official PDFsharp 6.x GDI build (supports .NET 6/8 Windows). -->

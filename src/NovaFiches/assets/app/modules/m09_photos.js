@@ -141,6 +141,10 @@
             <button id="nfDeletePhoto" class="btn" type="button">Supprimer photo</button>
           </div>
           <div class="nf-photo-canvas-wrap"><canvas id="nfPhotoCanvas" width="960" height="720"></canvas></div>
+          <div id="nfPhotoPointLinkRow" class="nf-hidden" style="display:flex; align-items:center; gap:8px;">
+            <label for="nfPhotoPointLink" class="small" style="white-space:nowrap;">Point lie</label>
+            <select id="nfPhotoPointLink" class="box" style="max-width:280px;"></select>
+          </div>
           <textarea id="nfPhotoCaption" class="box nf-photo-caption" placeholder="Legende de la photo"></textarea>
         </div>
       </div>`;
@@ -153,6 +157,10 @@
     qs('nfPhotoCaption')?.addEventListener('input', e => {
       const p = getSelected();
       if(p){ p.caption = e.target.value || ''; renderList(); updateButtons(); }
+    });
+    qs('nfPhotoPointLink')?.addEventListener('change', e => {
+      const p = getSelected();
+      if(p){ p.linkedPointId = e.target.value || null; }
     });
     [['nfToolArrow','arrow'],['nfToolLine','line'],['nfToolCircle','circle'],['nfToolRect','rect'],['nfToolPoint','point'],['nfToolText','text']].forEach(([id,t])=>{
       qs(id)?.addEventListener('click', ()=>setTool(t));
@@ -230,8 +238,75 @@
     ensureUi();
     qs('nfPhotoTitle').textContent = 'Photos - ' + moduleLabel(currentModule);
     selectedId = arr(currentModule)[0]?.id || null;
+    renderPointLinkSelect();
     renderAll();
     qs('nfPhotoModal').style.display = 'flex';
+  }
+
+  // Points du rapport disponibles pour lier une photo, selon le module photo courant.
+  // Implantation/ligne de ref et Station-leve/transfert alti sont les seuls contextes
+  // concernes (portee confirmee avec l'utilisateur) ; les autres modules renvoient [].
+  function pointGroupsForModule(moduleId){
+    const data = (typeof lastData !== 'undefined' && lastData) ? lastData : (window.lastData || null);
+    if(!data) return [];
+    const uniq = arr => [...new Set(arr.filter(Boolean))];
+    if(moduleId === 'module-implantation'){
+      const groups = [];
+      try{
+        const imp = (typeof collectAllImplantPoints === 'function') ? collectAllImplantPoints(data) : [];
+        const ids = uniq(imp.map(p => String(p?.id || '').trim()));
+        if(ids.length) groups.push({ label:'Implantation', ids });
+      }catch(_){ }
+      try{
+        const ex = (typeof nfExcludedSet_ === 'function') ? nfExcludedSet_() : new Set();
+        const lr = (typeof nfFilterLigneRef_ === 'function') ? nfFilterLigneRef_(data.ligneRef, ex) : [];
+        const ids = [];
+        lr.forEach(line => (line?.rabPoints || []).forEach(p => ids.push(String(p?.id || '').trim())));
+        const u = uniq(ids);
+        if(u.length) groups.push({ label:'Ligne de reference', ids:u });
+      }catch(_){ }
+      return groups;
+    }
+    if(moduleId === 'module-suivi'){
+      const groups = [];
+      try{
+        const stations = (typeof nfFilterTopoStationsForLeve_ === 'function') ? nfFilterTopoStationsForLeve_(data) : [];
+        const ids = [];
+        stations.forEach(st => {
+          (st?.observations || []).forEach(o => ids.push(String(o?.id || '').trim()));
+          (st?.results || []).forEach(r => ids.push(String(r?.id || '').trim()));
+        });
+        const u = uniq(ids);
+        if(u.length) groups.push({ label:'Leve', ids:u });
+      }catch(_){ }
+      try{
+        const ids = [];
+        (data.heightTransfers || []).forEach(ht => {
+          (ht?.references || []).forEach(r => ids.push(String(r?.id || '').trim()));
+          (ht?.measuredPoints || []).forEach(m => ids.push(String(m?.id || '').trim()));
+        });
+        const u = uniq(ids);
+        if(u.length) groups.push({ label:'Transfert alti', ids:u });
+      }catch(_){ }
+      return groups;
+    }
+    return [];
+  }
+
+  function renderPointLinkSelect(){
+    const row = qs('nfPhotoPointLinkRow');
+    const sel = qs('nfPhotoPointLink');
+    if(!row || !sel) return;
+    const groups = pointGroupsForModule(currentModule);
+    if(!groups.length){
+      row.classList.add('nf-hidden');
+      sel.innerHTML = '';
+      return;
+    }
+    row.classList.remove('nf-hidden');
+    sel.innerHTML = '<option value="">Aucun point lie</option>' + groups.map(g =>
+      `<optgroup label="${esc(g.label)}">` + g.ids.map(id => `<option value="${esc(id)}">${esc(id)}</option>`).join('') + '</optgroup>'
+    ).join('');
   }
   function close(){ const m = qs('nfPhotoModal'); if(m) m.style.display = 'none'; }
   function validateAndClose(){
@@ -284,6 +359,8 @@
     const ctx = canvas.getContext('2d');
     const p = getSelected();
     if(cap) cap.value = p?.caption || '';
+    const linkSel = qs('nfPhotoPointLink');
+    if(linkSel) linkSel.value = p?.linkedPointId || '';
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle = '#fff';
     ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -465,18 +542,35 @@
       img.src = photo.dataUrl;
     });
   }
+  // Ordre des points tel qu'utilise pour peupler le selecteur de liaison (m03b: implantation
+  // puis ligne de reference, ou leve puis transfert alti) : sert de cle de tri des photos liees
+  // dans l'annexe PDF, pour qu'elles suivent l'ordre d'apparition des points dans le rapport.
+  function flatPointOrderForModule(moduleId){
+    const order = new Map();
+    let i = 0;
+    pointGroupsForModule(moduleId).forEach(g => {
+      g.ids.forEach(id => { if(!order.has(id)) order.set(id, i++); });
+    });
+    return order;
+  }
+
   async function exportPhotos(moduleId){
-    const list = allPhotosFor(moduleId || activeModuleId());
+    const mid = moduleId || activeModuleId();
+    const list = allPhotosFor(mid);
+    const order = flatPointOrderForModule(mid);
     const out = [];
     for(const p of list){
+      const linkedPointId = p.linkedPointId || null;
       out.push({
-        module: moduleId || activeModuleId(),
-        moduleLabel: moduleLabel(moduleId || activeModuleId()),
+        module: mid,
+        moduleLabel: moduleLabel(mid),
         name: p.name || '',
         caption: p.caption || '',
         imageData: p.renderedDataUrl || await renderedDataUrl(p),
         w: p.w || 0,
-        h: p.h || 0
+        h: p.h || 0,
+        linkedPointId: linkedPointId,
+        orderKey: (linkedPointId && order.has(linkedPointId)) ? order.get(linkedPointId) : null
       });
     }
     return out;

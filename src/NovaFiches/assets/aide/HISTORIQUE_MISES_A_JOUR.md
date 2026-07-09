@@ -2,6 +2,13 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.13
+
+- Photos : possibilite de lier une photo a un point du rapport (implantation, ligne de reference, leve, transfert alti), via une liste deroulante "Point lie" dans l'editeur de photo. Sans selection, rien ne change par rapport a avant.
+- PDF : dans l'annexe photo, les photos liees a un point affichent desormais "Point : <ID>" et sont regroupees/ordonnees selon l'ordre d'apparition du point dans le rapport. Les photos non liees restent groupees a la fin, dans leur ordre d'ajout habituel.
+  - Pourquoi : permettre de retrouver facilement quelle photo correspond a quel point mesure, sans avoir a redigiger une legende manuelle a chaque fois.
+- Build : passage de l'application et du moteur PDF en **2.3.1.13**.
+
 ## 2.3.1.12
 
 - Bandeau de mise a jour : remplace par une pastille compacte alignee avec le logo dans l'en-tete, au lieu d'une barre pleine largeur qui poussait le logo sur une deuxieme ligne.
