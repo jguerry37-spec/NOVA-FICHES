@@ -15,7 +15,7 @@ internal static class PhotoAppendixRenderer
     private static readonly XColor BrandBlue = XColor.FromArgb(18, 103, 243);
     private static readonly XColor LineGray = XColor.FromArgb(200, 200, 200);
 
-    internal sealed record PhotoItem(string ModuleLabel, string Name, string Caption, string ImageData, string LinkedPointId, int? OrderKey);
+    internal sealed record PhotoItem(string ModuleLabel, string Name, string Caption, string ImageData, string LinkedPointId, int? OrderKey, double? LinkedPointX = null, double? LinkedPointY = null, double? LinkedPointZ = null);
 
     public static void AppendFromPayload(PdfDocument doc, string payloadJson, string buildFooter)
     {
@@ -162,7 +162,10 @@ internal static class PhotoAppendixRenderer
                     Get(p, "caption"),
                     image,
                     Get(p, "linkedPointId"),
-                    orderKey);
+                    orderKey,
+                    GetNullableDouble(p, "linkedPointX"),
+                    GetNullableDouble(p, "linkedPointY"),
+                    GetNullableDouble(p, "linkedPointZ"));
             }
         }
     }
@@ -222,8 +225,10 @@ internal static class PhotoAppendixRenderer
             var slot = slots[Math.Min(i, slots.Count - 1)];
             var photo = photos[i];
             bool hasLink = !string.IsNullOrWhiteSpace(photo.LinkedPointId);
+            string coordLine = hasLink ? FormatCoordLine(photo) : "";
             double pointLabelH = hasLink ? Units.MmToPt(4.5) : 0;
-            var imageBox = new XRect(slot.Left, slot.Top, slot.Width, Math.Max(Units.MmToPt(20), slot.Height - captionH - pointLabelH));
+            double coordLabelH = coordLine.Length > 0 ? Units.MmToPt(4.5) : 0;
+            var imageBox = new XRect(slot.Left, slot.Top, slot.Width, Math.Max(Units.MmToPt(20), slot.Height - captionH - pointLabelH - coordLabelH));
 
             g.DrawRectangle(new XPen(LineGray, 0.6), imageBox);
             DrawImage(g, photo.ImageData, imageBox);
@@ -235,10 +240,27 @@ internal static class PhotoAppendixRenderer
                 g.DrawString("Point : " + photo.LinkedPointId, NovatlasTheme.FontBold(8), XBrushes.Black, pointBox, XStringFormats.TopLeft);
                 textY += pointLabelH;
             }
+            if (coordLine.Length > 0)
+            {
+                var coordBox = new XRect(slot.Left, textY, slot.Width, coordLabelH);
+                g.DrawString(coordLine, NovatlasTheme.FontBody(7.5), XBrushes.Black, coordBox, XStringFormats.TopLeft);
+                textY += coordLabelH;
+            }
             var captionBox = new XRect(slot.Left, textY, slot.Width, captionH - Units.MmToPt(2));
             var caption = First(photo.Caption, photo.Name);
             g.DrawString(caption, NovatlasTheme.FontBody(8), XBrushes.Black, captionBox, XStringFormats.TopLeft);
         }
+    }
+
+    // Un point peut n'avoir que X/Y, que Z, les trois, ou aucune coordonnee exploitable :
+    // seules les composantes presentes sont affichees (jamais "0.000" pour une absente).
+    internal static string FormatCoordLine(PhotoItem p)
+    {
+        var parts = new List<string>();
+        if (p.LinkedPointX.HasValue) parts.Add("X " + p.LinkedPointX.Value.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture));
+        if (p.LinkedPointY.HasValue) parts.Add("Y " + p.LinkedPointY.Value.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture));
+        if (p.LinkedPointZ.HasValue) parts.Add("Z " + p.LinkedPointZ.Value.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture));
+        return string.Join("   ", parts);
     }
 
     private static List<XRect> BuildPhotoSlots(int photosPerPage, double left, double top, double usableW, double usableH, double gapX, double gapY)
@@ -546,6 +568,14 @@ internal static class PhotoAppendixRenderer
     {
         if (el.ValueKind != JsonValueKind.Object || !el.TryGetProperty(key, out var v)) return "";
         return v.ValueKind == JsonValueKind.String ? (v.GetString() ?? "") : v.ToString();
+    }
+
+    // Un point peut n'avoir que X/Y, que Z, les trois, ou aucune coordonnee exploitable :
+    // chaque composante est lue independamment, jamais d'exigence "tout ou rien".
+    private static double? GetNullableDouble(JsonElement el, string key)
+    {
+        if (el.ValueKind != JsonValueKind.Object || !el.TryGetProperty(key, out var v)) return null;
+        return v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var d) ? d : null;
     }
 
     private static string First(params string[] vals)

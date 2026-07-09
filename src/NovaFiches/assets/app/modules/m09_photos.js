@@ -243,38 +243,59 @@
     qs('nfPhotoModal').style.display = 'flex';
   }
 
-  // Points du rapport disponibles pour lier une photo, selon le module photo courant.
-  // Implantation/ligne de ref et Station-leve/transfert alti sont les seuls contextes
-  // concernes (portee confirmee avec l'utilisateur) ; les autres modules renvoient [].
-  function pointGroupsForModule(moduleId){
+  // Points du rapport disponibles pour lier une photo, selon le module photo courant, ainsi
+  // que leurs coordonnees rectangulaires (X/Y/Z) quand elles existent. Implantation/ligne de
+  // ref et Station-leve/transfert alti sont les seuls contextes concernes (portee confirmee
+  // avec l'utilisateur) ; les autres modules renvoient des groupes vides.
+  // Un point peut n'avoir que X/Y, que Z, les trois, ou aucune coordonnee exploitable : chaque
+  // composante est prise independamment (jamais d'exigence "tout ou rien").
+  function moduleReportPoints(moduleId){
     const data = (typeof lastData !== 'undefined' && lastData) ? lastData : (window.lastData || null);
-    if(!data) return [];
+    const groups = [];
+    const coordsById = new Map();
+    if(!data) return { groups, coordsById };
     const uniq = arr => [...new Set(arr.filter(Boolean))];
+    const setCoord = (id, x, y, z) => {
+      if(!id || coordsById.has(id)) return;
+      const c = {
+        x: Number.isFinite(x) ? x : null,
+        y: Number.isFinite(y) ? y : null,
+        z: Number.isFinite(z) ? z : null
+      };
+      if(c.x != null || c.y != null || c.z != null) coordsById.set(id, c);
+    };
     if(moduleId === 'module-implantation'){
-      const groups = [];
       try{
         const imp = (typeof collectAllImplantPoints === 'function') ? collectAllImplantPoints(data) : [];
         const ids = uniq(imp.map(p => String(p?.id || '').trim()));
         if(ids.length) groups.push({ label:'Implantation', ids });
+        imp.forEach(p => setCoord(String(p?.id || '').trim(), p?.mes?.E, p?.mes?.N, p?.mes?.H));
       }catch(_){ }
       try{
         const ex = (typeof nfExcludedSet_ === 'function') ? nfExcludedSet_() : new Set();
         const lr = (typeof nfFilterLigneRef_ === 'function') ? nfFilterLigneRef_(data.ligneRef, ex) : [];
         const ids = [];
-        lr.forEach(line => (line?.rabPoints || []).forEach(p => ids.push(String(p?.id || '').trim())));
+        lr.forEach(line => (line?.rabPoints || []).forEach(p => {
+          const id = String(p?.id || '').trim();
+          ids.push(id);
+          setCoord(id, p?.mes?.E, p?.mes?.N, p?.mes?.H);
+        }));
         const u = uniq(ids);
         if(u.length) groups.push({ label:'Ligne de reference', ids:u });
       }catch(_){ }
-      return groups;
+      return { groups, coordsById };
     }
     if(moduleId === 'module-suivi'){
-      const groups = [];
       try{
         const stations = (typeof nfFilterTopoStationsForLeve_ === 'function') ? nfFilterTopoStationsForLeve_(data) : [];
         const ids = [];
         stations.forEach(st => {
           (st?.observations || []).forEach(o => ids.push(String(o?.id || '').trim()));
-          (st?.results || []).forEach(r => ids.push(String(r?.id || '').trim()));
+          (st?.results || []).forEach(r => {
+            const id = String(r?.id || '').trim();
+            ids.push(id);
+            setCoord(id, r?.E, r?.N, r?.H);
+          });
         });
         const u = uniq(ids);
         if(u.length) groups.push({ label:'Leve', ids:u });
@@ -282,22 +303,30 @@
       try{
         const ids = [];
         (data.heightTransfers || []).forEach(ht => {
-          (ht?.references || []).forEach(r => ids.push(String(r?.id || '').trim()));
-          (ht?.measuredPoints || []).forEach(m => ids.push(String(m?.id || '').trim()));
+          (ht?.references || []).forEach(r => {
+            const id = String(r?.id || '').trim();
+            ids.push(id);
+            setCoord(id, r?.point?.E, r?.point?.N, r?.point?.H);
+          });
+          (ht?.measuredPoints || []).forEach(m => {
+            const id = String(m?.id || '').trim();
+            ids.push(id);
+            setCoord(id, m?.point?.E, m?.point?.N, m?.point?.H);
+          });
         });
         const u = uniq(ids);
         if(u.length) groups.push({ label:'Transfert alti', ids:u });
       }catch(_){ }
-      return groups;
+      return { groups, coordsById };
     }
-    return [];
+    return { groups, coordsById };
   }
 
   function renderPointLinkSelect(){
     const row = qs('nfPhotoPointLinkRow');
     const sel = qs('nfPhotoPointLink');
     if(!row || !sel) return;
-    const groups = pointGroupsForModule(currentModule);
+    const groups = moduleReportPoints(currentModule).groups;
     if(!groups.length){
       row.classList.add('nf-hidden');
       sel.innerHTML = '';
@@ -542,25 +571,20 @@
       img.src = photo.dataUrl;
     });
   }
-  // Ordre des points tel qu'utilise pour peupler le selecteur de liaison (m03b: implantation
-  // puis ligne de reference, ou leve puis transfert alti) : sert de cle de tri des photos liees
-  // dans l'annexe PDF, pour qu'elles suivent l'ordre d'apparition des points dans le rapport.
-  function flatPointOrderForModule(moduleId){
-    const order = new Map();
-    let i = 0;
-    pointGroupsForModule(moduleId).forEach(g => {
-      g.ids.forEach(id => { if(!order.has(id)) order.set(id, i++); });
-    });
-    return order;
-  }
-
   async function exportPhotos(moduleId){
     const mid = moduleId || activeModuleId();
     const list = allPhotosFor(mid);
-    const order = flatPointOrderForModule(mid);
+    // Ordre des points tel qu'utilise pour peupler le selecteur de liaison (m03b: implantation
+    // puis ligne de reference, ou leve puis transfert alti) : sert de cle de tri des photos
+    // liees dans l'annexe PDF, pour qu'elles suivent l'ordre d'apparition dans le rapport.
+    const { groups, coordsById } = moduleReportPoints(mid);
+    const order = new Map();
+    let orderIdx = 0;
+    groups.forEach(g => g.ids.forEach(id => { if(!order.has(id)) order.set(id, orderIdx++); }));
     const out = [];
     for(const p of list){
       const linkedPointId = p.linkedPointId || null;
+      const coord = linkedPointId ? coordsById.get(linkedPointId) : null;
       out.push({
         module: mid,
         moduleLabel: moduleLabel(mid),
@@ -570,7 +594,10 @@
         w: p.w || 0,
         h: p.h || 0,
         linkedPointId: linkedPointId,
-        orderKey: (linkedPointId && order.has(linkedPointId)) ? order.get(linkedPointId) : null
+        orderKey: (linkedPointId && order.has(linkedPointId)) ? order.get(linkedPointId) : null,
+        linkedPointX: coord?.x ?? null,
+        linkedPointY: coord?.y ?? null,
+        linkedPointZ: coord?.z ?? null
       });
     }
     return out;

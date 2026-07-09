@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.14
+
+- Photos : quand une photo est liee a un point du rapport, ses coordonnees rectangulaires (X/Y/Z) disponibles sont reprises et affichees dans l'annexe photo, juste sous "Point : <ID>". Un point peut n'avoir que X/Y, que Z, les trois, ou aucune coordonnee exploitable : seules les composantes reellement disponibles sont affichees.
+  - Pourquoi : retrouver directement sur la photo la position mesuree du point, sans avoir a rouvrir le tableau du rapport.
+- Build : passage de l'application et du moteur PDF en **2.3.1.14**.
+
 ## 2.3.1.13
 
 - Photos : possibilite de lier une photo a un point du rapport (implantation, ligne de reference, leve, transfert alti), via une liste deroulante "Point lie" dans l'editeur de photo. Sans selection, rien ne change par rapport a avant.
