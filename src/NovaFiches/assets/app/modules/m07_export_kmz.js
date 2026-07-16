@@ -99,7 +99,8 @@
     });
   }
 
-  async function renderMap(){
+  async function renderMap(opts){
+    const forceFit = !!(opts && opts.forceFit);
     const pts = state.points || [];
     const lines = state.lines || [];
     const texts = state.texts || [];
@@ -118,7 +119,8 @@
       try{
         mapDiv.style.display = 'block';
         if(canvas) canvas.style.display = 'none';
-        if(!state.map){
+        const isNewMap = !state.map;
+        if(isNewMap){
           state.map = L.map(mapDiv, { attributionControl:true });
           state.baseLayer = createTileLayer(state.basemap);
           state.baseLayer.addTo(state.map);
@@ -205,8 +207,12 @@
             if(bounds && bounds.isValid()) state.map.fitBounds(bounds.pad(0.20), { maxZoom: 20 });
           }catch(_){}
         };
-        fitImportedData();
-        setTimeout(fitImportedData, 120);
+        if(isNewMap || forceFit){
+          fitImportedData();
+          setTimeout(fitImportedData, 120);
+        }else{
+          try{ state.map.invalidateSize(); }catch(_){}
+        }
         setMapStatus('Fond de carte chargé via Internet. Contrôle visuel des points actif.');
         return;
       }catch(e){
@@ -671,6 +677,10 @@
         state.baseLayer = createTileLayer(state.basemap);
         state.baseLayer.addTo(state.map);
       }
+    });
+
+    el('btnKmzRecenter')?.addEventListener('click', () => {
+      renderMap({ forceFit: true });
     });
 
     try{

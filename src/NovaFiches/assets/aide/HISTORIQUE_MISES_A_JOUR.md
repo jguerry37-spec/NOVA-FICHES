@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.23
+
+- Export KMZ : mise en page revue pour tout voir sans avoir a scroller. La ligne "Reperes NGF (IGN)" suit desormais directement le bouton Exporter KMZ (et le statut du fichier), sur la meme ligne. En dessous : Mesurer une distance, Effacer, la distance, le choix du fond de carte et un nouveau bouton "Recentrer la carte", tous sur la meme ligne.
+- Export KMZ : correctif d'un comportement genant ou la carte se recadrait automatiquement (zoom + position) a chaque action (coche d'un calque DXF, chargement de reperes NGF, etc.). Le recadrage automatique ne se fait plus qu'au tout premier affichage de la carte ; le bouton "Recentrer la carte" permet de le redeclencher manuellement a la demande.
+- Build : passage de l'application et du moteur PDF en **2.3.1.23**.
+
 ## 2.3.1.22
 
 - Export KMZ : la fonction "Photos" (annotation de photos, sans rapport avec le KMZ) est retiree de ce module.

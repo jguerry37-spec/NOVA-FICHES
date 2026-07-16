@@ -538,11 +538,6 @@
             </div>
             <button id="btnKmzExport" disabled title="Exporte dans un seul KMZ tous les éléments TXT et DXF cochés.">Exporter KMZ</button>
             <span id="kmzStatus" class="pill">Fichier : aucun</span>
-          </div>
-          <div class="small" style="margin-top:8px;">
-            Le TXT et le DXF peuvent être chargés ensemble. Le KMZ reprend le nom du TXT lorsqu'il est présent, sinon celui du DXF.
-          </div>
-          <div class="row" style="align-items:center; margin-top:12px;">
             <label style="display:flex; align-items:center; gap:6px;">
               <input type="checkbox" id="kmzNgfToggle">
               Repères NGF (IGN)
@@ -554,6 +549,14 @@
             <button id="btnKmzMeasureToggle" type="button" title="Trace une ligne (clics successifs) et affiche la distance cumulée.">Mesurer une distance</button>
             <button id="btnKmzMeasureClear" type="button" class="nf-hidden">Effacer la mesure</button>
             <span id="kmzMeasureStatus" class="kmz-measure-pill"></span>
+            <div style="min-width:200px;">
+              <div class="small">Fond de carte</div>
+              <select id="kmzBasemap" class="box">
+                <option value="plan" selected>Plan (OpenStreetMap)</option>
+                <option value="satellite">Satellite (Esri)</option>
+              </select>
+            </div>
+            <button id="btnKmzRecenter" type="button" title="Recadre la carte sur l'ensemble des éléments actuellement affichés.">Recentrer la carte</button>
           </div>
         </div>
 
@@ -566,15 +569,6 @@
               <button id="btnKmzLayersNone">Tout exclure</button>
             </div>
             <div id="kmzLayerList" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:6px;"></div>
-          </div>
-          <div class="row" style="align-items:center; margin-bottom:8px;">
-            <div style="min-width:200px;">
-              <div class="small">Fond de carte</div>
-              <select id="kmzBasemap" class="box">
-                <option value="plan" selected>Plan (OpenStreetMap)</option>
-                <option value="satellite">Satellite (Esri)</option>
-              </select>
-            </div>
           </div>
           <div id="kmzMap" style="height:580px; width:100%; border-radius:8px; overflow:hidden; border:1px solid rgba(0,0,0,.10); background:#eef2f7;"></div>
           <canvas id="kmzCanvas" width="1100" height="580" style="width:100%; height:580px; display:none; border-radius:8px; border:1px solid rgba(0,0,0,.10);"></canvas>
