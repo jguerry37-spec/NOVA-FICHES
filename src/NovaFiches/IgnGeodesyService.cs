@@ -21,7 +21,7 @@ internal static class IgnGeodesyService
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(8) };
 
-    public sealed record NgfBenchmark(string Id, string Nom, string? Etat, double? Altitude, double Lon, double Lat);
+    public sealed record NgfBenchmark(string Id, string Nom, string? Etat, double? Altitude, double Lon, double Lat, string? FicheUrl);
 
     public static async Task<List<NgfBenchmark>> FetchBenchmarksAsync(double minLon, double minLat, double maxLon, double maxLat)
     {
@@ -53,8 +53,9 @@ internal static class IgnGeodesyService
             string nom = GetString(props, "nom") ?? id;
             string? etat = GetString(props, "etat");
             double? altitude = GetNullableDouble(props, "altitude");
+            string? ficheUrl = GetString(props, "url");
 
-            result.Add(new NgfBenchmark(id, nom, etat, altitude, lon, lat));
+            result.Add(new NgfBenchmark(id, nom, etat, altitude, lon, lat, ficheUrl));
         }
 
         return result;

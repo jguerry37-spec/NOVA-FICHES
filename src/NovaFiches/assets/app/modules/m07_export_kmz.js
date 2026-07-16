@@ -172,7 +172,10 @@
             marker.bindTooltip(label, { permanent:false, direction:'top' });
             const altValue = Number(p.altitude);
             const alt = Number.isFinite(altValue) ? altValue.toFixed(3) + ' m' : 'inconnue';
-            marker.bindPopup(`<b>${esc(label)}</b><br>Altitude NGF ${esc(alt)}<br>${esc(p.etat || '')}`);
+            const ficheLink = p.ficheUrl
+              ? `<br><a href="${esc(p.ficheUrl)}" target="_blank" rel="noopener">Télécharger la fiche (PDF)</a>`
+              : '';
+            marker.bindPopup(`<b>${esc(label)}</b><br>Altitude NGF ${esc(alt)}<br>${esc(p.etat || '')}${ficheLink}`);
             state.layer.addLayer(marker);
           });
         }
@@ -299,7 +302,17 @@
         <td>${esc(p.code ?? p.Code ?? '')}</td>
       </tr>`;
     });
-    tbody.innerHTML = txtRows.concat(dxfRows).join('');
+    const ngfRows = (state.ngfEnabled ? state.ngfPoints : []).map(p => {
+      return `<tr>
+        <td></td>
+        <td>${esc(p.nom || p.id || '')}</td><td>NGF (IGN)</td>
+        <td></td><td></td>
+        <td>${Number.isFinite(Number(p.altitude)) ? esc(fmt(p.altitude,3)) : ''}</td>
+        <td>${esc(fmt(p.lon,8))}</td><td>${esc(fmt(p.lat,8))}</td>
+        <td>${esc(p.etat || '')}</td>
+      </tr>`;
+    });
+    tbody.innerHTML = txtRows.concat(dxfRows).concat(ngfRows).join('');
     tbody.querySelectorAll('.kmz-txt-point-check').forEach(box => box.addEventListener('change', () => {
       if(box.checked) state.selectedTxtKeys.add(box.dataset.key);
       else state.selectedTxtKeys.delete(box.dataset.key);
@@ -343,10 +356,12 @@
       etat: p.etat ?? p.Etat ?? null,
       altitude: p.altitude ?? p.Altitude ?? null,
       lon: p.lon ?? p.Lon,
-      lat: p.lat ?? p.Lat
+      lat: p.lat ?? p.Lat,
+      ficheUrl: p.ficheUrl ?? p.FicheUrl ?? null
     })) : [];
     setNgfStatus(`${state.ngfPoints.length} repère(s) NGF chargé(s) sur la zone visible.`);
     renderMap();
+    renderTable();
   }
 
   function fmtDistance(meters){
@@ -543,6 +558,7 @@
         setNgfStatus('');
       }
       renderMap();
+      renderTable();
     });
     el('btnKmzNgfRefresh')?.addEventListener('click', () => {
       if(!state.map){

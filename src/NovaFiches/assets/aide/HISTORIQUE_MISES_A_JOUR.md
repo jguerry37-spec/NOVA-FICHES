@@ -2,6 +2,13 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.16
+
+- Export KMZ / reperes NGF : les reperes charges apparaissent desormais aussi comme lignes dans le tableau "Points importes" (nom, altitude, etat, longitude/latitude), en plus des marqueurs sur la carte.
+- Export KMZ / reperes NGF : le popup d'un repere sur la carte propose maintenant un lien "Telecharger la fiche (PDF)" vers la fiche signaletique officielle IGN du point, quand elle est disponible.
+  - Pourquoi : retrouver directement le detail officiel d'un repere (fiche PDF IGN) et le voir liste comme les autres points importes, sans repasser par le site de l'IGN.
+- Build : passage de l'application et du moteur PDF en **2.3.1.16**.
+
 ## 2.3.1.15
 
 - Export KMZ : nouvelle option "Reperes NGF (IGN)" pour charger, sur la zone actuellement visible de la carte, les reperes de nivellement officiels IGN (altitude NGF) et les inclure dans l'export KMZ aux cotes des points TXT/DXF. Interroge le flux public IGN (Geoplateforme, data.geopf.fr) ; necessite une connexion Internet, comme le fond de carte OpenStreetMap deja utilise dans ce module.

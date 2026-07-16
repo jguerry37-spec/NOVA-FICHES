@@ -1044,7 +1044,8 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
                     etat = b.Etat,
                     altitude = b.Altitude,
                     lon = b.Lon,
-                    lat = b.Lat
+                    lat = b.Lat,
+                    ficheUrl = b.FicheUrl
                 })
             });
         }
