@@ -175,7 +175,7 @@
             });
             const label = String(p.nom || p.id || '');
             marker.bindTooltip(label, { permanent:false, direction:'top' });
-            const altValue = Number(p.altitude);
+            const altValue = (p.altitude !== null && p.altitude !== undefined && p.altitude !== '') ? Number(p.altitude) : NaN;
             const alt = Number.isFinite(altValue) ? altValue.toFixed(3) + ' m' : 'inconnue';
             const ficheLink = p.ficheUrl
               ? `<br><a href="${esc(p.ficheUrl)}" target="_blank" rel="noopener">Télécharger la fiche (PDF)</a>`
@@ -312,7 +312,7 @@
         <td></td>
         <td>${esc(p.nom || p.id || '')}</td><td>NGF (IGN)</td>
         <td></td><td></td>
-        <td>${Number.isFinite(Number(p.altitude)) ? esc(fmt(p.altitude,3)) : ''}</td>
+        <td>${(p.altitude !== null && p.altitude !== undefined && p.altitude !== '' && Number.isFinite(Number(p.altitude))) ? esc(fmt(p.altitude,3)) : ''}</td>
         <td>${esc(fmt(p.lon,8))}</td><td>${esc(fmt(p.lat,8))}</td>
         <td>${esc(p.etat || '')}</td>
       </tr>`;

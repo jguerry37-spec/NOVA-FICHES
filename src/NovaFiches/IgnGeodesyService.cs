@@ -68,8 +68,14 @@ internal static class IgnGeodesyService
 
     private static double? GetNullableDouble(JsonElement el, string key)
     {
+        // Le WFS IGN encode "altitude" tantot en nombre JSON, tantot en chaine
+        // (ex: "34.905") selon les points : les deux formes doivent etre acceptees.
         if (el.ValueKind != JsonValueKind.Object || !el.TryGetProperty(key, out var v)) return null;
-        return v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var d) ? d : null;
+        if (v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var d)) return d;
+        if (v.ValueKind == JsonValueKind.String &&
+            double.TryParse(v.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            return parsed;
+        return null;
     }
 
     private static string F(double value) => value.ToString(CultureInfo.InvariantCulture);

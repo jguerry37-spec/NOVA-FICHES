@@ -40,6 +40,7 @@
     <div class="small" style="margin-top:12px;">
       <div id="sbStatus">Prêt</div>
       <div id="sbBuild" class="mono"></div>
+      <div id="sbLicense" class="pill nf-hidden" style="margin-top:6px; display:inline-block;"></div>
     </div>
   </aside>
 
@@ -706,9 +707,12 @@
   <div class="addr">NOVATLAS — 24 boulevard Paul Vaillant Couturier — 94200 IVRY SUR SEINE</div>
   <div class="legal">© NOVATLAS 2025 — Document interne confidentiel. Toute reproduction ou diffusion, totale ou partielle, sans autorisation écrite est interdite. Rapport généré automatiquement à partir des données importées et des paramètres définis dans ce document.</div>
 
-  <div class="row" style="justify-content:space-between; margin-top:6px;">
+  <div class="row" style="justify-content:space-between; align-items:center; margin-top:6px;">
     <div id="footerStatus" class="small">Prêt</div>
-    <div id="footerBuild" class="small mono"></div>
+    <div class="row nowrap" style="align-items:center; gap:8px;">
+      <span id="footerLicense" class="pill nf-hidden"></span>
+      <div id="footerBuild" class="small mono"></div>
+    </div>
   </div>
 
   <div style="margin-top:8px; display:flex; justify-content:flex-end;">
@@ -856,6 +860,13 @@
     const fBuild = document.getElementById('footerBuild');
     const sBuild = document.getElementById('sbBuild');
     if(fBuild && sBuild) sBuild.textContent = fBuild.textContent || '';
+    const fLicense = document.getElementById('footerLicense');
+    const sLicense = document.getElementById('sbLicense');
+    if(fLicense && sLicense && !fLicense.classList.contains('nf-hidden')){
+      sLicense.textContent = fLicense.textContent || '';
+      sLicense.className = fLicense.className.replace('nf-hidden', '').trim();
+      sLicense.style.display = 'inline-block';
+    }
 
     // Visualisation : déplacée hors Projet et affichée uniquement dans Implantation / Suivi
     placeVisualisation(targetId);

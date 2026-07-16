@@ -2,6 +2,13 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.18
+
+- Correctif reperes NGF : l'altitude affichait 0.000 m au lieu de la vraie valeur pour certains reperes. Le flux IGN encode l'altitude tantot en nombre, tantot en texte selon les points ; les deux formats sont maintenant acceptes.
+- Licence : le pied de page et le panneau lateral affichent desormais l'etat de la licence sous le numero de build (ex. "Licence valable jusqu'au JJ/MM/AAAA"). Une alerte orange apparait 30 jours avant l'expiration, rouge dans les 7 derniers jours.
+  - Pourquoi : eviter une expiration surprise en fin de licence, avec un avertissement progressif comme sur les logiciels professionnels.
+- Build : passage de l'application et du moteur PDF en **2.3.1.18**.
+
 ## 2.3.1.17
 
 - Export KMZ / reperes NGF : le bouton "Charger sur la zone visible" est remplace par "Dessiner une zone a charger". Clique deux coins sur la carte pour delimiter precisement la zone interrogee sur le flux IGN, au lieu de se baser sur le zoom actuel de la carte.

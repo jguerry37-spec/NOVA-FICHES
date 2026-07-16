@@ -12,6 +12,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Encodings.Web;
+using TopoRapportWin.Licensing;
 
 namespace TopoRapportWin;
 
@@ -619,6 +620,15 @@ _webView.CoreWebView2.NavigationCompleted += async (_, __) =>
             $"(function(){{var el=document.getElementById('footerBuild'); if(el) el.textContent='Build '+{System.Text.Json.JsonSerializer.Serialize(build)};}})();");
     }
     catch { }
+
+    try
+    {
+        await _webView.CoreWebView2.ExecuteScriptAsync(BuildFooterLicenseScript());
+    }
+    catch (Exception ex)
+    {
+        AppLog.Error("Footer: injection statut licence impossible", ex);
+    }
 };
 
 // V2 Phase 6 — vérification de mise à jour, non bloquante, échec silencieux
@@ -1399,6 +1409,55 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
             .Select(item => item.GetString() ?? "")
             .Where(value => value.Length > 0)
             .ToList();
+    }
+
+    private static string BuildFooterLicenseScript()
+    {
+        var result = LicenseService.LoadAndValidate();
+        string text;
+        string cssClass;
+
+        if (result.IsValid && result.Payload != null)
+        {
+            var payload = result.Payload;
+            if (payload.ExpiresAtUtc.HasValue)
+            {
+                var daysLeft = (int)Math.Ceiling((payload.ExpiresAtUtc.Value.Date - DateTime.UtcNow.Date).TotalDays);
+                var dateStr = payload.ExpiresAtUtc.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+                if (daysLeft <= 7)
+                {
+                    text = $"Licence : expire dans {Math.Max(0, daysLeft)} jour(s) ({dateStr})";
+                    cssClass = "pill err";
+                }
+                else if (daysLeft <= 30)
+                {
+                    text = $"Licence : expire dans {daysLeft} jours ({dateStr})";
+                    cssClass = "pill warn";
+                }
+                else
+                {
+                    text = $"Licence valable jusqu'au {dateStr}";
+                    cssClass = "pill";
+                }
+            }
+            else
+            {
+                text = $"Licence active — {payload.LicensedTo}";
+                cssClass = "pill";
+            }
+        }
+        else
+        {
+            // Ne devrait normalement pas s'afficher : Program.cs bloque avant MainForm si la
+            // licence est invalide au demarrage. Filet de securite si elle expire en cours de
+            // session (poste laisse ouvert plusieurs jours).
+            text = "Licence : " + result.Message;
+            cssClass = "pill err";
+        }
+
+        var textJs = System.Text.Json.JsonSerializer.Serialize(text);
+        var classJs = System.Text.Json.JsonSerializer.Serialize(cssClass);
+        return "(function(){var el=document.getElementById('footerLicense'); if(el){ el.textContent=" + textJs + "; el.className=" + classJs + "; el.classList.remove('nf-hidden'); }})();";
     }
 
     private static double ReadJsonDouble(JsonElement root, string property)
