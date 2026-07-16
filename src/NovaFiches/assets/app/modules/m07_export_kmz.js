@@ -16,6 +16,10 @@
     leafletLoading: false,
     ngfEnabled: false,
     ngfPoints: [],
+    drawingZone: false,
+    zoneCorner1: null,
+    zonePreviewLayer: null,
+    zoneLayer: null,
     measuring: false,
     measurePoints: [],
     measureLayer: null
@@ -105,7 +109,8 @@
             maxZoom: 22,
             attribution: '&copy; OpenStreetMap'
           }).addTo(state.map);
-          state.map.on('click', onMeasureMapClick);
+          state.map.on('click', onMapClick);
+          state.map.on('mousemove', onZoneMouseMove);
         }
         if(state.layer) state.map.removeLayer(state.layer);
         state.layer = L.featureGroup();
@@ -349,6 +354,50 @@
     if(current) sel.value = current;
   }
 
+  function onMapClick(ev){
+    if(state.drawingZone){ onZoneMapClick(ev); return; }
+    if(state.measuring){ onMeasureMapClick(ev); return; }
+  }
+
+  function drawNgfZoneLayer(bounds){
+    if(!state.map) return;
+    if(state.zoneLayer){ state.map.removeLayer(state.zoneLayer); state.zoneLayer = null; }
+    state.zoneLayer = L.rectangle(bounds, { color:'#1c3fdc', weight:2, fillOpacity:0.03, dashArray:'4,4' }).addTo(state.map);
+  }
+
+  function fetchNgfForBounds(bounds){
+    setNgfStatus('Chargement des repères NGF…');
+    post({
+      type: 'kmz_fetch_ngf',
+      minLon: bounds.getWest(),
+      minLat: bounds.getSouth(),
+      maxLon: bounds.getEast(),
+      maxLat: bounds.getNorth()
+    });
+  }
+
+  function onZoneMouseMove(ev){
+    if(!state.drawingZone || !state.zoneCorner1 || !state.map) return;
+    const bounds = L.latLngBounds(state.zoneCorner1, ev.latlng);
+    if(state.zonePreviewLayer) state.map.removeLayer(state.zonePreviewLayer);
+    state.zonePreviewLayer = L.rectangle(bounds, { color:'#1c3fdc', weight:2, dashArray:'4,4', fillOpacity:0.05 }).addTo(state.map);
+  }
+
+  function onZoneMapClick(ev){
+    if(!state.zoneCorner1){
+      state.zoneCorner1 = ev.latlng;
+      setNgfStatus('Clique le second coin de la zone à charger.');
+      return;
+    }
+    const bounds = L.latLngBounds(state.zoneCorner1, ev.latlng);
+    state.drawingZone = false;
+    state.zoneCorner1 = null;
+    if(state.map) state.map.getContainer().style.cursor = '';
+    if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
+    drawNgfZoneLayer(bounds);
+    fetchNgfForBounds(bounds);
+  }
+
   function handleNgfLoaded(msg){
     state.ngfPoints = Array.isArray(msg.points) ? msg.points.map(p => ({
       id: p.id ?? p.Id ?? '',
@@ -556,6 +605,13 @@
       if(!state.ngfEnabled){
         state.ngfPoints = [];
         setNgfStatus('');
+        state.drawingZone = false;
+        state.zoneCorner1 = null;
+        if(state.map){
+          state.map.getContainer().style.cursor = '';
+          if(state.zoneLayer){ state.map.removeLayer(state.zoneLayer); state.zoneLayer = null; }
+          if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
+        }
       }
       renderMap();
       renderTable();
@@ -565,15 +621,10 @@
         setNgfStatus("Charge d'abord un TXT ou un DXF pour afficher la carte.");
         return;
       }
-      const b = state.map.getBounds();
-      setNgfStatus('Chargement des repères NGF…');
-      post({
-        type: 'kmz_fetch_ngf',
-        minLon: b.getWest(),
-        minLat: b.getSouth(),
-        maxLon: b.getEast(),
-        maxLat: b.getNorth()
-      });
+      state.drawingZone = true;
+      state.zoneCorner1 = null;
+      state.map.getContainer().style.cursor = 'crosshair';
+      setNgfStatus('Clique un premier coin de la zone à charger.');
     });
 
     el('btnKmzMeasureToggle')?.addEventListener('click', () => {

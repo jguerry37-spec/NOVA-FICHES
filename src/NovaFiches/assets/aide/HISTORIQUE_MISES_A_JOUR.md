@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.17
+
+- Export KMZ / reperes NGF : le bouton "Charger sur la zone visible" est remplace par "Dessiner une zone a charger". Clique deux coins sur la carte pour delimiter precisement la zone interrogee sur le flux IGN, au lieu de se baser sur le zoom actuel de la carte.
+  - Pourquoi : avec la zone visible, dezoomer la carte pouvait ramener beaucoup de reperes d'un coup (jusqu'a la limite de 500) sans possibilite de cibler une emprise precise. Le rectangle dessine donne un controle direct sur la zone, quel que soit le niveau de zoom.
+- Build : passage de l'application et du moteur PDF en **2.3.1.17**.
+
 ## 2.3.1.16
 
 - Export KMZ / reperes NGF : les reperes charges apparaissent desormais aussi comme lignes dans le tableau "Points importes" (nom, altitude, etat, longitude/latitude), en plus des marqueurs sur la carte.
