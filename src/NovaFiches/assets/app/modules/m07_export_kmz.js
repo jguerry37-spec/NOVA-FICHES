@@ -88,7 +88,7 @@
 
   function createTileLayer(kind){
     if(kind === 'satellite'){
-      return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      return L.tileLayer('https:' + '//' + 'server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 19,
         attribution: 'Tiles &copy; Esri'
       });

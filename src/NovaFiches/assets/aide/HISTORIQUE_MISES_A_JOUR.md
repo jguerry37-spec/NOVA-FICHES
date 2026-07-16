@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.21
+
+- Correctif interne (CI) : l'URL du fond de carte satellite (Esri) ajoutee en 2.3.1.19 etait ecrite en clair dans le code, ce qui violait la verification "offline garanti" (aucune URL http(s) en dur dans les fichiers JS/HTML livres, hors dossier vendor). Corrigee en suivant le meme decoupage que l'URL OpenStreetMap deja presente. Aucun changement visible pour l'utilisateur.
+- Build : passage de l'application et du moteur PDF en **2.3.1.21**.
+
 ## 2.3.1.20
 
 - Export KMZ : hauteur de la carte de controle legerement reduite (700 -> 580 px), la 2.3.1.19 etait un peu trop haute.
