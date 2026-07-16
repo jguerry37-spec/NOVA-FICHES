@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.20
+
+- Export KMZ : hauteur de la carte de controle legerement reduite (700 -> 580 px), la 2.3.1.19 etait un peu trop haute.
+- Correctif : cliquer deux fois pour dessiner une zone de reperes NGF (ou pour la mesure de distance) declenchait parfois le zoom natif de la carte entre les deux clics, deplacant la vue et faisant atterrir le point au mauvais endroit. Le zoom au double-clic est desormais desactive pendant ces deux outils, et reactive une fois termine.
+- Build : passage de l'application et du moteur PDF en **2.3.1.20**.
+
 ## 2.3.1.19
 
 - Export KMZ : les reperes NGF (IGN) ont desormais un symbole triangulaire sur la carte (symbole cartographique standard des points geodesiques), distinct des points topo TXT/DXF qui restent des ronds. Avant, seule la couleur les differenciait.

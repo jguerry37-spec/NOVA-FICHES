@@ -357,6 +357,17 @@
     if(current) sel.value = current;
   }
 
+  function updateMapInteractionLock(){
+    if(!state.map || !state.map.doubleClickZoom) return;
+    // Le dessin de zone et la mesure reposent sur des clics successifs rapprochés :
+    // le double-clic-zoom natif de Leaflet interceptait le 2e clic, deplacait/zoomait
+    // la carte, et faisait atterrir le point au mauvais endroit. On le desactive tant
+    // qu'un de ces outils est actif, et on le restaure ensuite.
+    const locked = state.drawingZone || state.measuring;
+    if(locked) state.map.doubleClickZoom.disable();
+    else state.map.doubleClickZoom.enable();
+  }
+
   function onMapClick(ev){
     if(state.drawingZone){ onZoneMapClick(ev); return; }
     if(state.measuring){ onMeasureMapClick(ev); return; }
@@ -397,6 +408,7 @@
     state.zoneCorner1 = null;
     if(state.map) state.map.getContainer().style.cursor = '';
     if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
+    updateMapInteractionLock();
     drawNgfZoneLayer(bounds);
     fetchNgfForBounds(bounds);
   }
@@ -614,6 +626,7 @@
           state.map.getContainer().style.cursor = '';
           if(state.zoneLayer){ state.map.removeLayer(state.zoneLayer); state.zoneLayer = null; }
           if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
+          updateMapInteractionLock();
         }
       }
       renderMap();
@@ -627,6 +640,7 @@
       state.drawingZone = true;
       state.zoneCorner1 = null;
       state.map.getContainer().style.cursor = 'crosshair';
+      updateMapInteractionLock();
       setNgfStatus('Clique un premier coin de la zone à charger.');
     });
 
@@ -635,6 +649,7 @@
       const toggleBtn = el('btnKmzMeasureToggle');
       if(toggleBtn) toggleBtn.textContent = state.measuring ? 'Arrêter la mesure' : 'Mesurer une distance';
       if(state.map) state.map.getContainer().style.cursor = state.measuring ? 'crosshair' : '';
+      updateMapInteractionLock();
       if(state.measuring){
         state.measurePoints = [];
         redrawMeasureLayer();
