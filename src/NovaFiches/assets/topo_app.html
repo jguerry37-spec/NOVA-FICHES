@@ -542,6 +542,19 @@
           <div class="small" style="margin-top:8px;">
             Le TXT et le DXF peuvent être chargés ensemble. Le KMZ reprend le nom du TXT lorsqu'il est présent, sinon celui du DXF.
           </div>
+          <div class="row" style="align-items:center; margin-top:12px;">
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="kmzNgfToggle">
+              Repères NGF (IGN)
+            </label>
+            <button id="btnKmzNgfRefresh" disabled title="Clique deux coins sur la carte pour dessiner la zone à interroger sur le flux IGN des repères de nivellement.">Dessiner une zone à charger</button>
+            <span id="kmzNgfStatus" class="small"></span>
+          </div>
+          <div class="row" style="align-items:center; margin-top:8px;">
+            <button id="btnKmzMeasureToggle" type="button" title="Trace une ligne (clics successifs) et affiche la distance cumulée.">Mesurer une distance</button>
+            <button id="btnKmzMeasureClear" type="button" class="nf-hidden">Effacer la mesure</button>
+            <span id="kmzMeasureStatus" class="kmz-measure-pill"></span>
+          </div>
         </div>
 
         <div class="card" style="margin-top:12px;">
@@ -553,19 +566,6 @@
               <button id="btnKmzLayersNone">Tout exclure</button>
             </div>
             <div id="kmzLayerList" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:6px;"></div>
-          </div>
-          <div class="row" style="align-items:center; margin-bottom:8px;">
-            <label style="display:flex; align-items:center; gap:6px;">
-              <input type="checkbox" id="kmzNgfToggle">
-              Repères NGF (IGN)
-            </label>
-            <button id="btnKmzNgfRefresh" disabled title="Clique deux coins sur la carte pour dessiner la zone à interroger sur le flux IGN des repères de nivellement.">Dessiner une zone à charger</button>
-            <span id="kmzNgfStatus" class="small"></span>
-          </div>
-          <div class="row" style="align-items:center; margin-bottom:8px;">
-            <button id="btnKmzMeasureToggle" type="button" title="Trace une ligne (clics successifs) et affiche la distance cumulée.">Mesurer une distance</button>
-            <button id="btnKmzMeasureClear" type="button" class="nf-hidden">Effacer la mesure</button>
-            <span id="kmzMeasureStatus" class="small"></span>
           </div>
           <div class="row" style="align-items:center; margin-bottom:8px;">
             <div style="min-width:200px;">

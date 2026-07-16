@@ -2,6 +2,13 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.22
+
+- Export KMZ : la fonction "Photos" (annotation de photos, sans rapport avec le KMZ) est retiree de ce module.
+- Export KMZ : les blocs "Reperes NGF (IGN)" et "Mesurer une distance" sont deplaces dans la carte du haut (a la suite du bouton Exporter KMZ), a l'endroit ou se trouvait auparavant le bouton Photos.
+- Export KMZ : l'affichage de la distance mesuree est mis en valeur (pastille rouge plus grande), au lieu d'un simple texte gris discret.
+- Build : passage de l'application et du moteur PDF en **2.3.1.22**.
+
 ## 2.3.1.21
 
 - Correctif interne (CI) : l'URL du fond de carte satellite (Esri) ajoutee en 2.3.1.19 etait ecrite en clair dans le code, ce qui violait la verification "offline garanti" (aucune URL http(s) en dur dans les fichiers JS/HTML livres, hors dossier vendor). Corrigee en suivant le meme decoupage que l'URL OpenStreetMap deja presente. Aucun changement visible pour l'utilisateur.

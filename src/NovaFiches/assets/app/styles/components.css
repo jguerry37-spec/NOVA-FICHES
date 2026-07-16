@@ -95,3 +95,17 @@
     border-right:7px solid transparent;
     border-bottom:12px solid #1c3fdc;
   }
+
+  .kmz-measure-pill{
+    display:inline-flex;
+    align-items:center;
+    min-height:20px;
+    padding:6px 14px;
+    border-radius:999px;
+    border:1px solid rgba(224,49,49,.35);
+    background:rgba(224,49,49,.10);
+    color:#c1121f;
+    font-size:15px;
+    font-weight:850;
+  }
+  .kmz-measure-pill:empty{ display:none; }

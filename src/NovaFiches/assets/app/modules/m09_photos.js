@@ -4,7 +4,6 @@
     { id:'module-suivi', label:'Station / leve topo' },
     { id:'module-recolement', label:'Pieux' },
     { id:'module-recolement-mnt', label:'Recolement MNT' },
-    { id:'module-export-kmz', label:'Export KMZ' },
     { id:'module-reportage-photo', label:'Reportage photo' }
   ];
 
