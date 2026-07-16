@@ -1457,7 +1457,12 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
 
         var textJs = System.Text.Json.JsonSerializer.Serialize(text);
         var classJs = System.Text.Json.JsonSerializer.Serialize(cssClass);
-        return "(function(){var el=document.getElementById('footerLicense'); if(el){ el.textContent=" + textJs + "; el.className=" + classJs + "; el.classList.remove('nf-hidden'); }})();";
+        // Ecrit directement le footer ET le panneau lateral dans la meme injection :
+        // la synchronisation cote HTML (setActive, au clic sur un module) ne se
+        // declenchait qu'a la navigation suivante, laissant la pastille absente du
+        // panneau lateral tant que l'utilisateur n'avait pas change de module apres
+        // le chargement.
+        return "(function(){['footerLicense','sbLicense'].forEach(function(id){var el=document.getElementById(id); if(el){ el.textContent=" + textJs + "; el.className=" + classJs + "; el.classList.remove('nf-hidden'); }});})();";
     }
 
     private static double ReadJsonDouble(JsonElement root, string property)

@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.24
+
+- Export KMZ : corrige le deplacement inattendu de la carte au premier clic en mode "Mesurer une distance" ou "Dessiner une zone". Cause reelle : les popups des marqueurs (points TXT/DXF/NGF) recentrent la carte par defaut (autoPan) quand ils s'ouvrent pres du bord visible ; avec des donnees denses, un clic pres d'un marqueur existant pour poser un point de mesure ou un coin de zone ouvrait son popup et deplacait la vue. Verifie par test direct (le centre de la carte ne bouge plus dans le meme scenario).
+- Licence : corrige un cas ou la pastille de licence n'apparaissait pas dans le panneau lateral tant que l'utilisateur n'avait pas change de module apres le demarrage (la synchronisation ne se declenchait qu'au clic sur un module, en concurrence avec le chargement de la licence). Le pied de page et le panneau lateral sont desormais renseignes ensemble, directement au demarrage.
+- Build : passage de l'application et du moteur PDF en **2.3.1.24**.
+
 ## 2.3.1.23
 
 - Export KMZ : mise en page revue pour tout voir sans avoir a scroller. La ligne "Reperes NGF (IGN)" suit desormais directement le bouton Exporter KMZ (et le statut du fichier), sur la meme ligne. En dessous : Mesurer une distance, Effacer, la distance, le choix du fond de carte et un nouveau bouton "Recentrer la carte", tous sur la meme ligne.

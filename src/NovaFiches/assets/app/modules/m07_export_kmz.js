@@ -121,6 +121,11 @@
         if(canvas) canvas.style.display = 'none';
         const isNewMap = !state.map;
         if(isNewMap){
+          // Les popups Leaflet recentrent la carte par defaut (autoPan) des qu'ils
+          // s'ouvrent trop pres du bord visible. Avec des points denses (reperes NGF,
+          // TXT/DXF), un simple clic pres d'un marqueur pour poser un point de mesure
+          // ou un coin de zone ouvrait son popup et deplacait la carte sous l'utilisateur.
+          if(L.Popup) L.Popup.mergeOptions({ autoPan: false });
           state.map = L.map(mapDiv, { attributionControl:true });
           state.baseLayer = createTileLayer(state.basemap);
           state.baseLayer.addTo(state.map);
