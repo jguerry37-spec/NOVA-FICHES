@@ -369,14 +369,20 @@
   }
 
   function updateMapInteractionLock(){
-    if(!state.map || !state.map.doubleClickZoom) return;
-    // Le dessin de zone et la mesure reposent sur des clics successifs rapprochés :
-    // le double-clic-zoom natif de Leaflet interceptait le 2e clic, deplacait/zoomait
-    // la carte, et faisait atterrir le point au mauvais endroit. On le desactive tant
-    // qu'un de ces outils est actif, et on le restaure ensuite.
+    if(!state.map) return;
+    // Le dessin de zone et la mesure reposent sur des clics successifs precis :
+    // le double-clic-zoom natif de Leaflet interceptait le 2e clic et deplacait la
+    // carte, et un simple frolement de la molette/du trackpad pendant qu'on vise un
+    // clic changeait le zoom sous l'utilisateur. On desactive toutes les interactions
+    // qui changent le zoom tant qu'un de ces outils est actif, et on les restaure
+    // ensuite (les boutons +/- et "Recentrer la carte" restent disponibles).
     const locked = state.drawingZone || state.measuring;
-    if(locked) state.map.doubleClickZoom.disable();
-    else state.map.doubleClickZoom.enable();
+    ['doubleClickZoom', 'scrollWheelZoom', 'touchZoom', 'boxZoom'].forEach(name => {
+      const handler = state.map[name];
+      if(!handler) return;
+      if(locked) handler.disable();
+      else handler.enable();
+    });
   }
 
   function onMapClick(ev){
@@ -648,6 +654,14 @@
         setNgfStatus("Charge d'abord un TXT ou un DXF pour afficher la carte.");
         return;
       }
+      // Mesurer et dessiner une zone se partagent le clic sur la carte : un outil
+      // laisse forcement l'autre au repos, sinon un clic destine a l'un se retrouve
+      // intercepte par l'etat (demi-termine) de l'autre.
+      if(state.measuring){
+        state.measuring = false;
+        const measureBtn = el('btnKmzMeasureToggle');
+        if(measureBtn) measureBtn.textContent = 'Mesurer une distance';
+      }
       state.drawingZone = true;
       state.zoneCorner1 = null;
       state.map.getContainer().style.cursor = 'crosshair';
@@ -660,13 +674,18 @@
       const toggleBtn = el('btnKmzMeasureToggle');
       if(toggleBtn) toggleBtn.textContent = state.measuring ? 'Arrêter la mesure' : 'Mesurer une distance';
       if(state.map) state.map.getContainer().style.cursor = state.measuring ? 'crosshair' : '';
-      updateMapInteractionLock();
       if(state.measuring){
+        // Meme raison que ci-dessus : un dessin de zone laisse en plan (1er coin
+        // clique, jamais termine) interceptait le clic suivant destine a la mesure.
+        state.drawingZone = false;
+        state.zoneCorner1 = null;
+        if(state.zonePreviewLayer && state.map){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
         state.measurePoints = [];
         redrawMeasureLayer();
         setMeasureStatus('Clique sur la carte pour placer le premier point.');
         el('btnKmzMeasureClear')?.classList.remove('nf-hidden');
       }
+      updateMapInteractionLock();
     });
     el('btnKmzMeasureClear')?.addEventListener('click', () => {
       state.measurePoints = [];

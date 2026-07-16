@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.25
+
+- Export KMZ : "Mesurer une distance" et "Dessiner une zone" sont desormais mutuellement exclusifs. Si un dessin de zone etait laisse en plan (premier coin clique, jamais termine) puis "Mesurer une distance" etait lance, le clic suivant restait intercepte par le dessin de zone inacheve au lieu de placer un point de mesure — ce qui pouvait redeclencher un chargement de reperes NGF et un comportement de carte inattendu. Chaque outil interrompt desormais proprement l'autre s'il etait en cours.
+- Export KMZ : le zoom de la carte est verrouille plus largement pendant "Mesurer" et "Dessiner une zone" — en plus du double-clic, la molette, le pincement tactile et le zoom par selection sont desactives le temps de l'outil, pour eviter tout changement de zoom involontaire (ex. leger contact avec la molette ou le trackpad) pendant qu'on vise un clic precis. Les boutons +/- et "Recentrer la carte" restent disponibles.
+- Build : passage de l'application et du moteur PDF en **2.3.1.25**.
+
 ## 2.3.1.24
 
 - Export KMZ : corrige le deplacement inattendu de la carte au premier clic en mode "Mesurer une distance" ou "Dessiner une zone". Cause reelle : les popups des marqueurs (points TXT/DXF/NGF) recentrent la carte par defaut (autoPan) quand ils s'ouvrent pres du bord visible ; avec des donnees denses, un clic pres d'un marqueur existant pour poser un point de mesure ou un coin de zone ouvrait son popup et deplacait la vue. Verifie par test direct (le centre de la carte ne bouge plus dans le meme scenario).
