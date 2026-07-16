@@ -2,6 +2,13 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.15
+
+- Export KMZ : nouvelle option "Reperes NGF (IGN)" pour charger, sur la zone actuellement visible de la carte, les reperes de nivellement officiels IGN (altitude NGF) et les inclure dans l'export KMZ aux cotes des points TXT/DXF. Interroge le flux public IGN (Geoplateforme, data.geopf.fr) ; necessite une connexion Internet, comme le fond de carte OpenStreetMap deja utilise dans ce module.
+- Export KMZ : nouvel outil "Mesurer une distance" sur la carte de controle : clics successifs pour tracer une ligne en plusieurs segments, distance cumulee affichee en direct (metres ou kilometres). Outil d'affichage uniquement, non inclus dans l'export KMZ.
+  - Pourquoi : permettre de verifier une altitude NGF de reference et une distance directement sur la carte, sans sortir de l'application.
+- Build : passage de l'application et du moteur PDF en **2.3.1.15**.
+
 ## 2.3.1.14
 
 - Photos : quand une photo est liee a un point du rapport, ses coordonnees rectangulaires (X/Y/Z) disponibles sont reprises et affichees dans l'annexe photo, juste sous "Point : <ID>". Un point peut n'avoir que X/Y, que Z, les trois, ou aucune coordonnee exploitable : seules les composantes reellement disponibles sont affichees.

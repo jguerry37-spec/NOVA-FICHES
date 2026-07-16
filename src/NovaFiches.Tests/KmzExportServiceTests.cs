@@ -125,4 +125,72 @@ public class KmzExportServiceTests
                 File.Delete(outputPath);
         }
     }
+
+    [Fact]
+    public void ExportGeometryToKmz_WithNgfPoints_WritesFolderWithUnconvertedCoordinates()
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"nf-test-ngf-{Guid.NewGuid():N}.kmz");
+        try
+        {
+            var points = new[] { new KmzExportService.KmzPoint("P1", 650000, 6860000, 100, "A") };
+            var ngfPoints = new[]
+            {
+                new KmzExportService.KmzNgfPoint("0123456", "P.A.A3 - 68", "BON ETAT", 77.242, 2.29243, 48.859157)
+            };
+
+            KmzExportService.ExportGeometryToKmz(
+                points,
+                Array.Empty<KmzExportService.KmzLine>(),
+                Array.Empty<KmzExportService.KmzText>(),
+                "RGF93 / Lambert-93 (EPSG:2154)",
+                outputPath,
+                "Chantier test",
+                ngfPoints);
+
+            using var archive = ZipFile.OpenRead(outputPath);
+            using var reader = new StreamReader(archive.GetEntry("doc.kml")!.Open());
+            var kml = reader.ReadToEnd();
+
+            Assert.Contains("Repères NGF (IGN)", kml);
+            Assert.Contains("P.A.A3 - 68", kml);
+            Assert.Contains("77.242", kml);
+            // Repère NGF déjà en WGS84 en sortie du WFS IGN : aucune conversion de repère ne doit
+            // lui être appliquée, contrairement aux points TXT/DXF du même export (ici en Lambert-93).
+            Assert.Contains("2.292430000000,48.859157000000,0", kml);
+        }
+        finally
+        {
+            if (File.Exists(outputPath))
+                File.Delete(outputPath);
+        }
+    }
+
+    [Fact]
+    public void ExportGeometryToKmz_OnlyNgfPoints_DoesNotThrow()
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"nf-test-ngf-only-{Guid.NewGuid():N}.kmz");
+        try
+        {
+            var ngfPoints = new[]
+            {
+                new KmzExportService.KmzNgfPoint("0123456", "P.A.A3 - 68", "BON ETAT", 77.242, 2.29243, 48.859157)
+            };
+
+            KmzExportService.ExportGeometryToKmz(
+                Array.Empty<KmzExportService.KmzPoint>(),
+                Array.Empty<KmzExportService.KmzLine>(),
+                Array.Empty<KmzExportService.KmzText>(),
+                "WGS84 lon/lat (EPSG:4326)",
+                outputPath,
+                "Chantier test",
+                ngfPoints);
+
+            Assert.True(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (File.Exists(outputPath))
+                File.Delete(outputPath);
+        }
+    }
 }

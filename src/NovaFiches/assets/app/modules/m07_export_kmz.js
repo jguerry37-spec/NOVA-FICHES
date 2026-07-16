@@ -13,7 +13,12 @@
     map: null,
     layer: null,
     leafletReady: false,
-    leafletLoading: false
+    leafletLoading: false,
+    ngfEnabled: false,
+    ngfPoints: [],
+    measuring: false,
+    measurePoints: [],
+    measureLayer: null
   };
 
   function el(id){ return document.getElementById(id); }
@@ -33,6 +38,8 @@
     p.className = 'pill' + (cls ? ' ' + cls : '');
   }
   function setMapStatus(text){ const s = el('kmzMapStatus'); if(s) s.textContent = text; }
+  function setNgfStatus(text){ const s = el('kmzNgfStatus'); if(s) s.textContent = text; }
+  function setMeasureStatus(text){ const s = el('kmzMeasureStatus'); if(s) s.textContent = text; }
   function refreshCombined(){
     const txt = state.txtPoints.filter(p => state.selectedTxtKeys.has(String(p.key ?? p.Key)));
     state.points = txt.concat(state.dxfPreviewPoints);
@@ -79,7 +86,8 @@
     const texts = state.texts || [];
     const mapDiv = el('kmzMap');
     const canvas = el('kmzCanvas');
-    if(!pts.length && !lines.length && !texts.length){
+    const hasNgf = state.ngfEnabled && state.ngfPoints.length > 0;
+    if(!pts.length && !lines.length && !texts.length && !hasNgf){
       if(mapDiv) mapDiv.style.display = 'block';
       if(canvas) canvas.style.display = 'none';
       setMapStatus('Charge un TXT pour afficher les points sur fond de plan en ligne.');
@@ -97,6 +105,7 @@
             maxZoom: 22,
             attribution: '&copy; OpenStreetMap'
           }).addTo(state.map);
+          state.map.on('click', onMeasureMapClick);
         }
         if(state.layer) state.map.removeLayer(state.layer);
         state.layer = L.featureGroup();
@@ -148,6 +157,25 @@
           });
           state.layer.addLayer(marker);
         });
+        if(hasNgf){
+          state.ngfPoints.forEach(p => {
+            const lat = Number(p.lat), lon = Number(p.lon);
+            if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+            const marker = L.circleMarker([lat, lon], {
+              radius: 6,
+              color: '#1c3fdc',
+              weight: 2,
+              fillColor: '#748ffc',
+              fillOpacity: 0.9
+            });
+            const label = String(p.nom || p.id || '');
+            marker.bindTooltip(label, { permanent:false, direction:'top' });
+            const altValue = Number(p.altitude);
+            const alt = Number.isFinite(altValue) ? altValue.toFixed(3) + ' m' : 'inconnue';
+            marker.bindPopup(`<b>${esc(label)}</b><br>Altitude NGF ${esc(alt)}<br>${esc(p.etat || '')}`);
+            state.layer.addLayer(marker);
+          });
+        }
         state.layer.addTo(state.map);
         const bounds = state.layer.getBounds();
         const fitImportedData = () => {
@@ -308,6 +336,52 @@
     if(current) sel.value = current;
   }
 
+  function handleNgfLoaded(msg){
+    state.ngfPoints = Array.isArray(msg.points) ? msg.points.map(p => ({
+      id: p.id ?? p.Id ?? '',
+      nom: p.nom ?? p.Nom ?? '',
+      etat: p.etat ?? p.Etat ?? null,
+      altitude: p.altitude ?? p.Altitude ?? null,
+      lon: p.lon ?? p.Lon,
+      lat: p.lat ?? p.Lat
+    })) : [];
+    setNgfStatus(`${state.ngfPoints.length} repère(s) NGF chargé(s) sur la zone visible.`);
+    renderMap();
+  }
+
+  function fmtDistance(meters){
+    return meters >= 1000 ? (meters/1000).toFixed(2) + ' km' : meters.toFixed(1) + ' m';
+  }
+
+  function redrawMeasureLayer(){
+    if(!state.map) return;
+    if(state.measureLayer){ state.map.removeLayer(state.measureLayer); state.measureLayer = null; }
+    if(!state.measurePoints.length) return;
+    state.measureLayer = L.layerGroup();
+    state.measurePoints.forEach(pt => {
+      L.circleMarker(pt, { radius:4, color:'#e03131', weight:2, fillColor:'#ff8787', fillOpacity:0.9 }).addTo(state.measureLayer);
+    });
+    if(state.measurePoints.length >= 2){
+      L.polyline(state.measurePoints, { color:'#e03131', weight:3, dashArray:'6,6' }).addTo(state.measureLayer);
+    }
+    state.measureLayer.addTo(state.map);
+  }
+
+  function onMeasureMapClick(ev){
+    if(!state.measuring) return;
+    state.measurePoints.push([ev.latlng.lat, ev.latlng.lng]);
+    redrawMeasureLayer();
+    if(state.measurePoints.length < 2){
+      setMeasureStatus('Clique un second point pour mesurer.');
+      return;
+    }
+    let total = 0;
+    for(let i = 1; i < state.measurePoints.length; i++){
+      total += state.map.distance(state.measurePoints[i-1], state.measurePoints[i]);
+    }
+    setMeasureStatus(`Distance : ${fmtDistance(total)}`);
+  }
+
   function handleLoaded(msg){
     state.mode = 'combined';
     const hadTxt = state.txtPoints.length > 0;
@@ -385,7 +459,8 @@
       sourceCrs:el('kmzCoordSys')?.value || '__AUTO__',
       txtPointKeys:Array.from(state.selectedTxtKeys),
       dxfPointKeys:Array.from(state.selectedPointKeys),
-      layers:Array.from(state.selectedLayers)
+      layers:Array.from(state.selectedLayers),
+      ngfPoints: state.ngfEnabled ? state.ngfPoints : []
     };
   }
 
@@ -459,6 +534,51 @@
       if(!state.dxfPoints.length) refreshCombined();
     });
 
+    el('kmzNgfToggle')?.addEventListener('change', e => {
+      state.ngfEnabled = !!e.target.checked;
+      const refreshBtn = el('btnKmzNgfRefresh');
+      if(refreshBtn) refreshBtn.disabled = !state.ngfEnabled;
+      if(!state.ngfEnabled){
+        state.ngfPoints = [];
+        setNgfStatus('');
+      }
+      renderMap();
+    });
+    el('btnKmzNgfRefresh')?.addEventListener('click', () => {
+      if(!state.map){
+        setNgfStatus("Charge d'abord un TXT ou un DXF pour afficher la carte.");
+        return;
+      }
+      const b = state.map.getBounds();
+      setNgfStatus('Chargement des repères NGF…');
+      post({
+        type: 'kmz_fetch_ngf',
+        minLon: b.getWest(),
+        minLat: b.getSouth(),
+        maxLon: b.getEast(),
+        maxLat: b.getNorth()
+      });
+    });
+
+    el('btnKmzMeasureToggle')?.addEventListener('click', () => {
+      state.measuring = !state.measuring;
+      const toggleBtn = el('btnKmzMeasureToggle');
+      if(toggleBtn) toggleBtn.textContent = state.measuring ? 'Arrêter la mesure' : 'Mesurer une distance';
+      if(state.map) state.map.getContainer().style.cursor = state.measuring ? 'crosshair' : '';
+      if(state.measuring){
+        state.measurePoints = [];
+        redrawMeasureLayer();
+        setMeasureStatus('Clique sur la carte pour placer le premier point.');
+        el('btnKmzMeasureClear')?.classList.remove('nf-hidden');
+      }
+    });
+    el('btnKmzMeasureClear')?.addEventListener('click', () => {
+      state.measurePoints = [];
+      redrawMeasureLayer();
+      setMeasureStatus('');
+      el('btnKmzMeasureClear')?.classList.add('nf-hidden');
+    });
+
     try{
       if(window.chrome && window.chrome.webview && typeof window.chrome.webview.addEventListener === 'function'){
         window.chrome.webview.addEventListener('message', ev => {
@@ -466,6 +586,7 @@
           if(!msg || !msg.type) return;
           if(msg.type === 'kmz_txt_loaded') handleLoaded(msg);
           if(msg.type === 'kmz_dxf_loaded') handleDxfLoaded(msg);
+          if(msg.type === 'kmz_ngf_loaded') handleNgfLoaded(msg);
           if(msg.type === 'kmz_error') setStatus('KMZ : erreur', 'err');
           if(msg.type === 'kmz_export_result'){
             if(msg.ok) setStatus(`KMZ exporte : ${msg.fileName || 'OK'}`, 'ok');

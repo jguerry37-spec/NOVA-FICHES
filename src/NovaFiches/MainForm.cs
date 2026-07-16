@@ -1029,6 +1029,32 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
         }
     }
 
+    private async Task FetchNgfForUiAsync(double minLon, double minLat, double maxLon, double maxLat)
+    {
+        try
+        {
+            var benchmarks = await IgnGeodesyService.FetchBenchmarksAsync(minLon, minLat, maxLon, maxLat);
+            SendToUi(new
+            {
+                type = "kmz_ngf_loaded",
+                points = benchmarks.Select(b => new
+                {
+                    id = b.Id,
+                    nom = b.Nom,
+                    etat = b.Etat,
+                    altitude = b.Altitude,
+                    lon = b.Lon,
+                    lat = b.Lat
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("KMZ: fetch repères NGF failed", ex);
+            SendToUi(new { type = "kmz_error", message = "Repères NGF (IGN) : " + ex.Message });
+        }
+    }
+
     private void ExportKmzForUi(string sourceCrs)
     {
         try
@@ -1112,6 +1138,7 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
             var txtKeys = ReadJsonStringArray(root, "txtPointKeys");
             var layers = ReadJsonStringArray(root, "layers");
             var dxfKeys = ReadJsonStringArray(root, "dxfPointKeys");
+            var ngfPoints = ReadJsonNgfPoints(root, "ngfPoints");
 
             var points = new List<KmzExportService.KmzPoint>();
             if (_kmzTxtPoints is { Count: > 0 })
@@ -1150,7 +1177,7 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
                     detectionPoints).CoordinateSystem;
             }
 
-            if (points.Count == 0 && lines.Count == 0 && texts.Count == 0)
+            if (points.Count == 0 && lines.Count == 0 && texts.Count == 0 && ngfPoints.Count == 0)
                 throw new InvalidOperationException("Aucun élément sélectionné pour l'export KMZ.");
 
             string basePath = !string.IsNullOrWhiteSpace(_kmzTxtFilePath) ? _kmzTxtFilePath! : _kmzDxfFilePath!;
@@ -1163,7 +1190,8 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
                 texts,
                 crs,
                 output,
-                Path.GetFileNameWithoutExtension(basePath));
+                Path.GetFileNameWithoutExtension(basePath),
+                ngfPoints);
             SendToUi(new { type = "kmz_export_result", ok = true, filePath = output, fileName = Path.GetFileName(output) });
             AfterSuccessfulExport(output);
         }
@@ -1382,6 +1410,29 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
             double.TryParse(element.GetString()?.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out number))
             return number;
         return 0d;
+    }
+
+    private static List<KmzExportService.KmzNgfPoint> ReadJsonNgfPoints(JsonElement root, string property)
+    {
+        var result = new List<KmzExportService.KmzNgfPoint>();
+        if (!root.TryGetProperty(property, out var array) || array.ValueKind != JsonValueKind.Array)
+            return result;
+
+        foreach (var item in array.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            if (!item.TryGetProperty("lon", out var lonEl) || !item.TryGetProperty("lat", out var latEl)) continue;
+            if (lonEl.ValueKind != JsonValueKind.Number || latEl.ValueKind != JsonValueKind.Number) continue;
+
+            string id = item.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.String ? idEl.GetString() ?? "" : "";
+            string nom = item.TryGetProperty("nom", out var nomEl) && nomEl.ValueKind == JsonValueKind.String ? nomEl.GetString() ?? id : id;
+            string? etat = item.TryGetProperty("etat", out var etatEl) && etatEl.ValueKind == JsonValueKind.String ? etatEl.GetString() : null;
+            double? altitude = item.TryGetProperty("altitude", out var altEl) && altEl.ValueKind == JsonValueKind.Number && altEl.TryGetDouble(out var alt) ? alt : null;
+
+            result.Add(new KmzExportService.KmzNgfPoint(id, nom, etat, altitude, lonEl.GetDouble(), latEl.GetDouble()));
+        }
+
+        return result;
     }
 
     private void TriggerExportTxt()
@@ -1881,6 +1932,16 @@ if (string.Equals(type, "nextDownloadName", StringComparison.OrdinalIgnoreCase))
                 if (string.Equals(type, "kmz_export_combined", StringComparison.OrdinalIgnoreCase))
                 {
                     ExportCombinedKmzForUi(root);
+                    return;
+                }
+
+                if (string.Equals(type, "kmz_fetch_ngf", StringComparison.OrdinalIgnoreCase))
+                {
+                    double minLon = ReadJsonDouble(root, "minLon");
+                    double minLat = ReadJsonDouble(root, "minLat");
+                    double maxLon = ReadJsonDouble(root, "maxLon");
+                    double maxLat = ReadJsonDouble(root, "maxLat");
+                    _ = FetchNgfForUiAsync(minLon, minLat, maxLon, maxLat);
                     return;
                 }
 

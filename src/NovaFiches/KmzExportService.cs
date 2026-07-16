@@ -15,6 +15,7 @@ public static class KmzExportService
     public sealed record KmzText(string Id, string Layer, string Text, double X, double Y, double Z, bool HasZ = true);
     public sealed record KmzPreviewText(string Id, string Layer, string Text, double Lon, double Lat);
     public sealed record CoordinateSystemDetection(string CoordinateSystem, string Method);
+    public sealed record KmzNgfPoint(string Id, string Nom, string? Etat, double? Altitude, double Lon, double Lat);
 
     public static IReadOnlyList<string> CoordinateSystems { get; } = new[]
     {
@@ -200,16 +201,18 @@ public static class KmzExportService
         IEnumerable<KmzText> texts,
         string sourceCrs,
         string outputPath,
-        string documentName)
+        string documentName,
+        IEnumerable<KmzNgfPoint>? ngfPoints = null)
     {
         var pointList = points?.ToList() ?? new List<KmzPoint>();
         var lineList = lines?.ToList() ?? new List<KmzLine>();
         var textList = texts?.ToList() ?? new List<KmzText>();
-        if (pointList.Count == 0 && lineList.Count == 0 && textList.Count == 0)
+        var ngfList = ngfPoints?.ToList() ?? new List<KmzNgfPoint>();
+        if (pointList.Count == 0 && lineList.Count == 0 && textList.Count == 0 && ngfList.Count == 0)
             throw new InvalidOperationException("Aucun élément à exporter en KMZ.");
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
-        var kml = BuildGeometryKml(pointList, lineList, textList, sourceCrs, documentName);
+        var kml = BuildGeometryKml(pointList, lineList, textList, sourceCrs, documentName, ngfList);
         if (File.Exists(outputPath))
             File.Delete(outputPath);
 
@@ -269,7 +272,8 @@ public static class KmzExportService
         IReadOnlyList<KmzLine> lines,
         IReadOnlyList<KmzText> texts,
         string sourceCrs,
-        string documentName)
+        string documentName,
+        IReadOnlyList<KmzNgfPoint>? ngfPoints = null)
     {
         var sb = new StringBuilder();
         string docName = string.IsNullOrWhiteSpace(documentName) ? "Nova-Fiches KMZ" : documentName.Trim();
@@ -344,6 +348,26 @@ public static class KmzExportService
             sb.AppendLine("  </Folder>");
         }
 
+        if (ngfPoints is { Count: > 0 })
+        {
+            sb.AppendLine("  <Folder><name>Repères NGF (IGN)</name>");
+            foreach (var ngf in ngfPoints)
+            {
+                sb.AppendLine("    <Placemark>");
+                sb.AppendLine($"      <name>{Xml(ngf.Nom)}</name><visibility>1</visibility><styleUrl>#novaNgfPointStyle</styleUrl>");
+                sb.AppendLine("      <ExtendedData>");
+                Data(sb, "ID", ngf.Id);
+                Data(sb, "Nom", ngf.Nom);
+                Data(sb, "Altitude NGF", ngf.Altitude.HasValue ? F(ngf.Altitude.Value, 3) : "");
+                Data(sb, "État", ngf.Etat ?? "");
+                Data(sb, "Source", "IGN (repère de nivellement)");
+                sb.AppendLine("      </ExtendedData>");
+                sb.AppendLine($"      <Point><altitudeMode>clampToGround</altitudeMode><coordinates>{F(ngf.Lon, 12)},{F(ngf.Lat, 12)},0</coordinates></Point>");
+                sb.AppendLine("    </Placemark>");
+            }
+            sb.AppendLine("  </Folder>");
+        }
+
         sb.AppendLine("</Document>");
         sb.AppendLine("</kml>");
         return sb.ToString();
@@ -364,6 +388,11 @@ public static class KmzExportService
         sb.AppendLine("  </Style>");
         sb.AppendLine("  <Style id=\"novaDxfPointStyle\">");
         sb.AppendLine("    <IconStyle><color>ff20a5ff</color><scale>0.85</scale>");
+        sb.AppendLine($"      <Icon><href>{circleIcon}</href></Icon></IconStyle>");
+        sb.AppendLine("    <LabelStyle><color>ffffffff</color><scale>0.82</scale></LabelStyle>");
+        sb.AppendLine("  </Style>");
+        sb.AppendLine("  <Style id=\"novaNgfPointStyle\">");
+        sb.AppendLine("    <IconStyle><color>ff1c3fdc</color><scale>0.9</scale>");
         sb.AppendLine($"      <Icon><href>{circleIcon}</href></Icon></IconStyle>");
         sb.AppendLine("    <LabelStyle><color>ffffffff</color><scale>0.82</scale></LabelStyle>");
         sb.AppendLine("  </Style>");
