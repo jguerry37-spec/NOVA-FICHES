@@ -567,8 +567,17 @@
             <button id="btnKmzMeasureClear" type="button" class="nf-hidden">Effacer la mesure</button>
             <span id="kmzMeasureStatus" class="small"></span>
           </div>
-          <div id="kmzMap" style="height:430px; width:100%; border-radius:8px; overflow:hidden; border:1px solid rgba(0,0,0,.10); background:#eef2f7;"></div>
-          <canvas id="kmzCanvas" width="1100" height="430" style="width:100%; height:430px; display:none; border-radius:8px; border:1px solid rgba(0,0,0,.10);"></canvas>
+          <div class="row" style="align-items:center; margin-bottom:8px;">
+            <div style="min-width:200px;">
+              <div class="small">Fond de carte</div>
+              <select id="kmzBasemap" class="box">
+                <option value="plan" selected>Plan (OpenStreetMap)</option>
+                <option value="satellite">Satellite (Esri)</option>
+              </select>
+            </div>
+          </div>
+          <div id="kmzMap" style="height:700px; width:100%; border-radius:8px; overflow:hidden; border:1px solid rgba(0,0,0,.10); background:#eef2f7;"></div>
+          <canvas id="kmzCanvas" width="1100" height="700" style="width:100%; height:700px; display:none; border-radius:8px; border:1px solid rgba(0,0,0,.10);"></canvas>
           <div id="kmzMapStatus" class="small" style="margin-top:8px;">Charge un TXT pour afficher les points sur fond de plan en ligne.</div>
         </div>
 

@@ -78,3 +78,20 @@
     white-space:nowrap;
   }
   .kmz-dxf-text::before{display:none;}
+
+  .kmz-ngf-icon{ background:transparent; border:0; }
+  .kmz-ngf-triangle-outer{
+    width:0; height:0;
+    border-left:10px solid transparent;
+    border-right:10px solid transparent;
+    border-bottom:17px solid #ffffff;
+    position:relative;
+  }
+  .kmz-ngf-triangle-inner{
+    position:absolute;
+    top:3px; left:-7px;
+    width:0; height:0;
+    border-left:7px solid transparent;
+    border-right:7px solid transparent;
+    border-bottom:12px solid #1c3fdc;
+  }

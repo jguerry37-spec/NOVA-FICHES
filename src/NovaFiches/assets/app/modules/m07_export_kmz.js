@@ -12,6 +12,8 @@
     selectedPointKeys: new Set(),
     map: null,
     layer: null,
+    baseLayer: null,
+    basemap: 'plan',
     leafletReady: false,
     leafletLoading: false,
     ngfEnabled: false,
@@ -84,6 +86,19 @@
     });
   }
 
+  function createTileLayer(kind){
+    if(kind === 'satellite'){
+      return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri'
+      });
+    }
+    return L.tileLayer('https:' + '//' + '{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 22,
+      attribution: '&copy; OpenStreetMap'
+    });
+  }
+
   async function renderMap(){
     const pts = state.points || [];
     const lines = state.lines || [];
@@ -105,10 +120,8 @@
         if(canvas) canvas.style.display = 'none';
         if(!state.map){
           state.map = L.map(mapDiv, { attributionControl:true });
-          L.tileLayer('https:' + '//' + '{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 22,
-            attribution: '&copy; OpenStreetMap'
-          }).addTo(state.map);
+          state.baseLayer = createTileLayer(state.basemap);
+          state.baseLayer.addTo(state.map);
           state.map.on('click', onMapClick);
           state.map.on('mousemove', onZoneMouseMove);
         }
@@ -163,16 +176,16 @@
           state.layer.addLayer(marker);
         });
         if(hasNgf){
+          const ngfIcon = L.divIcon({
+            className: 'kmz-ngf-icon',
+            html: '<div class="kmz-ngf-triangle-outer"><div class="kmz-ngf-triangle-inner"></div></div>',
+            iconSize: [20, 17],
+            iconAnchor: [10, 9]
+          });
           state.ngfPoints.forEach(p => {
             const lat = Number(p.lat), lon = Number(p.lon);
             if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-            const marker = L.circleMarker([lat, lon], {
-              radius: 6,
-              color: '#1c3fdc',
-              weight: 2,
-              fillColor: '#748ffc',
-              fillOpacity: 0.9
-            });
+            const marker = L.marker([lat, lon], { icon: ngfIcon });
             const label = String(p.nom || p.id || '');
             marker.bindTooltip(label, { permanent:false, direction:'top' });
             const altValue = (p.altitude !== null && p.altitude !== undefined && p.altitude !== '') ? Number(p.altitude) : NaN;
@@ -194,7 +207,7 @@
         };
         fitImportedData();
         setTimeout(fitImportedData, 120);
-        setMapStatus('Fond de plan OpenStreetMap chargé via Internet. Contrôle visuel des points actif.');
+        setMapStatus('Fond de carte chargé via Internet. Contrôle visuel des points actif.');
         return;
       }catch(e){
         console.warn('[KMZ] Leaflet render failed', e);
@@ -307,17 +320,7 @@
         <td>${esc(p.code ?? p.Code ?? '')}</td>
       </tr>`;
     });
-    const ngfRows = (state.ngfEnabled ? state.ngfPoints : []).map(p => {
-      return `<tr>
-        <td></td>
-        <td>${esc(p.nom || p.id || '')}</td><td>NGF (IGN)</td>
-        <td></td><td></td>
-        <td>${(p.altitude !== null && p.altitude !== undefined && p.altitude !== '' && Number.isFinite(Number(p.altitude))) ? esc(fmt(p.altitude,3)) : ''}</td>
-        <td>${esc(fmt(p.lon,8))}</td><td>${esc(fmt(p.lat,8))}</td>
-        <td>${esc(p.etat || '')}</td>
-      </tr>`;
-    });
-    tbody.innerHTML = txtRows.concat(dxfRows).concat(ngfRows).join('');
+    tbody.innerHTML = txtRows.concat(dxfRows).join('');
     tbody.querySelectorAll('.kmz-txt-point-check').forEach(box => box.addEventListener('change', () => {
       if(box.checked) state.selectedTxtKeys.add(box.dataset.key);
       else state.selectedTxtKeys.delete(box.dataset.key);
@@ -644,6 +647,15 @@
       redrawMeasureLayer();
       setMeasureStatus('');
       el('btnKmzMeasureClear')?.classList.add('nf-hidden');
+    });
+
+    el('kmzBasemap')?.addEventListener('change', e => {
+      state.basemap = e.target.value;
+      if(state.map){
+        if(state.baseLayer) state.map.removeLayer(state.baseLayer);
+        state.baseLayer = createTileLayer(state.basemap);
+        state.baseLayer.addTo(state.map);
+      }
     });
 
     try{

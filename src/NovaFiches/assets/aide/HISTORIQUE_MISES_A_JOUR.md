@@ -2,6 +2,14 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.19
+
+- Export KMZ : les reperes NGF (IGN) ont desormais un symbole triangulaire sur la carte (symbole cartographique standard des points geodesiques), distinct des points topo TXT/DXF qui restent des ronds. Avant, seule la couleur les differenciait.
+- Export KMZ : la fenetre "Carte de controle" est agrandie (430 -> 700 px de hauteur) pour un controle visuel plus confortable.
+- Export KMZ : nouveau choix de fond de carte (Plan OpenStreetMap / Satellite Esri), en plus du plan existant.
+- Export KMZ : les reperes NGF ne sont plus listes dans le tableau "Points importes" (pas de case a cocher individuelle, coherent avec la selection tout-ou-rien par zone dessinee).
+- Build : passage de l'application et du moteur PDF en **2.3.1.19**.
+
 ## 2.3.1.18
 
 - Correctif reperes NGF : l'altitude affichait 0.000 m au lieu de la vraie valeur pour certains reperes. Le flux IGN encode l'altitude tantot en nombre, tantot en texte selon les points ; les deux formats sont maintenant acceptes.
