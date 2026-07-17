@@ -7,25 +7,28 @@
        (import, export, tout inclure/exclure, PDF, fermer...) etaient identiques :
        fond bleu plein, texte blanc, tres gras - aucune hierarchie, "generique IA".
        Un seul bouton par ecran (l'action principale) reste en plein via .btn-primary;
-       le reste (import/preparation) garde ce style sobre ; les actions utilitaires
-       (tout inclure/exclure, reinitialiser, fermer) passent en .btn-ghost, encore
-       plus discret. */
+       le reste (import/preparation) garde une teinte bleu tres pale (garde le lien
+       avec la marque au lieu d'un gris neutre) ; les actions utilitaires (tout
+       inclure/exclure, reinitialiser, fermer) passent en .btn-ghost, transparent.
+       Calibre "D2" : valide avec l'utilisateur sur maquette avant application
+       (voir historique) - volontairement moins appuye qu'un premier essai plus
+       gras/plus sature. */
     button, .btn {
-      background:#fff; color:var(--txt); border:1px solid rgba(11,16,32,.20);
-      padding:7px 12px; border-radius: var(--radius-sm); cursor:pointer;
-      font-weight:600; font-size:12.5px;
+      background:rgba(18,103,243,.05); color:var(--txt); border:1px solid rgba(18,103,243,.14);
+      padding:6px 11px; border-radius: var(--radius-sm); cursor:pointer;
+      font-weight:550; font-size:12px;
     }
-    button:hover, .btn:hover{ background:rgba(18,103,243,.06); border-color:rgba(18,103,243,.35); }
+    button:hover, .btn:hover{ background:rgba(18,103,243,.10); border-color:rgba(18,103,243,.30); }
     button:disabled{ opacity:.45; cursor:not-allowed; }
 
     .btn-primary{
-      background:var(--brand); color:#fff; border-color:transparent; font-weight:650;
+      background:var(--brand); color:#fff; border-color:transparent; font-weight:600;
     }
     .btn-primary:hover{ filter:brightness(0.95); background:var(--brand); }
 
     .btn-ghost{
       background:transparent; color:var(--mut); border-color:rgba(11,16,32,.14);
-      font-weight:500; padding:5px 10px;
+      font-weight:500; padding:4px 9px;
     }
     .btn-ghost:hover{ background:rgba(11,16,32,.04); border-color:rgba(11,16,32,.24); color:var(--txt); }
 
@@ -35,7 +38,7 @@
     #btnKmzLayersAll, #btnKmzLayersNone, #btnKmzPointsAll, #btnKmzPointsNone,
     #btnKmzMeasureClear, #btnPieuxReviewClose, #aboutClose, #updateBannerClose{
       background:transparent; color:var(--mut); border-color:rgba(11,16,32,.14);
-      font-weight:500; padding:5px 10px;
+      font-weight:500; padding:4px 9px;
     }
     button[id$="AllIn"]:hover, button[id$="AllOut"]:hover, button[id$="Reset"]:hover,
     #btnKmzLayersAll:hover, #btnKmzLayersNone:hover, #btnKmzPointsAll:hover, #btnKmzPointsNone:hover,

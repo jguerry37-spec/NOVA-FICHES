@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.30
+
+- Interface : ajustement du style des boutons introduit en 2.3.1.29 - jugé un peu "fade" (secondaire blanc sur blanc, insuffisamment visible). Nouveau calibrage : les boutons secondaires ont desormais un fond bleu tres pale (au lieu de blanc pur), ce qui les garde visibles sans revenir a un bleu plein partout. Le bouton primaire est legerement moins gras qu'un premier essai pour rester sobre. Comparatif valide sur maquette avant application.
+- Interface : harmonisation de l'echelle de marges/paddings des boutons sur toutes les tailles d'ecran (les paliers responsive n'avaient pas suivi le resserrement des boutons en 2.3.1.29, ce qui pouvait donner des boutons plus grands sur petit ecran que sur grand ecran).
+- Build : passage de l'application et du moteur PDF en **2.3.1.30**.
+
 ## 2.3.1.29
 
 - Interface : refonte des boutons sur tous les onglets pour un rendu plus sobre et professionnel. Avant, chaque bouton (import, export, PDF, tout inclure/exclure, fermer...) avait exactement le meme style plein bleu tres appuye, sans hierarchie - aucun moyen de distinguer l'action principale d'un ecran des actions secondaires ou des simples utilitaires. Desormais : un seul bouton "primaire" par ecran (l'action de sortie principale : Recalculer, Exporter KMZ, PDF - Rapport complet, PDF - Recolement de pieux, PDF - Recolement MNT, PDF - Reportage photo) reste en bleu plein ; les actions de preparation (import, chargement, analyse) passent en style sobre (fond blanc, bordure fine) ; les actions utilitaires (tout inclure/exclure, reinitialiser, fermer, effacer) passent en style tres discret (sans fond). Boutons plus compacts (hauteur reduite) et coins moins arrondis. La barre de navigation laterale passe d'une pile de pavés bleus pleins a une liste fine, avec l'onglet actif indique par un trait vertical plutot qu'un remplissage.
