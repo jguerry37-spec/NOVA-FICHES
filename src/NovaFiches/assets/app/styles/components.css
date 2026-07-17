@@ -3,12 +3,45 @@
     .card{ background: var(--card); border: var(--border-card); border-radius: var(--radius-md); padding:14px; }
     .card h2{ margin:0 0 10px; font-size:13px; color:var(--mut); font-weight:800; letter-spacing:.2px; text-transform:uppercase; }
 
+    /* Style de bouton par defaut = secondaire (sobre). Avant, TOUS les boutons
+       (import, export, tout inclure/exclure, PDF, fermer...) etaient identiques :
+       fond bleu plein, texte blanc, tres gras - aucune hierarchie, "generique IA".
+       Un seul bouton par ecran (l'action principale) reste en plein via .btn-primary;
+       le reste (import/preparation) garde ce style sobre ; les actions utilitaires
+       (tout inclure/exclure, reinitialiser, fermer) passent en .btn-ghost, encore
+       plus discret. */
     button, .btn {
-      background:var(--brand); color:#fff; border:1px solid rgba(0,0,0,.06);
-      padding:10px 12px; border-radius: var(--radius-sm); cursor:pointer; font-weight:750;
+      background:#fff; color:var(--txt); border:1px solid rgba(11,16,32,.20);
+      padding:7px 12px; border-radius: var(--radius-sm); cursor:pointer;
+      font-weight:600; font-size:12.5px;
     }
-    button:hover{ filter:brightness(0.98); }
+    button:hover, .btn:hover{ background:rgba(18,103,243,.06); border-color:rgba(18,103,243,.35); }
     button:disabled{ opacity:.45; cursor:not-allowed; }
+
+    .btn-primary{
+      background:var(--brand); color:#fff; border-color:transparent; font-weight:650;
+    }
+    .btn-primary:hover{ filter:brightness(0.95); background:var(--brand); }
+
+    .btn-ghost{
+      background:transparent; color:var(--mut); border-color:rgba(11,16,32,.14);
+      font-weight:500; padding:5px 10px;
+    }
+    .btn-ghost:hover{ background:rgba(11,16,32,.04); border-color:rgba(11,16,32,.24); color:var(--txt); }
+
+    /* Actions utilitaires deja identifiees par convention de nommage - pas besoin
+       de retoucher le HTML de chaque module pour leur appliquer le style ghost. */
+    button[id$="AllIn"], button[id$="AllOut"], button[id$="Reset"],
+    #btnKmzLayersAll, #btnKmzLayersNone, #btnKmzPointsAll, #btnKmzPointsNone,
+    #btnKmzMeasureClear, #btnPieuxReviewClose, #aboutClose, #updateBannerClose{
+      background:transparent; color:var(--mut); border-color:rgba(11,16,32,.14);
+      font-weight:500; padding:5px 10px;
+    }
+    button[id$="AllIn"]:hover, button[id$="AllOut"]:hover, button[id$="Reset"]:hover,
+    #btnKmzLayersAll:hover, #btnKmzLayersNone:hover, #btnKmzPointsAll:hover, #btnKmzPointsNone:hover,
+    #btnKmzMeasureClear:hover, #btnPieuxReviewClose:hover, #aboutClose:hover, #updateBannerClose:hover{
+      background:rgba(11,16,32,.04); border-color:rgba(11,16,32,.24); color:var(--txt);
+    }
     /* Default: keep inputs off-screen (most pickers are driven by associated UI) */
     input[type="file"]{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
 

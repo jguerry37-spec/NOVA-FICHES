@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.29
+
+- Interface : refonte des boutons sur tous les onglets pour un rendu plus sobre et professionnel. Avant, chaque bouton (import, export, PDF, tout inclure/exclure, fermer...) avait exactement le meme style plein bleu tres appuye, sans hierarchie - aucun moyen de distinguer l'action principale d'un ecran des actions secondaires ou des simples utilitaires. Desormais : un seul bouton "primaire" par ecran (l'action de sortie principale : Recalculer, Exporter KMZ, PDF - Rapport complet, PDF - Recolement de pieux, PDF - Recolement MNT, PDF - Reportage photo) reste en bleu plein ; les actions de preparation (import, chargement, analyse) passent en style sobre (fond blanc, bordure fine) ; les actions utilitaires (tout inclure/exclure, reinitialiser, fermer, effacer) passent en style tres discret (sans fond). Boutons plus compacts (hauteur reduite) et coins moins arrondis. La barre de navigation laterale passe d'une pile de pavés bleus pleins a une liste fine, avec l'onglet actif indique par un trait vertical plutot qu'un remplissage.
+- Build : passage de l'application et du moteur PDF en **2.3.1.29**.
+
 ## 2.3.1.28
 
 - Export KMZ : trouve et corrige une troisieme cause, distincte des deux precedentes (glisser de carte en 2.3.1.27, reflow CSS en 2.3.1.26), du "la carte se deplace au premier clic". Au premier clic, Leaflet donne le focus clavier (accessibilite) a son conteneur puis tente lui-meme de restaurer la position de defilement de la page pour compenser le "scroll to focus" automatique du navigateur - mais cette compensation ne regarde que le defilement du corps de la page, alors que Nova-Fiches fait defiler un conteneur interne (la zone de contenu principale). Le defilement de cette zone n'etait donc jamais protege et sautait au moment ou la carte prenait le focus, deplacant la carte et la barre d'outils sous le curseur reste immobile. Verifie par reproduction directe du mecanisme puis par test du correctif : le defilement ne bouge plus du tout au premier clic.

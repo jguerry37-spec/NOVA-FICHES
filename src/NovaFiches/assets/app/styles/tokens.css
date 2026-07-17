@@ -4,7 +4,7 @@
 
 /* V2 : échelle de rayons resserrée (outil métier, pas dashboard "bulle") et
    bordure de séparation à la place des ombres portées génériques. */
-:root{ --radius-sm: 6px; --radius-md: 8px; --border-card: 1px solid rgba(11,16,32,.16); }
+:root{ --radius-sm: 4px; --radius-md: 8px; --border-card: 1px solid rgba(11,16,32,.16); }
 
     :root{ --nf-field-h: 44px; }
 
@@ -14,8 +14,8 @@
 :root{
   --nf-gap: 14px;
   --nf-card-pad: 16px;
-  --nf-btn-pad-y: 10px;
-  --nf-btn-pad-x: 14px;
+  --nf-btn-pad-y: 7px;
+  --nf-btn-pad-x: 12px;
   --nf-input-h: 36px;
 }
 

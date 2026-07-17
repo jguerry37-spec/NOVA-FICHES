@@ -91,16 +91,20 @@ footer#pageFooter .row{ margin-top:4px !important; }
 }
 .nf-sb-title{ font-weight:900; letter-spacing:.3px; font-size:14px; margin:6px 0 2px; }
 .nf-sb-sub{ color:var(--mut); font-size:12px; margin-bottom:10px; }
-.nf-nav{ display:flex; flex-direction:column; gap:8px; }
+/* V2.4 : liste de menu plate (comme une appli de bureau) au lieu d'une pile de
+   pavés bleus pleins - l'item actif se distingue par un trait vertical + une
+   teinte tres legere, pas par un remplissage. Gain de place vertical (moins de
+   padding) et moins "generique IA". */
+.nf-nav{ display:flex; flex-direction:column; gap:1px; }
 .nf-nav-item{
   display:flex; align-items:center; gap:10px;
-  background:#fff; color:var(--txt);
-  border:1px solid rgba(0,0,0,.10);
-  padding:10px 10px; border-radius: var(--radius-sm);
-  cursor:pointer; font-weight:850; text-align:left;
+  background:transparent; color:var(--txt);
+  border:1px solid transparent; border-left:2px solid transparent;
+  padding:7px 10px; border-radius:0;
+  cursor:pointer; font-weight:600; font-size:13px; text-align:left;
 }
-.nf-nav-item:hover{ background: rgba(18,103,243,.06); border-color: rgba(18,103,243,.25); }
-.nf-nav-item.active{ background: rgba(18,103,243,.10); border-color: rgba(18,103,243,.45); }
+.nf-nav-item:hover{ background: rgba(18,103,243,.05); }
+.nf-nav-item.active{ background: rgba(18,103,243,.08); border-left-color: var(--brand); font-weight:750; color: var(--brand); }
 .nf-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
 main.nf-content{ flex:1; padding:10px 20px; max-width:none; margin:0; overflow:auto; }
 .nf-module{ display:none; }

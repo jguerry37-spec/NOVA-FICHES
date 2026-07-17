@@ -93,7 +93,7 @@
 .tol-row{ display:flex; gap:12px; align-items:flex-end; flex-wrap:nowrap; }
 #tolXY,#tolZ{ width:120px; max-width:120px; }
 .tol-actions-row{ display:flex; justify-content:flex-end; }
-#btnRecalc{ min-width:140px; height:36px; border-radius:10px; }
+#btnRecalc{ min-width:140px; height:36px; }
 #repObs,#repSurveyor{ max-width:520px; }
 @media (max-width: 1200px){
   .tol-row{ flex-wrap:wrap; }

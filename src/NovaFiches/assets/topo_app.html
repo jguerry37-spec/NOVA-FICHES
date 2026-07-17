@@ -261,7 +261,7 @@
 </div>
 
       <div class="row tol-actions-row" style="margin-top:8px; justify-content:flex-end;">
-        <button id="btnRecalc" disabled style="min-width:160px;">Recalculer</button>
+        <button id="btnRecalc" class="btn-primary" disabled style="min-width:160px;">Recalculer</button>
       </div>
 
       
@@ -299,7 +299,7 @@
     <div class="row nowrap" style="margin-top:6px;">
       <button id="btnPdfInterventionPdfSharp" disabled title="Génère le PDF Implantation (moteur PdfSharp).">PDF — Implantation</button>
       <button id="btnPdfLigneRef" disabled title="Génère le PDF Rabattement (mesure sur ligne) uniquement.">PDF — Ligne de référence (rabattement)</button>
-      <button id="btnPdfCompletPdfSharp" disabled title="Génère le PDF Rapport complet (implantation + rabattement) (moteur PdfSharp).">PDF — Rapport complet (implantation + rabattement)</button>
+      <button id="btnPdfCompletPdfSharp" class="btn-primary" disabled title="Génère le PDF Rapport complet (implantation + rabattement) (moteur PdfSharp).">PDF — Rapport complet (implantation + rabattement)</button>
       <button id="btnExportImplantTxt" disabled title="Exporte les points Implantation + Ligne de référence au format TXT (N°\tX\tY\tZ).">Export — Points (TXT)</button>
       <label class="dz-toggle">
         <input id="calcDzOn" type="checkbox" checked />
@@ -388,7 +388,7 @@
       </div>
       <span id="pieuxTxtStatus" class="pill">TXT : aucun</span>
       <!-- Analyse auto : bouton supprimé (évite confusion). -->
-<button id="btnPieuxPdf" disabled title="Génère le PDF Récolement de pieux (moteur PdfSharp) à partir du TXT (théorique) et des centres calculés (mesuré).">PDF — Récolement de pieux</button>
+<button id="btnPieuxPdf" class="btn-primary" disabled title="Génère le PDF Récolement de pieux (moteur PdfSharp) à partir du TXT (théorique) et des centres calculés (mesuré).">PDF — Récolement de pieux</button>
       <button id="btnPieuxPdfPlan" disabled title="Génère le PDF Récolement de pieux + une page Vue en plan (points théoriques TXT + surlignage du pieu contrôlé).">PDF — Récolement pieux + plan</button>
       <button id="btnPieuxExportTxt" disabled title="Exporte uniquement les pieux contrôlés/validés au format TXT (N°\tX\tY\tZ).">Export — Points contrôlés (TXT)</button>
       <span id="pieuxAnalyseStatus" class="pill nf-hidden">Pieux : aucun</span>
@@ -475,7 +475,7 @@
       <label class="btn" for="mntDxfInput" title="Importer une surface DXF 3D composée de 3DFACE.">Importer DXF 3D</label>
       <input id="mntDxfInput" type="file" accept=".dxf,application/dxf,text/plain" />
       <span id="mntDxfStatus" class="pill nf-hidden">DXF : aucun</span>
-      <button id="btnMntPdf" disabled title="Génère le PDF Récolement MNT avec X/Y/Z relevé, Z théorique MNT et Dz Leica.">PDF - Récolement MNT</button>
+      <button id="btnMntPdf" class="btn-primary" disabled title="Génère le PDF Récolement MNT avec X/Y/Z relevé, Z théorique MNT et Dz Leica.">PDF - Récolement MNT</button>
       <button id="btnMntExportTxt" disabled title="Exporte les données MNT au format TXT.">Export - Récolement MNT (TXT)</button>
       <span id="mntStatus" class="pill nf-hidden">MNT : aucun</span>
     </div>
@@ -536,7 +536,7 @@
                 <option value="WGS84 lon/lat (EPSG:4326)">WGS84 lon/lat (EPSG:4326)</option>
               </select>
             </div>
-            <button id="btnKmzExport" disabled title="Exporte dans un seul KMZ tous les éléments TXT et DXF cochés.">Exporter KMZ</button>
+            <button id="btnKmzExport" class="btn-primary" disabled title="Exporte dans un seul KMZ tous les éléments TXT et DXF cochés.">Exporter KMZ</button>
             <span id="kmzStatus" class="pill">Fichier : aucun</span>
             <label style="display:flex; align-items:center; gap:6px;">
               <input type="checkbox" id="kmzNgfToggle">
@@ -606,7 +606,7 @@
           <h2>Reportage photo</h2>
           <div class="row nowrap" style="margin-top:6px;">
             <button id="btnPhotoReportOpen" type="button" title="Ajouter, legender et annoter les photos du reportage.">Ajouter photos</button>
-            <button id="btnPhotoReportPdf" type="button" disabled title="Genere un rapport photo PDF autonome avec le cartouche du projet.">PDF - Reportage photo</button>
+            <button id="btnPhotoReportPdf" type="button" class="btn-primary" disabled title="Genere un rapport photo PDF autonome avec le cartouche du projet.">PDF - Reportage photo</button>
             <div style="min-width:170px;">
               <div class="small">Photos par page</div>
               <select id="photoReportPerPage" class="box">
