@@ -368,22 +368,6 @@
     if(current) sel.value = current;
   }
 
-  function updateMapInteractionLock(){
-    if(!state.map) return;
-    // Le dessin de zone et la mesure reposent sur des clics successifs precis :
-    // le double-clic-zoom natif de Leaflet interceptait le 2e clic et deplacait la
-    // carte, et un simple frolement de la molette/du trackpad pendant qu'on vise un
-    // clic changeait le zoom sous l'utilisateur. On desactive toutes les interactions
-    // qui changent le zoom tant qu'un de ces outils est actif, et on les restaure
-    // ensuite (les boutons +/- et "Recentrer la carte" restent disponibles).
-    const locked = state.drawingZone || state.measuring;
-    ['doubleClickZoom', 'scrollWheelZoom', 'touchZoom', 'boxZoom'].forEach(name => {
-      const handler = state.map[name];
-      if(!handler) return;
-      if(locked) handler.disable();
-      else handler.enable();
-    });
-  }
 
   function onMapClick(ev){
     if(state.drawingZone){ onZoneMapClick(ev); return; }
@@ -425,7 +409,6 @@
     state.zoneCorner1 = null;
     if(state.map) state.map.getContainer().style.cursor = '';
     if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
-    updateMapInteractionLock();
     drawNgfZoneLayer(bounds);
     fetchNgfForBounds(bounds);
   }
@@ -643,7 +626,6 @@
           state.map.getContainer().style.cursor = '';
           if(state.zoneLayer){ state.map.removeLayer(state.zoneLayer); state.zoneLayer = null; }
           if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
-          updateMapInteractionLock();
         }
       }
       renderMap();
@@ -665,7 +647,6 @@
       state.drawingZone = true;
       state.zoneCorner1 = null;
       state.map.getContainer().style.cursor = 'crosshair';
-      updateMapInteractionLock();
       setNgfStatus('Clique un premier coin de la zone à charger.');
     });
 
@@ -683,15 +664,14 @@
         state.measurePoints = [];
         redrawMeasureLayer();
         setMeasureStatus('Clique sur la carte pour placer le premier point.');
-        el('btnKmzMeasureClear')?.classList.remove('nf-hidden');
+        el('btnKmzMeasureClear')?.classList.remove('nf-space-hidden');
       }
-      updateMapInteractionLock();
     });
     el('btnKmzMeasureClear')?.addEventListener('click', () => {
       state.measurePoints = [];
       redrawMeasureLayer();
       setMeasureStatus('');
-      el('btnKmzMeasureClear')?.classList.add('nf-hidden');
+      el('btnKmzMeasureClear')?.classList.add('nf-space-hidden');
     });
 
     el('kmzBasemap')?.addEventListener('change', e => {

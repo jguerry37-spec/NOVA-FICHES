@@ -99,7 +99,20 @@
   .kmz-measure-pill{
     display:inline-flex;
     align-items:center;
-    min-height:20px;
+    /* Largeur ET hauteur fixes (pas juste min-width) : mesuree pour contenir le plus
+       long message sur 2 lignes sans jamais depasser cette boite. Une simple
+       min-width laissait le texte sans retour a la ligne deborder au-dela, ce qui
+       elargissait quand meme la ligne d'outils et decalait la carte en dessous,
+       pile au moment ou l'utilisateur clique pour placer un point.
+       flex-shrink:0 : cet element est lui-meme enfant direct de .row (display:flex),
+       qui sinon le retrecit en dessous de 260px des que la ligne d'outils manque de
+       place, ce qui ferait a nouveau varier sa hauteur reelle (meme probleme
+       identifie et corrige sur .kmz-ngf-status). */
+    width:260px;
+    height:54px;
+    flex-shrink:0;
+    box-sizing:border-box;
+    white-space:normal;
     padding:6px 14px;
     border-radius:999px;
     border:1px solid rgba(224,49,49,.35);
@@ -108,4 +121,26 @@
     font-size:15px;
     font-weight:850;
   }
-  .kmz-measure-pill:empty{ display:none; }
+
+  .kmz-ngf-status{
+    display:inline-block;
+    /* Meme raison que .kmz-measure-pill : largeur ET hauteur fixes + retour a la
+       ligne force, pour qu'un texte qui change au clic (« Clique un premier coin »
+       -> « Clique le second coin » -> « N reperes charges », y compris l'etat vide
+       initial) ne fasse jamais varier le nombre de lignes de la ligne d'outils ni
+       decaler la carte sous le curseur reste immobile de l'utilisateur.
+       flex-shrink:0 est indispensable : cet element est un enfant direct de .row
+       (display:flex), qui sinon le retrecit en dessous de sa largeur specifiee des
+       que la ligne d'outils manque de place, ce qui faisait a nouveau varier sa
+       hauteur reelle (deja constate avec .kmz-measure-pill). */
+    width:280px;
+    height:34px;
+    flex-shrink:0;
+    white-space:normal;
+    box-sizing:border-box;
+  }
+
+  /* Comme .nf-hidden mais reserve l'espace au lieu de le retirer du flux : utilise
+     pour les boutons qui apparaissent/disparaissent au fil d'une action sur la
+     carte, pour ne jamais decaler ce qui suit (et la carte en dessous). */
+  .nf-space-hidden{ visibility:hidden; }

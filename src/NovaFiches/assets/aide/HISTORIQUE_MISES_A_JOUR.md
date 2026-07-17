@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.26
+
+- Export KMZ : le verrouillage du zoom pendant "Mesurer" et "Dessiner une zone" (introduit en 2.3.1.25) est retire. Il ne corrigeait pas le probleme signale et compliquait l'usage sans necessite.
+- Export KMZ : correction de la veritable cause du "deplacement de la carte au premier clic" pour Mesurer/Dessiner une zone. Ce n'etait pas un souci de zoom Leaflet : les pastilles de statut ("Clique un premier coin...", "Distance totale...") changeaient de taille selon leur contenu (texte vide au depart, puis rempli au premier clic), ce qui deplacait toute la ligne d'outils et donc la carte en dessous, pile au moment ou l'utilisateur venait de cliquer avec le curseur a une position ecran fixe — donnant l'impression que la carte "sautait" sous le clic. Ces deux pastilles ont desormais une largeur et une hauteur fixes en toute circonstance (texte vide ou non), ce qui elimine le decalage.
+- Build : passage de l'application et du moteur PDF en **2.3.1.26**.
+
 ## 2.3.1.25
 
 - Export KMZ : "Mesurer une distance" et "Dessiner une zone" sont desormais mutuellement exclusifs. Si un dessin de zone etait laisse en plan (premier coin clique, jamais termine) puis "Mesurer une distance" etait lance, le clic suivant restait intercepte par le dessin de zone inacheve au lieu de placer un point de mesure — ce qui pouvait redeclencher un chargement de reperes NGF et un comportement de carte inattendu. Chaque outil interrompt desormais proprement l'autre s'il etait en cours.

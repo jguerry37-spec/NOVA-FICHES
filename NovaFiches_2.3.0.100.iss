@@ -54,7 +54,6 @@ Name: "startmenuicon"; Description: "Créer un raccourci dans le menu Démarrer"
 [Files]
 ; Publication .NET générée par src\NovaFiches\build.ps1
 Source: "Installer\staging\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\..\cartouche_nova.lsp"; DestDir: "{app}\AutoCAD"; Flags: ignoreversion
 
 ; WebView2 offline installer optionnel.
 ; Si absent, la compilation continue.
