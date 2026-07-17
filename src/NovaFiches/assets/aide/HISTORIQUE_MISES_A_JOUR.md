@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.27
+
+- Export KMZ : trouve et corrige la veritable cause du "la carte se deplace au premier clic" pour Mesurer une distance et Dessiner une zone (reperes NGF), qui persistait malgre les correctifs precedents (reflow CSS en 2.3.1.26, autoPan en 2.3.1.24). Un clic a la souris comporte quasi toujours quelques pixels de mouvement entre l'appui et le relachement ; Leaflet interprete ca comme un mini-glisser de carte et deplace deja la vue en consequence, meme quand le geste est ensuite reconnu comme un simple clic. Verifie par test direct : un clic avec 8 pixels de tremblement deplacait le centre de la carte d'environ 100 metres. Le glisser de la carte (pas le zoom, deja retire) est desormais desactive le temps de placer un point de mesure ou un coin de zone, puis reactive immediatement apres.
+- Build : passage de l'application et du moteur PDF en **2.3.1.27**.
+
 ## 2.3.1.26
 
 - Export KMZ : le verrouillage du zoom pendant "Mesurer" et "Dessiner une zone" (introduit en 2.3.1.25) est retire. Il ne corrigeait pas le probleme signale et compliquait l'usage sans necessite.

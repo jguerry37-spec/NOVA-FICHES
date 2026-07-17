@@ -46,6 +46,19 @@
   function setMapStatus(text){ const s = el('kmzMapStatus'); if(s) s.textContent = text; }
   function setNgfStatus(text){ const s = el('kmzNgfStatus'); if(s) s.textContent = text; }
   function setMeasureStatus(text){ const s = el('kmzMeasureStatus'); if(s) s.textContent = text; }
+  // Avec la souris, un "clic" comporte quasi toujours quelques pixels de mouvement
+  // entre l'appui et le relachement. Leaflet interprete ca comme un mini-glisser et
+  // deplace deja la vue en consequence avant de calculer les coordonnees du clic,
+  // meme quand il classe encore le geste comme un simple clic (pas un vrai
+  // deplacement de carte). Resultat : la carte semble "sauter" pile au moment du
+  // premier clic, et les coordonnees renvoyees correspondent a la vue deja
+  // deplacee. Desactiver le glisser (pas le zoom, deja retire) pendant Mesurer et
+  // Dessiner une zone elimine ce micro-decalage sans toucher au zoom.
+  function updateDragLock(){
+    if(!state.map || !state.map.dragging) return;
+    if(state.measuring || state.drawingZone) state.map.dragging.disable();
+    else state.map.dragging.enable();
+  }
   function refreshCombined(){
     const txt = state.txtPoints.filter(p => state.selectedTxtKeys.has(String(p.key ?? p.Key)));
     state.points = txt.concat(state.dxfPreviewPoints);
@@ -409,6 +422,7 @@
     state.zoneCorner1 = null;
     if(state.map) state.map.getContainer().style.cursor = '';
     if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
+    updateDragLock();
     drawNgfZoneLayer(bounds);
     fetchNgfForBounds(bounds);
   }
@@ -627,6 +641,7 @@
           if(state.zoneLayer){ state.map.removeLayer(state.zoneLayer); state.zoneLayer = null; }
           if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
         }
+        updateDragLock();
       }
       renderMap();
       renderTable();
@@ -647,6 +662,7 @@
       state.drawingZone = true;
       state.zoneCorner1 = null;
       state.map.getContainer().style.cursor = 'crosshair';
+      updateDragLock();
       setNgfStatus('Clique un premier coin de la zone à charger.');
     });
 
@@ -666,6 +682,7 @@
         setMeasureStatus('Clique sur la carte pour placer le premier point.');
         el('btnKmzMeasureClear')?.classList.remove('nf-space-hidden');
       }
+      updateDragLock();
     });
     el('btnKmzMeasureClear')?.addEventListener('click', () => {
       state.measurePoints = [];
