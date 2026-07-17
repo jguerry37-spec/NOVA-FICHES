@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.28
+
+- Export KMZ : trouve et corrige une troisieme cause, distincte des deux precedentes (glisser de carte en 2.3.1.27, reflow CSS en 2.3.1.26), du "la carte se deplace au premier clic". Au premier clic, Leaflet donne le focus clavier (accessibilite) a son conteneur puis tente lui-meme de restaurer la position de defilement de la page pour compenser le "scroll to focus" automatique du navigateur - mais cette compensation ne regarde que le defilement du corps de la page, alors que Nova-Fiches fait defiler un conteneur interne (la zone de contenu principale). Le defilement de cette zone n'etait donc jamais protege et sautait au moment ou la carte prenait le focus, deplacant la carte et la barre d'outils sous le curseur reste immobile. Verifie par reproduction directe du mecanisme puis par test du correctif : le defilement ne bouge plus du tout au premier clic.
+- Build : passage de l'application et du moteur PDF en **2.3.1.28**.
+
 ## 2.3.1.27
 
 - Export KMZ : trouve et corrige la veritable cause du "la carte se deplace au premier clic" pour Mesurer une distance et Dessiner une zone (reperes NGF), qui persistait malgre les correctifs precedents (reflow CSS en 2.3.1.26, autoPan en 2.3.1.24). Un clic a la souris comporte quasi toujours quelques pixels de mouvement entre l'appui et le relachement ; Leaflet interprete ca comme un mini-glisser de carte et deplace deja la vue en consequence, meme quand le geste est ensuite reconnu comme un simple clic. Verifie par test direct : un clic avec 8 pixels de tremblement deplacait le centre de la carte d'environ 100 metres. Le glisser de la carte (pas le zoom, deja retire) est desormais desactive le temps de placer un point de mesure ou un coin de zone, puis reactive immediatement apres.

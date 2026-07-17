@@ -144,6 +144,22 @@
           state.baseLayer.addTo(state.map);
           state.map.on('click', onMapClick);
           state.map.on('mousemove', onZoneMouseMove);
+          // Au premier clic sur la carte, Leaflet donne le focus clavier a son
+          // conteneur (accessibilite) puis tente de restaurer la position de
+          // defilement de la PAGE pour compenser le "scroll to focus" natif du
+          // navigateur. Mais cette page defile via un conteneur interne
+          // (main.nf-content, overflow:auto), pas via le corps de la page - le
+          // correctif de Leaflet ne regarde que document.body/documentElement et
+          // ne voit donc jamais ce defilement, qui reste intact. Resultat : la
+          // zone visible saute au premier clic (carte + barre d'outils), donnant
+          // l'impression que la carte "se deplace". Verifie par reproduction
+          // directe. Empecher tout defilement associe au focus du conteneur
+          // regle le probleme sans toucher au comportement clavier lui-meme.
+          const mapContainer = state.map.getContainer();
+          const nativeFocus = mapContainer.focus.bind(mapContainer);
+          mapContainer.focus = function(opts){
+            return nativeFocus(Object.assign({}, opts, { preventScroll: true }));
+          };
         }
         if(state.layer) state.map.removeLayer(state.layer);
         state.layer = L.featureGroup();
