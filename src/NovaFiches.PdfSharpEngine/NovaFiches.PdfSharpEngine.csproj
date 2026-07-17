@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
-	<Version>2.3.1.30</Version>
-	<AssemblyVersion>2.3.1.30</AssemblyVersion>
-	<FileVersion>2.3.1.30</FileVersion>
-	<InformationalVersion>2.3.1.30</InformationalVersion>
+	<Version>2.3.1.31</Version>
+	<AssemblyVersion>2.3.1.31</AssemblyVersion>
+	<FileVersion>2.3.1.31</FileVersion>
+	<InformationalVersion>2.3.1.31</InformationalVersion>
 	<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

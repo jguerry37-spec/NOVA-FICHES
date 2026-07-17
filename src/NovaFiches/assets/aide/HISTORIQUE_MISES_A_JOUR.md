@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.31
+
+- Export KMZ : harmonisation des tailles dans le bandeau d'outils. Les listes deroulantes (systeme de coordonnees, fond de carte) utilisaient le meme gabarit que les longs formulaires de saisie (44px de haut) - beaucoup trop imposant a cote des boutons compacts introduits en 2.3.1.29 (~28px). Ramenees a 30px, alignees visuellement avec les boutons. La pastille de distance mesuree (260x54px, police 15px) et le statut des reperes NGF (280x34px) etaient devenus disproportionnes pour la meme raison - reduits a 190x40px et 220x32px (police 12px), remesures pour ne jamais deborder ni faire bouger la carte, quel que soit le texte affiche.
+- Export KMZ : corrige le placement du bouton "Recentrer la carte", qui semblait desaligne par rapport au reste de la ligne (l'alignement du bloc utilisait le centre vertical, incoherent avec la premiere ligne du bandeau qui aligne sur le bas). Les deux lignes du bandeau alignent desormais leurs elements sur la meme base, boutons et listes deroulantes confondus.
+- Build : passage de l'application et du moteur PDF en **2.3.1.31**.
+
 ## 2.3.1.30
 
 - Interface : ajustement du style des boutons introduit en 2.3.1.29 - jugé un peu "fade" (secondaire blanc sur blanc, insuffisamment visible). Nouveau calibrage : les boutons secondaires ont desormais un fond bleu tres pale (au lieu de blanc pur), ce qui les garde visibles sans revenir a un bleu plein partout. Le bouton primaire est legerement moins gras qu'un premier essai pour rester sobre. Comparatif valide sur maquette avant application.

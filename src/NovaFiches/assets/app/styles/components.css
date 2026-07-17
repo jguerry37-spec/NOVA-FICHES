@@ -141,25 +141,30 @@
        elargissait quand meme la ligne d'outils et decalait la carte en dessous,
        pile au moment ou l'utilisateur clique pour placer un point.
        flex-shrink:0 : cet element est lui-meme enfant direct de .row (display:flex),
-       qui sinon le retrecit en dessous de 260px des que la ligne d'outils manque de
-       place, ce qui ferait a nouveau varier sa hauteur reelle (meme probleme
-       identifie et corrige sur .kmz-ngf-status). */
-    width:260px;
-    height:54px;
+       qui sinon le retrecit en dessous de la largeur des que la ligne d'outils
+       manque de place, ce qui ferait a nouveau varier sa hauteur reelle (meme
+       probleme identifie et corrige sur .kmz-ngf-status).
+       Taille recalibree (etait 260x54/15px, jugee disproportionnee a cote des
+       boutons compacts introduits en 2.3.1.29) : 190x40/12px, remesure pour
+       contenir le plus long message sur 2 lignes sans jamais deborder. */
+    width:190px;
+    height:40px;
     flex-shrink:0;
     box-sizing:border-box;
     white-space:normal;
-    padding:6px 14px;
-    border-radius:999px;
+    padding:4px 10px;
+    border-radius:6px;
     border:1px solid rgba(224,49,49,.35);
     background:rgba(224,49,49,.10);
     color:#c1121f;
-    font-size:15px;
-    font-weight:850;
+    font-size:12px;
+    font-weight:700;
+    line-height:1.25;
   }
 
   .kmz-ngf-status{
-    display:inline-block;
+    display:inline-flex;
+    align-items:center;
     /* Meme raison que .kmz-measure-pill : largeur ET hauteur fixes + retour a la
        ligne force, pour qu'un texte qui change au clic (« Clique un premier coin »
        -> « Clique le second coin » -> « N reperes charges », y compris l'etat vide
@@ -168,15 +173,29 @@
        flex-shrink:0 est indispensable : cet element est un enfant direct de .row
        (display:flex), qui sinon le retrecit en dessous de sa largeur specifiee des
        que la ligne d'outils manque de place, ce qui faisait a nouveau varier sa
-       hauteur reelle (deja constate avec .kmz-measure-pill). */
-    width:280px;
-    height:34px;
+       hauteur reelle (deja constate avec .kmz-measure-pill).
+       Taille recalibree (etait 280x34) : 220x32, remesure au meme titre que
+       .kmz-measure-pill. */
+    width:220px;
+    height:32px;
     flex-shrink:0;
     white-space:normal;
     box-sizing:border-box;
+    font-size:12px;
+    line-height:1.25;
   }
 
   /* Comme .nf-hidden mais reserve l'espace au lieu de le retirer du flux : utilise
      pour les boutons qui apparaissent/disparaissent au fil d'une action sur la
      carte, pour ne jamais decaler ce qui suit (et la carte en dessous). */
   .nf-space-hidden{ visibility:hidden; }
+
+  /* Selects du bandeau Export KMZ (systeme de coordonnees, fond de carte) :
+     utilisaient .box (44px, calibre pour les longs formulaires de saisie) - bien
+     trop haut a cote des boutons compacts (~28px) de cette barre d'outils. Un
+     bandeau d'outils n'a pas besoin du meme confort de frappe qu'un champ de
+     formulaire, d'ou une hauteur dediee, plus proche des boutons voisins. */
+  #kmzCoordSys, #kmzBasemap{
+    height:30px !important; min-height:30px !important;
+    font-size:12px; padding:4px 8px;
+  }
