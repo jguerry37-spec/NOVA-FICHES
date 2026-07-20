@@ -1066,6 +1066,77 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
         }
     }
 
+    // Reprojection generique E/N -> WGS84 pour l'onglet "Plan station" (Station /
+    // Leve topo). Contrairement a ReprojectKmzForUi, ne depend d'aucun etat KMZ
+    // (_kmzTxtPoints) : la station libre est calculee a partir d'un LandXML parse
+    // cote client (JS), le C# n'a jamais vu ces points avant ce message. On
+    // reutilise directement les primitives publiques de KmzExportService (memes
+    // formules de projection que l'export KMZ) sans passer par le nom/contenu du
+    // fichier source (non transmis ici) - la detection automatique retombe donc
+    // sur l'heuristique par plage de coordonnees, suffisante pour les CRS francais
+    // courants (Lambert-93, CC42-50).
+    private void ReprojectStationMapForUi(JsonElement root)
+    {
+        // "token" est renvoye tel quel dans la reponse : plusieurs requetes peuvent
+        // partir coup sur coup (l'utilisateur coche/decoche vite plusieurs points),
+        // et rien ne garantit que les reponses reviennent dans le meme ordre cote
+        // JS - le token permet d'ignorer une reponse perimee plutot que d'afficher
+        // des infobulles associees au mauvais jeu de points.
+        int? token = root.TryGetProperty("token", out var tokenEl) && tokenEl.ValueKind == JsonValueKind.Number
+            ? tokenEl.GetInt32()
+            : null;
+        try
+        {
+            string sourceCrs = root.TryGetProperty("sourceCrs", out var crsEl) ? (crsEl.GetString() ?? "__AUTO__") : "__AUTO__";
+            if (!root.TryGetProperty("points", out var pointsEl) || pointsEl.ValueKind != JsonValueKind.Array)
+            {
+                SendToUi(new { type = "station_map_error", token, message = "Aucun point à reprojeter." });
+                return;
+            }
+
+            var kmzPoints = new List<KmzExportService.KmzPoint>();
+            foreach (var el in pointsEl.EnumerateArray())
+            {
+                string id = el.TryGetProperty("id", out var idEl) ? (idEl.GetString() ?? "") : "";
+                double x = el.TryGetProperty("x", out var xEl) ? xEl.GetDouble() : 0;
+                double y = el.TryGetProperty("y", out var yEl) ? yEl.GetDouble() : 0;
+                if (string.IsNullOrWhiteSpace(id)) continue;
+                kmzPoints.Add(new KmzExportService.KmzPoint(id, x, y, 0, null, false));
+            }
+
+            if (kmzPoints.Count == 0)
+            {
+                SendToUi(new { type = "station_map_error", token, message = "Aucun point à reprojeter." });
+                return;
+            }
+
+            string detectionMethod = "choix manuel";
+            var crs = sourceCrs;
+            if (string.IsNullOrWhiteSpace(sourceCrs) || string.Equals(sourceCrs, "__AUTO__", StringComparison.OrdinalIgnoreCase))
+            {
+                var detection = KmzExportService.DetectCoordinateSystem("", null, kmzPoints);
+                crs = detection.CoordinateSystem;
+                detectionMethod = detection.Method;
+            }
+
+            var preview = KmzExportService.ProjectForPreview(kmzPoints, crs);
+            SendToUi(new
+            {
+                type = "station_map_reprojected",
+                token,
+                sourceCrs = crs,
+                detectionMethod,
+                coordinateSystems = KmzExportService.CoordinateSystems,
+                points = preview.Select(p => new { id = p.Id, lon = p.Lon, lat = p.Lat })
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Plan station : reprojection failed", ex);
+            SendToUi(new { type = "station_map_error", token, message = ex.Message });
+        }
+    }
+
     private void ExportKmzForUi(string sourceCrs)
     {
         try
@@ -2010,7 +2081,13 @@ if (string.Equals(type, "nextDownloadName", StringComparison.OrdinalIgnoreCase))
                     return;
                 }
 
-                
+                if (string.Equals(type, "station_map_reproject", StringComparison.OrdinalIgnoreCase))
+                {
+                    ReprojectStationMapForUi(root);
+                    return;
+                }
+
+
                 // ===== PdfSharp TEST: implantation =====
                 if (string.Equals(type, "pdfsharp_implantation", StringComparison.OrdinalIgnoreCase))
                 {

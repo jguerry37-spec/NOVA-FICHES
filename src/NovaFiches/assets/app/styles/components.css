@@ -195,7 +195,7 @@
      trop haut a cote des boutons compacts (~28px) de cette barre d'outils. Un
      bandeau d'outils n'a pas besoin du meme confort de frappe qu'un champ de
      formulaire, d'ou une hauteur dediee, plus proche des boutons voisins. */
-  #kmzCoordSys, #kmzBasemap{
+  #kmzCoordSys, #kmzBasemap, #stationMapCrs, #stationMapBasemap{
     height:30px !important; min-height:30px !important;
     font-size:12px; padding:4px 8px;
   }

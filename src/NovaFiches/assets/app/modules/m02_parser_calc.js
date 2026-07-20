@@ -1634,10 +1634,13 @@ function nfUpdateAllCounts(){
 }
 
 /* ===== Plan station (onglet "Plan station") =====
-   Plan schématique local (pas de fond de carte) : toutes les stations libres
-   du fichier + tous les points visés, sur un même repère E/N à l'échelle du
-   chantier. Lecture seule (survol pour le détail) - l'inclusion se modifie
-   uniquement depuis le tableau de l'onglet "Station libre". */
+   Toutes les stations libres du fichier + tous les points visés, sur un fond
+   de carte réel (Leaflet, cf. section "Plan station : fond de carte réel"
+   plus bas). Ce plan SVG schématique (repère E/N local, pas de fond de
+   carte) reste dessiné en repli - affiché tant que la reprojection GPS n'est
+   pas revenue, et si Leaflet/le réseau sont indisponibles. Lecture seule
+   (survol pour le détail) - l'inclusion se modifie uniquement depuis le
+   tableau de l'onglet "Station libre". */
 function renderStationMap(stationRuns, data){
   const container = document.getElementById('stationMapContainer');
   const legend = document.getElementById('stationMapLegend');
@@ -1687,6 +1690,7 @@ function renderStationMap(stationRuns, data){
       return;
     }
     emptyEl.style.display = 'none';
+    nfRequestStationMapGeo(stations, points);
 
     const rect = container.getBoundingClientRect();
     const W = Math.max(rect.width, 200);
@@ -1793,6 +1797,214 @@ function renderStationMap(stationRuns, data){
 window.nfRenderStationMap = function(){
   if(nfLastStationMapArgs) renderStationMap(nfLastStationMapArgs[0], nfLastStationMapArgs[1]);
 };
+
+/* ===== Plan station : fond de carte réel (Leaflet + reprojection GPS) =====
+   Les E/N du plan schématique sont dans le système de coordonnées du
+   chantier (Lambert-93, CC, NTF...), pas en WGS84 - il faut les reprojeter
+   avant de pouvoir les poser sur un fond Leaflet. La reprojection se fait
+   côté C# (station_map_reproject / MainForm.ReprojectStationMapForUi), qui
+   réutilise les primitives déjà utilisées par l'export KMZ
+   (KmzExportService.ProjectForPreview / DetectCoordinateSystem). Chaque
+   requête porte un jeton ("token") : si l'utilisateur coche/décoche vite
+   plusieurs points ou change de CRS, plusieurs requêtes peuvent partir coup
+   sur coup sans garantie d'ordre de retour - une réponse dont le jeton n'est
+   plus le dernier envoyé est silencieusement ignorée. */
+let nfStationMapLeafletLoading = false;
+const nfStationMapGeo = {
+  map: null,
+  baseLayer: null,
+  basemap: 'plan',
+  markersLayer: null,
+  requestToken: 0,
+  pendingRequests: new Map()
+};
+
+function nfPostToHost_(payload){
+  try{
+    if(window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function'){
+      window.chrome.webview.postMessage(payload);
+    }
+  }catch(_){ }
+}
+
+function nfSetStationMapStatus_(text){
+  const s = document.getElementById('stationMapStatus');
+  if(s) s.textContent = text || '';
+}
+
+function nfLoadLeafletForStationMap(){
+  if(window.L) return Promise.resolve(true);
+  if(nfStationMapLeafletLoading) return new Promise(resolve => {
+    const t = setInterval(() => {
+      if(window.L){ clearInterval(t); resolve(true); }
+    }, 100);
+    setTimeout(() => { clearInterval(t); resolve(!!window.L); }, 7000);
+  });
+  nfStationMapLeafletLoading = true;
+  return new Promise(resolve => {
+    try{
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = './vendor/leaflet/leaflet.css';
+      document.head.appendChild(css);
+      const script = document.createElement('script');
+      script.src = './vendor/leaflet/leaflet.js';
+      script.onload = () => resolve(!!window.L);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    }catch(_){
+      resolve(false);
+    }
+  });
+}
+
+function nfCreateStationMapTileLayer(kind){
+  if(kind === 'satellite'){
+    return L.tileLayer('https:' + '//' + 'server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri'
+    });
+  }
+  return L.tileLayer('https:' + '//' + '{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 22,
+    attribution: '&copy; OpenStreetMap'
+  });
+}
+
+function nfRequestStationMapGeo(stations, points){
+  try{
+    if(!Array.isArray(stations) || !stations.length) return;
+    const crsSelect = document.getElementById('stationMapCrs');
+    const sourceCrs = crsSelect ? crsSelect.value : '__AUTO__';
+    const token = ++nfStationMapGeo.requestToken;
+    const stationsById = new Map();
+    const pointsById = new Map();
+    const payloadPoints = [];
+    stations.forEach((s, idx) => {
+      const id = `st:${idx}`;
+      stationsById.set(id, s);
+      payloadPoints.push({ id, x: s.E, y: s.N });
+    });
+    (points || []).forEach((p, idx) => {
+      const id = `pt:${idx}`;
+      pointsById.set(id, p);
+      payloadPoints.push({ id, x: p.E, y: p.N });
+    });
+    nfStationMapGeo.pendingRequests.set(token, { stationsById, pointsById });
+    nfSetStationMapStatus_('Reprojection GPS en cours…');
+    nfPostToHost_({ type: 'station_map_reproject', token, sourceCrs, points: payloadPoints });
+  }catch(err){
+    console.warn('[Nova-Fiches] nfRequestStationMapGeo a échoué.', err);
+  }
+}
+
+function nfHandleStationMapReprojected_(msg){
+  try{
+    const pending = nfStationMapGeo.pendingRequests.get(msg.token);
+    nfStationMapGeo.pendingRequests.delete(msg.token);
+    // Jeton périmé (une requête plus récente est déjà partie) : on ignore, la
+    // réponse la plus récente écrasera de toute façon la carte au bon état.
+    if(!pending || msg.token !== nfStationMapGeo.requestToken) return;
+    const lonLatById = new Map();
+    (msg.points || []).forEach(p => {
+      if(Number.isFinite(p.lon) && Number.isFinite(p.lat)) lonLatById.set(p.id, { lon: p.lon, lat: p.lat });
+    });
+    const crsLabel = msg.sourceCrs || '';
+    const methodLabel = msg.detectionMethod ? ` (${msg.detectionMethod})` : '';
+    nfSetStationMapStatus_(crsLabel ? `Fond de carte — CRS source : ${crsLabel}${methodLabel}` : '');
+    nfBuildStationMapLeaflet(lonLatById, pending.stationsById, pending.pointsById);
+  }catch(err){
+    console.warn('[Nova-Fiches] traitement station_map_reprojected a échoué.', err);
+  }
+}
+
+function nfHandleStationMapError_(msg){
+  nfStationMapGeo.pendingRequests.delete(msg?.token);
+  nfSetStationMapStatus_('Fond de carte indisponible — plan schématique affiché.');
+}
+
+async function nfBuildStationMapLeaflet(lonLatById, stationsById, pointsById){
+  const leafletDiv = document.getElementById('stationMapLeaflet');
+  const schematicContainer = document.getElementById('stationMapContainer');
+  if(!leafletDiv || !schematicContainer || !lonLatById.size) return;
+
+  const ok = await nfLoadLeafletForStationMap();
+  if(!ok){
+    nfSetStationMapStatus_('Fond de carte indisponible (hors-ligne) — plan schématique affiché.');
+    return;
+  }
+
+  const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fmtN = (v, d) => (v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d ?? 3);
+
+  schematicContainer.querySelectorAll('svg').forEach(el => el.remove());
+  leafletDiv.style.display = 'block';
+
+  const isNewMap = !nfStationMapGeo.map;
+  if(isNewMap){
+    if(L.Popup) L.Popup.mergeOptions({ autoPan: false });
+    nfStationMapGeo.map = L.map(leafletDiv, { attributionControl: true });
+    nfStationMapGeo.baseLayer = nfCreateStationMapTileLayer(nfStationMapGeo.basemap);
+    nfStationMapGeo.baseLayer.addTo(nfStationMapGeo.map);
+  }
+  const map = nfStationMapGeo.map;
+
+  if(nfStationMapGeo.markersLayer) map.removeLayer(nfStationMapGeo.markersLayer);
+  nfStationMapGeo.markersLayer = L.featureGroup();
+
+  pointsById.forEach((p, id) => {
+    const ll = lonLatById.get(id);
+    if(!ll) return;
+    const anyIncluded = p.occurrences.some(o => o.included);
+    const color = anyIncluded ? '#2f9e44' : '#b91c1c';
+    const marker = L.circleMarker([ll.lat, ll.lon], {
+      radius: 6, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 0.9
+    });
+    const rows = p.occurrences.map(o => `
+      <div style="margin-top:4px; padding-top:4px; border-top:1px solid rgba(255,255,255,.15);">
+        <b>${escHtml(o.stationLabel)}</b> — ${o.included ? 'inclus' : 'exclu'}<br>
+        dHz ${fmtN(o.dHz, 4)} · dAlti ${fmtN(o.dAlti, 3)} · dDH ${fmtN(o.dDH, 3)}
+      </div>`).join('');
+    marker.bindTooltip(`<b>${escHtml(p.id)}</b><br>E ${fmtN(p.E)} · N ${fmtN(p.N)} · H ${fmtN(p.H)}${rows}`, { direction: 'top' });
+    marker.addTo(nfStationMapGeo.markersLayer);
+  });
+
+  stationsById.forEach((s, id) => {
+    const ll = lonLatById.get(id);
+    if(!ll) return;
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="transform:translate(-50%,-100%); display:flex; flex-direction:column; align-items:center; white-space:nowrap;">
+        <span style="font-size:11px; font-weight:700; color:#0b1020; background:rgba(255,255,255,.85); padding:0 3px; border-radius:3px; margin-bottom:2px;">${escHtml(s.label)}</span>
+        <svg width="18" height="18" viewBox="0 0 18 18"><polygon points="9,1 1,16 17,16" fill="#1267f3" stroke="#fff" stroke-width="1.5"/></svg>
+      </div>`,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0]
+    });
+    const marker = L.marker([ll.lat, ll.lon], { icon });
+    marker.bindTooltip(`<b>${escHtml(s.label)}</b> (station)<br>E ${fmtN(s.E)} · N ${fmtN(s.N)} · H ${fmtN(s.H)}<br>σE ${fmtN(s.devE, 4)} · σN ${fmtN(s.devN, 4)} · σH ${fmtN(s.devH, 4)} · σOri ${fmtN(s.devOri, 4)}`, { direction: 'top' });
+    marker.addTo(nfStationMapGeo.markersLayer);
+  });
+
+  nfStationMapGeo.markersLayer.addTo(map);
+
+  if(isNewMap){
+    const bounds = nfStationMapGeo.markersLayer.getBounds();
+    if(bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+  }
+  setTimeout(() => { try{ map.invalidateSize(); }catch(_){} }, 50);
+}
+
+try{
+  if(window.chrome && window.chrome.webview && typeof window.chrome.webview.addEventListener === 'function'){
+    window.chrome.webview.addEventListener('message', ev => {
+      const msg = ev && ev.data ? ev.data : ev;
+      if(!msg || !msg.type) return;
+      if(msg.type === 'station_map_reprojected') nfHandleStationMapReprojected_(msg);
+      if(msg.type === 'station_map_error') nfHandleStationMapError_(msg);
+    });
+  }
+}catch(_){ }
 
 function nfSyncCheckboxes(pid){
   try{
@@ -2211,6 +2423,18 @@ function renderAll(data){
       nfRecomputePdfButtons_();
     };
     const c5 = document.getElementById('refaltiContainer'); if(c5) c5.onchange = refHandler;
+
+    const crsSel = document.getElementById('stationMapCrs');
+    if(crsSel) crsSel.onchange = () => { if(typeof window.nfRenderStationMap === 'function') window.nfRenderStationMap(); };
+    const basemapSel = document.getElementById('stationMapBasemap');
+    if(basemapSel) basemapSel.onchange = (ev) => {
+      nfStationMapGeo.basemap = ev.target.value;
+      if(nfStationMapGeo.map){
+        if(nfStationMapGeo.baseLayer) nfStationMapGeo.map.removeLayer(nfStationMapGeo.baseLayer);
+        nfStationMapGeo.baseLayer = nfCreateStationMapTileLayer(nfStationMapGeo.basemap);
+        nfStationMapGeo.baseLayer.addTo(nfStationMapGeo.map);
+      }
+    };
   }catch(_){/* ignore */}
 
   // Update counts after render

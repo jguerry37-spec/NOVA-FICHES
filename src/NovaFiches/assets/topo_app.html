@@ -649,9 +649,41 @@
             <div id="stationContainer" class="small">—</div>
           </div>
           <div id="view_stationmap" style="display:none;">
-            <div class="small" style="margin:0 0 8px; color:var(--mut);">Plan schématique (pas de fond de carte) : positions relatives des stations et des points visés, à l'échelle du chantier. Lecture seule — pour modifier l'inclusion d'un point, utilisez l'onglet Station libre.</div>
+            <div class="small" style="margin:0 0 8px; color:var(--mut);">Toutes les stations libres du dossier, positionnées sur un fond de carte. Lecture seule — pour modifier l'inclusion d'un point, utilisez l'onglet Station libre.</div>
+            <div class="row" style="align-items:flex-end; margin-bottom:8px;">
+              <div style="min-width:260px;">
+                <div class="small">Système de coordonnées source</div>
+                <select id="stationMapCrs" class="box">
+                  <option value="__AUTO__" selected>Détection automatique</option>
+                  <option value="RGF93 / Lambert-93 (EPSG:2154)">RGF93 / Lambert-93 (EPSG:2154)</option>
+                  <option value="NTF / Lambert 1 (EPSG:27561)">NTF / Lambert 1 (EPSG:27561)</option>
+                  <option value="NTF / Lambert 2 (EPSG:27562)">NTF / Lambert 2 (EPSG:27562)</option>
+                  <option value="NTF / Lambert 3 (EPSG:27563)">NTF / Lambert 3 (EPSG:27563)</option>
+                  <option value="NTF / Lambert 2 étendu (EPSG:27572)">NTF / Lambert 2 étendu (EPSG:27572)</option>
+                  <option value="RGF93 / CC42 (EPSG:3942)">RGF93 / CC42 (EPSG:3942)</option>
+                  <option value="RGF93 / CC43 (EPSG:3943)">RGF93 / CC43 (EPSG:3943)</option>
+                  <option value="RGF93 / CC44 (EPSG:3944)">RGF93 / CC44 (EPSG:3944)</option>
+                  <option value="RGF93 / CC45 (EPSG:3945)">RGF93 / CC45 (EPSG:3945)</option>
+                  <option value="RGF93 / CC46 (EPSG:3946)">RGF93 / CC46 (EPSG:3946)</option>
+                  <option value="RGF93 / CC47 (EPSG:3947)">RGF93 / CC47 (EPSG:3947)</option>
+                  <option value="RGF93 / CC48 (EPSG:3948)">RGF93 / CC48 (EPSG:3948)</option>
+                  <option value="RGF93 / CC49 (EPSG:3949)">RGF93 / CC49 (EPSG:3949)</option>
+                  <option value="RGF93 / CC50 (EPSG:3950)">RGF93 / CC50 (EPSG:3950)</option>
+                  <option value="WGS84 lon/lat (EPSG:4326)">WGS84 lon/lat (EPSG:4326)</option>
+                </select>
+              </div>
+              <div style="min-width:200px;">
+                <div class="small">Fond de carte</div>
+                <select id="stationMapBasemap" class="box">
+                  <option value="plan" selected>Plan (OpenStreetMap)</option>
+                  <option value="satellite">Satellite (Esri)</option>
+                </select>
+              </div>
+              <span id="stationMapStatus" class="small"></span>
+            </div>
             <div id="stationMapLegend" class="small" style="display:flex; gap:16px; align-items:center; margin-bottom:8px; flex-wrap:wrap;"></div>
             <div id="stationMapContainer" style="position:relative; width:100%; height:520px; border:1px solid rgba(0,0,0,.12); border-radius:8px; background:#fbfbfc; overflow:hidden;">
+              <div id="stationMapLeaflet" style="display:none; position:absolute; inset:0;"></div>
               <div id="stationMapEmpty" class="small" style="display:none; position:absolute; inset:0; align-items:center; justify-content:center; text-align:center; padding:20px;">Aucune station libre détectée.</div>
               <div id="stationMapTooltip" style="display:none; position:absolute; z-index:5; pointer-events:none; background:#0b1020; color:#fff; font-size:12px; line-height:1.5; padding:8px 10px; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.25); white-space:nowrap;"></div>
             </div>

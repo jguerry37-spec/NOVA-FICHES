@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.33
+
+- Station / Levé topo : l'onglet "Plan station" (introduit en 2.3.1.32) affiche désormais un vrai fond de carte (OpenStreetMap ou satellite Esri, au choix) au lieu du seul plan schématique. Les coordonnées de chantier (Lambert-93, CC42-50, NTF...) sont reprojetées en GPS côté application (mêmes formules que l'export KMZ), avec détection automatique du système de coordonnées source ou choix manuel dans une liste déroulante identique à celle de l'export KMZ. Toutes les stations libres du dossier restent affichées sur un même plan, avec le zoom/déplacement standard d'une carte en ligne. Le plan schématique local reste affiché tant que la reprojection n'est pas revenue, et sert de repli si le fond de carte est indisponible (hors-ligne). Lecture seule, inchangé : l'inclusion d'un point se modifie toujours depuis le tableau de l'onglet Station libre.
+- Build : passage de l'application et du moteur PDF en **2.3.1.33**.
+
 ## 2.3.1.32
 
 - Station / Levé topo : nouvel onglet "Plan station" dans la Visualisation, juste après "Station libre". Plan schématique (pas de fond de carte - les points visés depuis une station libre sont trop proches les uns des autres pour qu'un fond OpenStreetMap soit utile à cette échelle) affichant toutes les mises en station du fichier sur un même repère X/Y local, à l'échelle du chantier : triangle bleu pour chaque station, cercle pour chaque point visé (vert si inclus dans le calcul, rouge si exclu - reflète en direct les cases "Incl." de l'onglet Station libre, pas seulement le statut d'origine du fichier). Un trait fin relie chaque station à ses points visés pour distinguer les mises en station quand il y en a plusieurs. Au survol d'un point : coordonnées E/N/H, puis pour chaque station l'ayant visé, les résidus (dHz, dAlti, dDH) et le statut inclus/exclu - un point visé depuis plusieurs stations affiche une ligne par station. Au survol d'une station : coordonnées et écarts-types (σE, σN, σH, σOri). Lecture seule : l'inclusion se modifie toujours depuis le tableau de l'onglet Station libre.
