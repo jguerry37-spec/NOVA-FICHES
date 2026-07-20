@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.32
+
+- Station / Levé topo : nouvel onglet "Plan station" dans la Visualisation, juste après "Station libre". Plan schématique (pas de fond de carte - les points visés depuis une station libre sont trop proches les uns des autres pour qu'un fond OpenStreetMap soit utile à cette échelle) affichant toutes les mises en station du fichier sur un même repère X/Y local, à l'échelle du chantier : triangle bleu pour chaque station, cercle pour chaque point visé (vert si inclus dans le calcul, rouge si exclu - reflète en direct les cases "Incl." de l'onglet Station libre, pas seulement le statut d'origine du fichier). Un trait fin relie chaque station à ses points visés pour distinguer les mises en station quand il y en a plusieurs. Au survol d'un point : coordonnées E/N/H, puis pour chaque station l'ayant visé, les résidus (dHz, dAlti, dDH) et le statut inclus/exclu - un point visé depuis plusieurs stations affiche une ligne par station. Au survol d'une station : coordonnées et écarts-types (σE, σN, σH, σOri). Lecture seule : l'inclusion se modifie toujours depuis le tableau de l'onglet Station libre.
+- Build : passage de l'application et du moteur PDF en **2.3.1.32**.
+
 ## 2.3.1.31
 
 - Export KMZ : harmonisation des tailles dans le bandeau d'outils. Les listes deroulantes (systeme de coordonnees, fond de carte) utilisaient le meme gabarit que les longs formulaires de saisie (44px de haut) - beaucoup trop imposant a cote des boutons compacts introduits en 2.3.1.29 (~28px). Ramenees a 30px, alignees visuellement avec les boutons. La pastille de distance mesuree (260x54px, police 15px) et le statut des reperes NGF (280x34px) etaient devenus disproportionnes pour la meme raison - reduits a 190x40px et 220x32px (police 12px), remesures pour ne jamais deborder ni faire bouger la carte, quel que soit le texte affiche.

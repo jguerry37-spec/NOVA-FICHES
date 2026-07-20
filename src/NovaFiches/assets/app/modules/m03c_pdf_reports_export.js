@@ -760,10 +760,15 @@ document.querySelectorAll(".tab[data-view]").forEach(el => {
     document.querySelectorAll(".tab[data-view]").forEach(t => t.classList.remove("active"));
     el.classList.add("active");
     const view = el.getAttribute("data-view");
-    ["station","implant","lineref","refalti","topo","heighttransfer","raw"].forEach(v => {
+    ["station","stationmap","implant","lineref","refalti","topo","heighttransfer","raw"].forEach(v => {
       const node = document.getElementById("view_"+v);
       if(node) node.style.display = (v === view) ? "block" : "none";
     });
+    // Le plan station a une taille nulle tant que son conteneur est masqué :
+    // on ne peut le dessiner qu'une fois l'onglet effectivement affiché.
+    if(view === "stationmap" && typeof window.nfRenderStationMap === "function"){
+      window.nfRenderStationMap();
+    }
   });
 });
 

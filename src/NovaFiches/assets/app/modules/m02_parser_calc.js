@@ -1439,6 +1439,9 @@ let nfRefAltiPointIds = new Set();
 let nfLastRawText = null;
 // ids visibles par onglet (pour le compteur + actions Tout inclure/exclure)
 let nfViewPointIds = { station: [], implant: [], lineref: [], refalti: [], topo: [] };
+// Derniers arguments de renderStationMap (onglet "Plan station"), rejoués au
+// tab-switch car le conteneur a une taille nulle tant qu'il est masqué.
+let nfLastStationMapArgs = null;
 
 function nfPointCode_(p){
   try{
@@ -1630,6 +1633,167 @@ function nfUpdateAllCounts(){
   nfUpdateCount('heighttransfer');
 }
 
+/* ===== Plan station (onglet "Plan station") =====
+   Plan schématique local (pas de fond de carte) : toutes les stations libres
+   du fichier + tous les points visés, sur un même repère E/N à l'échelle du
+   chantier. Lecture seule (survol pour le détail) - l'inclusion se modifie
+   uniquement depuis le tableau de l'onglet "Station libre". */
+function renderStationMap(stationRuns, data){
+  const container = document.getElementById('stationMapContainer');
+  const legend = document.getElementById('stationMapLegend');
+  const emptyEl = document.getElementById('stationMapEmpty');
+  const tooltip = document.getElementById('stationMapTooltip');
+  if(!container || !legend || !emptyEl || !tooltip) return;
+
+  try{
+    const cgPoints = data?.cgPoints || {};
+    const resolvePoint = (id) => cgPoints[nfStripAt(id)] || cgPoints[nfPid(id)] || null;
+
+    const stations = [];
+    const pointsByKey = new Map();
+
+    (stationRuns || []).forEach(run => {
+      const SR = run?.results || {};
+      if(SR.E == null || SR.N == null) return;
+      const label = SR.stationName || SR.idStation || run?.setupId || '?';
+      stations.push({
+        E: Number(SR.E), N: Number(SR.N), H: SR.H, label,
+        devE: SR.devE, devN: SR.devN, devH: SR.devH, devOri: SR.devOri
+      });
+
+      const resids = Array.isArray(run?.residuals) ? run.residuals : [];
+      resids.forEach(r => {
+        const pt = resolvePoint(r?.id);
+        if(!pt || pt.E == null || pt.N == null) return;
+        const displayId = nfStripAt(r.id) || String(r.id ?? '');
+        const key = displayId || `${pt.E},${pt.N}`;
+        if(!pointsByKey.has(key)){
+          pointsByKey.set(key, { E: Number(pt.E), N: Number(pt.N), H: pt.H, id: displayId, occurrences: [] });
+        }
+        pointsByKey.get(key).occurrences.push({
+          stationLabel: label,
+          dHz: r.dHz, dAlti: r.dAlti, dDH: r.dDH,
+          included: nfIsIncluded(r.id)
+        });
+      });
+    });
+
+    const points = Array.from(pointsByKey.values());
+    container.querySelectorAll('svg').forEach(el => el.remove());
+
+    if(stations.length === 0){
+      emptyEl.style.display = 'flex';
+      legend.innerHTML = '';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    const rect = container.getBoundingClientRect();
+    const W = Math.max(rect.width, 200);
+    const H = Math.max(rect.height, 200);
+    if(rect.width < 10 || rect.height < 10){
+      // Conteneur encore masqué (tab pas encore affiché) : rien d'exploitable à dessiner.
+      return;
+    }
+
+    const allE = stations.map(s => s.E).concat(points.map(p => p.E));
+    const allN = stations.map(s => s.N).concat(points.map(p => p.N));
+    const minE = Math.min(...allE), maxE = Math.max(...allE);
+    const minN = Math.min(...allN), maxN = Math.max(...allN);
+    const spanE = Math.max(maxE - minE, 1e-6);
+    const spanN = Math.max(maxN - minN, 1e-6);
+    const padFrac = 0.15;
+    const usableW = W * (1 - padFrac * 2);
+    const usableH = H * (1 - padFrac * 2);
+    const scale = Math.min(usableW / spanE, usableH / spanN);
+    const offsetX = (W - spanE * scale) / 2;
+    const offsetY = (H - spanN * scale) / 2;
+    const toX = (e) => offsetX + (e - minE) * scale;
+    const toY = (n) => H - (offsetY + (n - minN) * scale); // N croît vers le haut à l'écran
+
+    const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const fmtN = (v, d) => (v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d ?? 3);
+
+    const svgParts = [];
+    svgParts.push(`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="position:absolute; inset:0;">`);
+
+    // Traits de visée : station -> chacun de ses points, pour distinguer les stations
+    // quand il y en a plusieurs sur le même plan.
+    stations.forEach(s => {
+      points.forEach(p => {
+        const occ = p.occurrences.find(o => o.stationLabel === s.label);
+        if(!occ) return;
+        const stroke = occ.included ? 'rgba(18,103,243,.25)' : 'rgba(185,28,28,.25)';
+        svgParts.push(`<line x1="${toX(s.E)}" y1="${toY(s.N)}" x2="${toX(p.E)}" y2="${toY(p.N)}" stroke="${stroke}" stroke-width="1" />`);
+      });
+    });
+
+    points.forEach((p, idx) => {
+      const anyIncluded = p.occurrences.some(o => o.included);
+      const color = anyIncluded ? '#2f9e44' : '#b91c1c';
+      svgParts.push(`<circle data-tt="pt-${idx}" cx="${toX(p.E)}" cy="${toY(p.N)}" r="6" fill="${color}" stroke="#fff" stroke-width="1.5" style="cursor:pointer;" />`);
+    });
+
+    stations.forEach((s, idx) => {
+      const x = toX(s.E), y = toY(s.N);
+      const sz = 9;
+      svgParts.push(`<polygon data-tt="st-${idx}" points="${x},${y - sz} ${x - sz},${y + sz * 0.75} ${x + sz},${y + sz * 0.75}" fill="#1267f3" stroke="#fff" stroke-width="1.5" style="cursor:pointer;" />`);
+      svgParts.push(`<text x="${x}" y="${y - sz - 4}" font-size="11" font-weight="700" fill="#0b1020" text-anchor="middle">${escHtml(s.label)}</text>`);
+    });
+
+    svgParts.push('</svg>');
+    container.insertAdjacentHTML('afterbegin', svgParts.join(''));
+
+    legend.innerHTML = `
+      <span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14"><polygon points="7,1 1,12 13,12" fill="#1267f3"/></svg>Station</span>
+      <span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#2f9e44"/></svg>Point visé — inclus</span>
+      <span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#b91c1c"/></svg>Point visé — exclu</span>
+    `;
+
+    const svg = container.querySelector('svg');
+    const showTooltip = (evt, html) => {
+      tooltip.innerHTML = html;
+      tooltip.style.display = 'block';
+      const cRect = container.getBoundingClientRect();
+      let left = evt.clientX - cRect.left + 12;
+      let top = evt.clientY - cRect.top + 12;
+      if(left + 220 > cRect.width) left = evt.clientX - cRect.left - 232;
+      tooltip.style.left = Math.max(4, left) + 'px';
+      tooltip.style.top = Math.max(4, top) + 'px';
+    };
+    const hideTooltip = () => { tooltip.style.display = 'none'; };
+
+    if(svg){
+      svg.addEventListener('mousemove', (evt) => {
+        const target = evt.target.closest('[data-tt]');
+        if(!target){ hideTooltip(); return; }
+        const tt = target.getAttribute('data-tt');
+        if(tt.startsWith('pt-')){
+          const p = points[Number(tt.slice(3))];
+          if(!p) return;
+          const rows = p.occurrences.map(o => `
+            <div style="margin-top:4px; padding-top:4px; border-top:1px solid rgba(255,255,255,.15);">
+              <b>${escHtml(o.stationLabel)}</b> — ${o.included ? 'inclus' : 'exclu'}<br>
+              dHz ${fmtN(o.dHz, 4)} · dAlti ${fmtN(o.dAlti, 3)} · dDH ${fmtN(o.dDH, 3)}
+            </div>`).join('');
+          showTooltip(evt, `<b>${escHtml(p.id)}</b><br>E ${fmtN(p.E)} · N ${fmtN(p.N)} · H ${fmtN(p.H)}${rows}`);
+        }else if(tt.startsWith('st-')){
+          const s = stations[Number(tt.slice(3))];
+          if(!s) return;
+          showTooltip(evt, `<b>${escHtml(s.label)}</b> (station)<br>E ${fmtN(s.E)} · N ${fmtN(s.N)} · H ${fmtN(s.H)}<br>σE ${fmtN(s.devE, 4)} · σN ${fmtN(s.devN, 4)} · σH ${fmtN(s.devH, 4)} · σOri ${fmtN(s.devOri, 4)}`);
+        }
+      });
+      svg.addEventListener('mouseleave', hideTooltip);
+    }
+  }catch(err){
+    console.warn('[Nova-Fiches] renderStationMap a échoué.', err);
+  }
+}
+
+window.nfRenderStationMap = function(){
+  if(nfLastStationMapArgs) renderStationMap(nfLastStationMapArgs[0], nfLastStationMapArgs[1]);
+};
+
 function nfSyncCheckboxes(pid){
   try{
     const k = nfPid(pid);
@@ -1763,6 +1927,16 @@ function renderAll(data){
   }).join("") : '<div class="small">Aucune station libre détectée. Les transferts d’altitude sont affichés dans l’onglet Transfert alti.</div>';
 
   document.getElementById('stationContainer').innerHTML = stationHtml;
+
+  // Plan station (onglet "Plan station") : le conteneur est masqué tant que
+  // l'onglet n'est pas actif, donc getBoundingClientRect() y renverrait une
+  // taille nulle si on dessinait maintenant. On mémorise juste les données et
+  // le tab-switch (m03c_pdf_reports_export.js) appelle nfRenderStationMap()
+  // au moment où le conteneur devient visible.
+  nfLastStationMapArgs = [stationRuns, data];
+  if(document.getElementById('view_stationmap')?.style.display !== 'none'){
+    renderStationMap(stationRuns, data);
+  }
 
   // Implantation
   const impPointsAll = Array.isArray(data.implantation?.points) ? data.implantation.points : [];

@@ -628,6 +628,7 @@
           <h2>Visualisation</h2>
           <div class="tabs" id="vizTabs">
             <div class="tab active" data-view="station">Station libre</div>
+            <div class="tab" data-view="stationmap">Plan station</div>
             <div class="tab" data-view="implant">Implantation</div>
             <div class="tab" data-view="lineref">Ligne de référence</div>
             <div class="tab" data-view="refalti">Réf alti</div>
@@ -646,6 +647,14 @@
               </div>
             </div>
             <div id="stationContainer" class="small">—</div>
+          </div>
+          <div id="view_stationmap" style="display:none;">
+            <div class="small" style="margin:0 0 8px; color:var(--mut);">Plan schématique (pas de fond de carte) : positions relatives des stations et des points visés, à l'échelle du chantier. Lecture seule — pour modifier l'inclusion d'un point, utilisez l'onglet Station libre.</div>
+            <div id="stationMapLegend" class="small" style="display:flex; gap:16px; align-items:center; margin-bottom:8px; flex-wrap:wrap;"></div>
+            <div id="stationMapContainer" style="position:relative; width:100%; height:520px; border:1px solid rgba(0,0,0,.12); border-radius:8px; background:#fbfbfc; overflow:hidden;">
+              <div id="stationMapEmpty" class="small" style="display:none; position:absolute; inset:0; align-items:center; justify-content:center; text-align:center; padding:20px;">Aucune station libre détectée.</div>
+              <div id="stationMapTooltip" style="display:none; position:absolute; z-index:5; pointer-events:none; background:#0b1020; color:#fff; font-size:12px; line-height:1.5; padding:8px 10px; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.25); white-space:nowrap;"></div>
+            </div>
           </div>
           <div id="view_implant" style="display:none;">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 0 10px; flex-wrap:wrap;">
@@ -790,7 +799,7 @@
       preferred = 'implant';
       context = 'module-recolement:implantation';
     }else if(targetId === 'module-suivi'){
-      allowed = ['station','refalti','topo','heighttransfer','raw'];
+      allowed = ['station','stationmap','refalti','topo','heighttransfer','raw'];
       host = hostSuivi || stash;
       preferred = 'station';
     }else{
@@ -811,7 +820,7 @@
     });
 
     // Hide views not allowed.
-    ['station','implant','lineref','refalti','topo','heighttransfer','raw'].forEach(v=>{
+    ['station','stationmap','implant','lineref','refalti','topo','heighttransfer','raw'].forEach(v=>{
       const el = document.getElementById('view_' + v);
       if(!el) return;
       if(allowed.length === 0){
@@ -839,7 +848,7 @@
       if(first){
         first.classList.add('active');
         const v = first.getAttribute('data-view');
-        ['station','implant','lineref','refalti','topo','heighttransfer','raw'].forEach(x=>{
+        ['station','stationmap','implant','lineref','refalti','topo','heighttransfer','raw'].forEach(x=>{
           const el = document.getElementById('view_' + x);
           if(el) el.style.display = (x === v) ? 'block' : 'none';
         });
