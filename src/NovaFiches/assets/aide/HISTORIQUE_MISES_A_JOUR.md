@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.34
+
+- Station / Levé topo : sur le fond de carte réel du "Plan station" (2.3.1.33), les traits de visée reliant chaque station à ses points visés (présents sur le plan schématique de repli, mais absents du fond de carte) sont ajoutés - même code couleur qu'avant (bleu translucide si le point est inclus dans le calcul, rouge translucide si exclu).
+- Build : passage de l'application et du moteur PDF en **2.3.1.34**.
+
 ## 2.3.1.33
 
 - Station / Levé topo : l'onglet "Plan station" (introduit en 2.3.1.32) affiche désormais un vrai fond de carte (OpenStreetMap ou satellite Esri, au choix) au lieu du seul plan schématique. Les coordonnées de chantier (Lambert-93, CC42-50, NTF...) sont reprojetées en GPS côté application (mêmes formules que l'export KMZ), avec détection automatique du système de coordonnées source ou choix manuel dans une liste déroulante identique à celle de l'export KMZ. Toutes les stations libres du dossier restent affichées sur un même plan, avec le zoom/déplacement standard d'une carte en ligne. Le plan schématique local reste affiché tant que la reprojection n'est pas revenue, et sert de repli si le fond de carte est indisponible (hors-ligne). Lecture seule, inchangé : l'inclusion d'un point se modifie toujours depuis le tableau de l'onglet Station libre.

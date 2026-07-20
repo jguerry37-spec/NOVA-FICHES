@@ -1952,6 +1952,24 @@ async function nfBuildStationMapLeaflet(lonLatById, stationsById, pointsById){
   if(nfStationMapGeo.markersLayer) map.removeLayer(nfStationMapGeo.markersLayer);
   nfStationMapGeo.markersLayer = L.featureGroup();
 
+  // Traits de visée station -> point, comme sur le plan schématique - ajoutés
+  // avant les marqueurs pour rester en dessous (ordre d'ajout = ordre d'empilement).
+  const stationLatLngByLabel = new Map();
+  stationsById.forEach((s, id) => {
+    const ll = lonLatById.get(id);
+    if(ll) stationLatLngByLabel.set(s.label, [ll.lat, ll.lon]);
+  });
+  pointsById.forEach((p, id) => {
+    const ll = lonLatById.get(id);
+    if(!ll) return;
+    p.occurrences.forEach(o => {
+      const sLatLng = stationLatLngByLabel.get(o.stationLabel);
+      if(!sLatLng) return;
+      const color = o.included ? 'rgba(18,103,243,.4)' : 'rgba(185,28,28,.4)';
+      L.polyline([sLatLng, [ll.lat, ll.lon]], { color, weight: 2, interactive: false }).addTo(nfStationMapGeo.markersLayer);
+    });
+  });
+
   pointsById.forEach((p, id) => {
     const ll = lonLatById.get(id);
     if(!ll) return;
