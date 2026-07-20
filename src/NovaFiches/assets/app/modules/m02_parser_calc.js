@@ -1633,6 +1633,15 @@ function nfUpdateAllCounts(){
   nfUpdateCount('heighttransfer');
 }
 
+// Une couleur distincte par mise en station (triangle + traits de visée), pour
+// distinguer les stations d'un coup d'œil quand il y en a plusieurs sur le même
+// plan. Les points visés restent en vert/rouge (inclus/exclu), donc ces teintes
+// évitent le vert et le rouge purs pour ne pas se confondre avec eux.
+const NF_STATION_COLORS_ = ['#1267f3', '#f76707', '#9c36b5', '#0c8599', '#e64980', '#f59f00', '#495057', '#7048e8', '#1098ad', '#d6336c'];
+function nfStationColor_(idx){
+  return NF_STATION_COLORS_[Math.abs(Number(idx) || 0) % NF_STATION_COLORS_.length];
+}
+
 /* ===== Plan station (onglet "Plan station") =====
    Toutes les stations libres du fichier + tous les points visés, sur un fond
    de carte réel (Leaflet, cf. section "Plan station : fond de carte réel"
@@ -1721,14 +1730,16 @@ function renderStationMap(stationRuns, data){
     const svgParts = [];
     svgParts.push(`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="position:absolute; inset:0;">`);
 
-    // Traits de visée : station -> chacun de ses points, pour distinguer les stations
-    // quand il y en a plusieurs sur le même plan.
-    stations.forEach(s => {
+    // Traits de visée : station -> chacun de ses points, une couleur par station
+    // (pas par inclusion) pour distinguer les mises en station d'un coup d'œil ;
+    // le pointillé marque en plus les visées exclues du calcul.
+    stations.forEach((s, sIdx) => {
+      const color = nfStationColor_(sIdx);
       points.forEach(p => {
         const occ = p.occurrences.find(o => o.stationLabel === s.label);
         if(!occ) return;
-        const stroke = occ.included ? 'rgba(18,103,243,.25)' : 'rgba(185,28,28,.25)';
-        svgParts.push(`<line x1="${toX(s.E)}" y1="${toY(s.N)}" x2="${toX(p.E)}" y2="${toY(p.N)}" stroke="${stroke}" stroke-width="1" />`);
+        const dash = occ.included ? '' : ' stroke-dasharray="4,3"';
+        svgParts.push(`<line x1="${toX(s.E)}" y1="${toY(s.N)}" x2="${toX(p.E)}" y2="${toY(p.N)}" stroke="${color}" stroke-opacity="0.45" stroke-width="1.5"${dash} />`);
       });
     });
 
@@ -1741,17 +1752,19 @@ function renderStationMap(stationRuns, data){
     stations.forEach((s, idx) => {
       const x = toX(s.E), y = toY(s.N);
       const sz = 9;
-      svgParts.push(`<polygon data-tt="st-${idx}" points="${x},${y - sz} ${x - sz},${y + sz * 0.75} ${x + sz},${y + sz * 0.75}" fill="#1267f3" stroke="#fff" stroke-width="1.5" style="cursor:pointer;" />`);
+      const color = nfStationColor_(idx);
+      svgParts.push(`<polygon data-tt="st-${idx}" points="${x},${y - sz} ${x - sz},${y + sz * 0.75} ${x + sz},${y + sz * 0.75}" fill="${color}" stroke="#fff" stroke-width="1.5" style="cursor:pointer;" />`);
       svgParts.push(`<text x="${x}" y="${y - sz - 4}" font-size="11" font-weight="700" fill="#0b1020" text-anchor="middle">${escHtml(s.label)}</text>`);
     });
 
     svgParts.push('</svg>');
     container.insertAdjacentHTML('afterbegin', svgParts.join(''));
 
+    const stationLegendChips = stations.map((s, idx) => `<span style="display:inline-flex; align-items:center; gap:5px;"><svg width="12" height="12"><polygon points="6,1 1,11 11,11" fill="${nfStationColor_(idx)}"/></svg>${escHtml(s.label)}</span>`).join('');
     legend.innerHTML = `
-      <span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14"><polygon points="7,1 1,12 13,12" fill="#1267f3"/></svg>Station</span>
       <span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#2f9e44"/></svg>Point visé — inclus</span>
       <span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#b91c1c"/></svg>Point visé — exclu</span>
+      ${stationLegendChips}
     `;
 
     const svg = container.querySelector('svg');
@@ -1954,10 +1967,15 @@ async function nfBuildStationMapLeaflet(lonLatById, stationsById, pointsById){
 
   // Traits de visée station -> point, comme sur le plan schématique - ajoutés
   // avant les marqueurs pour rester en dessous (ordre d'ajout = ordre d'empilement).
+  // Une couleur par station (indice extrait de l'id "st:<idx>", stable quel que
+  // soit l'ordre d'itération de la Map) ; le pointillé marque les visées exclues.
   const stationLatLngByLabel = new Map();
+  const stationColorByLabel = new Map();
   stationsById.forEach((s, id) => {
     const ll = lonLatById.get(id);
-    if(ll) stationLatLngByLabel.set(s.label, [ll.lat, ll.lon]);
+    if(!ll) return;
+    stationLatLngByLabel.set(s.label, [ll.lat, ll.lon]);
+    stationColorByLabel.set(s.label, nfStationColor_(Number(String(id).split(':')[1])));
   });
   pointsById.forEach((p, id) => {
     const ll = lonLatById.get(id);
@@ -1965,8 +1983,11 @@ async function nfBuildStationMapLeaflet(lonLatById, stationsById, pointsById){
     p.occurrences.forEach(o => {
       const sLatLng = stationLatLngByLabel.get(o.stationLabel);
       if(!sLatLng) return;
-      const color = o.included ? 'rgba(18,103,243,.4)' : 'rgba(185,28,28,.4)';
-      L.polyline([sLatLng, [ll.lat, ll.lon]], { color, weight: 2, interactive: false }).addTo(nfStationMapGeo.markersLayer);
+      const color = stationColorByLabel.get(o.stationLabel) || '#1267f3';
+      L.polyline([sLatLng, [ll.lat, ll.lon]], {
+        color, weight: 2.5, opacity: 0.55, interactive: false,
+        dashArray: o.included ? null : '6,5'
+      }).addTo(nfStationMapGeo.markersLayer);
     });
   });
 
@@ -1990,11 +2011,12 @@ async function nfBuildStationMapLeaflet(lonLatById, stationsById, pointsById){
   stationsById.forEach((s, id) => {
     const ll = lonLatById.get(id);
     if(!ll) return;
+    const color = nfStationColor_(Number(String(id).split(':')[1]));
     const icon = L.divIcon({
       className: '',
       html: `<div style="transform:translate(-50%,-100%); display:flex; flex-direction:column; align-items:center; white-space:nowrap;">
         <span style="font-size:11px; font-weight:700; color:#0b1020; background:rgba(255,255,255,.85); padding:0 3px; border-radius:3px; margin-bottom:2px;">${escHtml(s.label)}</span>
-        <svg width="18" height="18" viewBox="0 0 18 18"><polygon points="9,1 1,16 17,16" fill="#1267f3" stroke="#fff" stroke-width="1.5"/></svg>
+        <svg width="18" height="18" viewBox="0 0 18 18"><polygon points="9,1 1,16 17,16" fill="${color}" stroke="#fff" stroke-width="1.5"/></svg>
       </div>`,
       iconSize: [0, 0],
       iconAnchor: [0, 0]

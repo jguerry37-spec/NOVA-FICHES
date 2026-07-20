@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.35
+
+- Station / Levé topo : sur le "Plan station" (fond de carte réel comme plan schématique de repli), chaque mise en station a désormais sa propre couleur (triangle + tous ses traits de visée), au lieu d'une seule couleur bleue pour toutes les stations - la lecture était brouillonne dès qu'il y avait plusieurs stations sur le même plan avec des traits qui se croisent. Les points visés restent en vert (inclus) / rouge (exclu), inchangé. Pour ne pas perdre l'information "visée exclue du calcul" qui reposait auparavant sur la couleur du trait, un trait en pointillé remplace désormais le rouge pour une visée exclue (plein sinon).
+- Build : passage de l'application et du moteur PDF en **2.3.1.35**.
+
 ## 2.3.1.34
 
 - Station / Levé topo : sur le fond de carte réel du "Plan station" (2.3.1.33), les traits de visée reliant chaque station à ses points visés (présents sur le plan schématique de repli, mais absents du fond de carte) sont ajoutés - même code couleur qu'avant (bleu translucide si le point est inclus dans le calcul, rouge translucide si exclu).
