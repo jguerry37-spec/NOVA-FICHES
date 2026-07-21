@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.41
+
+- Station / Levé topo, page "Plan station" du PDF : les triangles des stations étaient toujours trop imposants (la réduction de 2.3.1.39 ne portait que sur le fond de carte affiché à l'écran - la page PDF utilise un dessin séparé, non touché à l'époque). Réduits ici aussi (3,2 mm → 2 mm de demi-hauteur).
+- Build : passage de l'application et du moteur PDF en **2.3.1.41**.
+
 ## 2.3.1.40
 
 - Correction : "PDF - Station" échouait avec "The process cannot access the file (...) because it is being used by another process" quand le PDF généré précédemment était encore ouvert (dans le lecteur PDF par défaut, ouvert automatiquement après chaque export). Le générateur du PDF Station (et Ligne de référence, même cause) enregistrait le fichier directement, sans le repli "nom de fichier avec suffixe automatique" déjà utilisé par tous les autres PDF de l'application en cas de fichier verrouillé - il utilise maintenant ce même repli.

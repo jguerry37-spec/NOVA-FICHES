@@ -329,7 +329,7 @@ internal static class StationPlanRenderer
 
         // 3) Stations (triangle plein, couleur propre), libellé au-dessus
         var fontSt = NovatlasTheme.FontBold(9);
-        double sz = Units.MmToPt(3.2);
+        double sz = Units.MmToPt(2.0);
         foreach (var s in stations)
         {
             var ptXY = mapStation(s);
