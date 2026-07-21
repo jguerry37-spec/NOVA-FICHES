@@ -238,7 +238,7 @@ private static void SaveBytesWithFallback(byte[] pdfBytes, string outputPath)
     PhotoAppendixRenderer.AppendFromPayload(doc, payloadJson, buildProof);
 
     Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
-        doc.Save(outputPdfPath);
+        SaveWithFallback(doc, outputPdfPath);
     }
 
     /// <summary>
@@ -259,7 +259,7 @@ private static void SaveBytesWithFallback(byte[] pdfBytes, string outputPath)
     StationPlanRenderer.AppendFromPayload(doc, payloadJson, buildProof);
 
     Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
-        doc.Save(outputPdfPath);
+        SaveWithFallback(doc, outputPdfPath);
     }
 
 
