@@ -2093,7 +2093,7 @@ async function nfBuildStationMapLeaflet(lonLatById, stationsById, pointsById){
       className: '',
       html: `<div style="transform:translate(-50%,-100%); display:flex; flex-direction:column; align-items:center; white-space:nowrap;">
         <span style="font-size:11px; font-weight:700; color:#0b1020; background:rgba(255,255,255,.85); padding:0 3px; border-radius:3px; margin-bottom:2px;">${escHtml(s.label)}</span>
-        <svg width="18" height="18" viewBox="0 0 18 18"><polygon points="9,1 1,16 17,16" fill="${color}" stroke="#fff" stroke-width="1.5"/></svg>
+        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 1,11 11,11" fill="${color}" stroke="#fff" stroke-width="1.2"/></svg>
       </div>`,
       iconSize: [0, 0],
       iconAnchor: [0, 0]

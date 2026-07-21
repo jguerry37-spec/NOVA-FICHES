@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.39
+
+- Station / Levé topo, onglet "Plan station" : les triangles des stations sur le fond de carte réel étaient trop imposants par rapport aux points visés. Réduits (18px → 12px).
+- Build : passage de l'application et du moteur PDF en **2.3.1.39**.
+
 ## 2.3.1.38
 
 - Correction : la génération du PDF Station avec "Envoyer sur la fiche station" coché (fond de carte ajouté en 2.3.1.37) bloquait complètement l'application ("Génération du PDF en cours..." qui ne se terminait jamais). Cause : le téléchargement des tuiles du fond de carte était attendu de façon synchrone directement sur le thread de l'interface, ce qui provoque un blocage classique quand du code asynchrone doit reprendre sur ce même thread une fois celui-ci déjà figé en attente. Le téléchargement s'exécute désormais entièrement sur un thread séparé.
