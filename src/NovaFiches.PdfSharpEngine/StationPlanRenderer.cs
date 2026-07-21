@@ -190,7 +190,15 @@ internal static class StationPlanRenderer
             if (grid == null) return false;
             var (z, txMin, tyMin, txMax, tyMax) = grid.Value;
 
-            using var bitmap = FetchAndStitchTilesAsync(txMin, tyMin, txMax, tyMax, z, basemapKind).GetAwaiter().GetResult();
+            // Task.Run ici (pas un simple .GetAwaiter().GetResult() sur l'appel direct) :
+            // AppendFromPayload est invoqué depuis le handler WebView2, sur le thread UI
+            // WinForms, qui a un SynchronizationContext. Sans ce Task.Run, le "await
+            // Task.WhenAll" dans FetchAndStitchTilesAsync tenterait de reprendre sur ce
+            // même thread UI pour continuer - or ce thread est bloqué juste ici en
+            // attendant le résultat : blocage total de l'application (deadlock classique
+            // "sync-over-async"). Task.Run fait démarrer toute la chaîne async sur un
+            // thread du pool, sans SynchronizationContext capturé, donc sans ce risque.
+            using var bitmap = Task.Run(() => FetchAndStitchTilesAsync(txMin, tyMin, txMax, tyMax, z, basemapKind)).GetAwaiter().GetResult();
             if (bitmap == null) return false;
 
             double bitmapW = (txMax - txMin + 1) * 256.0;
@@ -406,7 +414,7 @@ internal static class StationPlanRenderer
                 {
                     try
                     {
-                        var bytes = await Http.GetByteArrayAsync(TileUrl(localTx, localTy, z, kind));
+                        var bytes = await Http.GetByteArrayAsync(TileUrl(localTx, localTy, z, kind)).ConfigureAwait(false);
                         using var ms = new System.IO.MemoryStream(bytes);
                         using var tileImg = Image.FromStream(ms);
                         lock (lockObj)
@@ -419,7 +427,7 @@ internal static class StationPlanRenderer
                 }));
             }
         }
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
         return bitmap;
     }
 

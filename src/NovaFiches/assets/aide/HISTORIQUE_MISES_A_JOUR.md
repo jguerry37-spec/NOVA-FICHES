@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.38
+
+- Correction : la génération du PDF Station avec "Envoyer sur la fiche station" coché (fond de carte ajouté en 2.3.1.37) bloquait complètement l'application ("Génération du PDF en cours..." qui ne se terminait jamais). Cause : le téléchargement des tuiles du fond de carte était attendu de façon synchrone directement sur le thread de l'interface, ce qui provoque un blocage classique quand du code asynchrone doit reprendre sur ce même thread une fois celui-ci déjà figé en attente. Le téléchargement s'exécute désormais entièrement sur un thread séparé.
+- Build : passage de l'application et du moteur PDF en **2.3.1.38**.
+
 ## 2.3.1.37
 
 - Station / Levé topo, PDF Station : la page "Plan station" ajoutée via "Envoyer sur la fiche station" (2.3.1.36) affiche désormais un vrai fond de carte (OpenStreetMap ou satellite Esri, selon le choix fait à l'écran), et non plus seulement le repère E/N local. Les coordonnées sont reprojetées en GPS côté application (mêmes formules que l'export KMZ), puis les tuiles du fond de carte sont récupérées et assemblées directement par l'application (pas une capture de la carte affichée à l'écran) avant de redessiner par-dessus les stations/points/traits de visée. Nécessite une connexion Internet au moment de générer le PDF ; en son absence (ou si la reprojection échoue), la page repasse automatiquement sur le repère local sans fond de carte (comportement de 2.3.1.36), sans jamais faire échouer la génération du PDF.
