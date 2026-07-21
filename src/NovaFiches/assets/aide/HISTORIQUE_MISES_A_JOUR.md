@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.42
+
+- Station / Levé topo, onglet "Plan station" : nouvelle réduction des triangles de station (toujours jugés trop imposants après 2.3.1.39/2.3.1.41) - fond de carte à l'écran (12px → 8px), plan schématique (9px → 6px) et page PDF (2 mm → 1,3 mm), cette fois de façon plus marquée.
+- Build : passage de l'application et du moteur PDF en **2.3.1.42**.
+
 ## 2.3.1.41
 
 - Station / Levé topo, page "Plan station" du PDF : les triangles des stations étaient toujours trop imposants (la réduction de 2.3.1.39 ne portait que sur le fond de carte affiché à l'écran - la page PDF utilise un dessin séparé, non touché à l'époque). Réduits ici aussi (3,2 mm → 2 mm de demi-hauteur).

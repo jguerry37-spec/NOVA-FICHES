@@ -1762,7 +1762,7 @@ function renderStationMap(stationRuns, data){
 
     stations.forEach((s, idx) => {
       const x = toX(s.E), y = toY(s.N);
-      const sz = 9;
+      const sz = 6;
       const color = nfStationColor_(idx);
       svgParts.push(`<polygon data-tt="st-${idx}" points="${x},${y - sz} ${x - sz},${y + sz * 0.75} ${x + sz},${y + sz * 0.75}" fill="${color}" stroke="#fff" stroke-width="1.5" style="cursor:pointer;" />`);
       svgParts.push(`<text x="${x}" y="${y - sz - 4}" font-size="11" font-weight="700" fill="#0b1020" text-anchor="middle">${escHtml(s.label)}</text>`);
@@ -2093,7 +2093,7 @@ async function nfBuildStationMapLeaflet(lonLatById, stationsById, pointsById){
       className: '',
       html: `<div style="transform:translate(-50%,-100%); display:flex; flex-direction:column; align-items:center; white-space:nowrap;">
         <span style="font-size:11px; font-weight:700; color:#0b1020; background:rgba(255,255,255,.85); padding:0 3px; border-radius:3px; margin-bottom:2px;">${escHtml(s.label)}</span>
-        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 1,11 11,11" fill="${color}" stroke="#fff" stroke-width="1.2"/></svg>
+        <svg width="8" height="8" viewBox="0 0 8 8"><polygon points="4,0.5 0.5,7.5 7.5,7.5" fill="${color}" stroke="#fff" stroke-width="1"/></svg>
       </div>`,
       iconSize: [0, 0],
       iconAnchor: [0, 0]
