@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text;
 using System.Windows.Forms;
 using System.Collections.Generic;
@@ -1134,6 +1135,71 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
         {
             AppLog.Error("Plan station : reprojection failed", ex);
             SendToUi(new { type = "station_map_error", token, message = ex.Message });
+        }
+    }
+
+    // Avant de générer le PDF Station, si "Envoyer sur la fiche station" a été coché
+    // (payload.stationPlanView présent), reprojette stations/points en WGS84 et injecte
+    // lon/lat dans le payload : StationPlanRenderer (projet NovaFiches.PdfSharpEngine)
+    // n'a pas accès à KmzExportService, car les projets ne référencent que dans un sens
+    // (NovaFiches -> PdfSharpEngine) - la reprojection doit donc se faire ici, exactement
+    // comme pour ReprojectStationMapForUi (fond de carte à l'écran). Toute erreur retombe
+    // silencieusement sur le payload d'origine : StationPlanRenderer redessine alors le
+    // plan en repère local, sans fond de carte (comportement déjà existant).
+    private static string EnrichStationPlanViewWithLonLat(string payloadJson)
+    {
+        try
+        {
+            if (JsonNode.Parse(payloadJson) is not JsonObject node) return payloadJson;
+            if (node["stationPlanView"] is not JsonObject planView) return payloadJson;
+
+            var stationsArr = planView["stations"] as JsonArray;
+            var pointsArr = planView["points"] as JsonArray;
+
+            var kmzPoints = new List<KmzExportService.KmzPoint>();
+            void CollectPoints(JsonArray? arr, string prefix)
+            {
+                if (arr == null) return;
+                for (int i = 0; i < arr.Count; i++)
+                {
+                    if (arr[i] is not JsonObject o) continue;
+                    if (o["e"] is not JsonValue eVal || !eVal.TryGetValue(out double e)) continue;
+                    if (o["n"] is not JsonValue nVal || !nVal.TryGetValue(out double n)) continue;
+                    kmzPoints.Add(new KmzExportService.KmzPoint($"{prefix}{i}", e, n, 0, null, false));
+                }
+            }
+            CollectPoints(stationsArr, "st:");
+            CollectPoints(pointsArr, "pt:");
+            if (kmzPoints.Count == 0) return payloadJson;
+
+            string sourceCrs = planView["sourceCrs"] is JsonValue crsVal && crsVal.TryGetValue(out string? crsStr) ? (crsStr ?? "__AUTO__") : "__AUTO__";
+            if (string.IsNullOrWhiteSpace(sourceCrs) || string.Equals(sourceCrs, "__AUTO__", StringComparison.OrdinalIgnoreCase))
+                sourceCrs = KmzExportService.DetectCoordinateSystem("", null, kmzPoints).CoordinateSystem;
+
+            var preview = KmzExportService.ProjectForPreview(kmzPoints, sourceCrs);
+            var byId = preview.ToDictionary(p => p.Id, p => p, StringComparer.Ordinal);
+
+            void ApplyLonLat(JsonArray? arr, string prefix)
+            {
+                if (arr == null) return;
+                for (int i = 0; i < arr.Count; i++)
+                {
+                    if (arr[i] is not JsonObject o) continue;
+                    if (!byId.TryGetValue($"{prefix}{i}", out var pv)) continue;
+                    if (!double.IsFinite(pv.Lon) || !double.IsFinite(pv.Lat)) continue;
+                    o["lon"] = pv.Lon;
+                    o["lat"] = pv.Lat;
+                }
+            }
+            ApplyLonLat(stationsArr, "st:");
+            ApplyLonLat(pointsArr, "pt:");
+
+            return node.ToJsonString();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Plan station : enrichissement lon/lat pour le PDF a échoué (page restera en repère local)", ex);
+            return payloadJson;
         }
     }
 
@@ -2465,7 +2531,7 @@ if (string.Equals(type, "pdfsharp_height_transfer", StringComparison.OrdinalIgno
                             ? (JsonElToString(fEl) ?? "NOVA_Station_PdfSharp.pdf")
                             : "NOVA_Station_PdfSharp.pdf";
 
-                        var payloadJson = e.WebMessageAsJson;
+                        var payloadJson = EnrichStationPlanViewWithLonLat(e.WebMessageAsJson);
                         TryWritePdfSharpDebugPayload("pdfsharp_station", payloadJson);
 
                         using var sfd = new SaveFileDialog

@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.37
+
+- Station / Levé topo, PDF Station : la page "Plan station" ajoutée via "Envoyer sur la fiche station" (2.3.1.36) affiche désormais un vrai fond de carte (OpenStreetMap ou satellite Esri, selon le choix fait à l'écran), et non plus seulement le repère E/N local. Les coordonnées sont reprojetées en GPS côté application (mêmes formules que l'export KMZ), puis les tuiles du fond de carte sont récupérées et assemblées directement par l'application (pas une capture de la carte affichée à l'écran) avant de redessiner par-dessus les stations/points/traits de visée. Nécessite une connexion Internet au moment de générer le PDF ; en son absence (ou si la reprojection échoue), la page repasse automatiquement sur le repère local sans fond de carte (comportement de 2.3.1.36), sans jamais faire échouer la génération du PDF.
+- Build : passage de l'application et du moteur PDF en **2.3.1.37**.
+
 ## 2.3.1.36
 
 - Station / Levé topo, onglet "Plan station" : les numéros des points visés s'affichent désormais à côté de chaque point (comme les libellés de station), sur le plan schématique et sur le fond de carte.

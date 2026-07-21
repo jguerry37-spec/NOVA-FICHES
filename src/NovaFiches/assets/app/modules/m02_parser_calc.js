@@ -1846,6 +1846,10 @@ window.nfGetStationPlanViewForPdf = function(){
     });
 
     return {
+      // Reprojetés côté C# (StationPlanRenderer) pour dessiner un vrai fond de carte
+      // sur cette page - mêmes valeurs que celles utilisées pour le fond de carte à l'écran.
+      sourceCrs: document.getElementById('stationMapCrs')?.value || '__AUTO__',
+      basemap: nfStationMapGeo.basemap || 'plan',
       stations: stations.map((s, idx) => ({ label: s.label, e: s.E, n: s.N, color: nfStationColor_(idx) })),
       points: (points || []).map(p => ({ id: p.id, e: p.E, n: p.N, included: p.occurrences.some(o => o.included) })),
       sightings

@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
+using System.Threading.Tasks;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 
@@ -30,9 +34,21 @@ internal static class StationPlanRenderer
     private static readonly XColor Green = XColor.FromArgb(47, 158, 68);
     private static readonly XColor Red = XColor.FromArgb(185, 28, 28);
 
-    private sealed record St(string Label, double E, double N, string ColorHex);
-    private sealed record Pt(string Id, double E, double N, bool Included);
+    // Lon/Lat sont optionnels : renseignés par MainForm (EnrichStationPlanViewWithLonLat)
+    // avant l'appel à GenerateStationFromJson, car la reprojection (KmzExportService)
+    // vit dans le projet NovaFiches, inaccessible depuis PdfSharpEngine (le sens de
+    // référence des projets est NovaFiches -> PdfSharpEngine, jamais l'inverse). Sans
+    // ces champs, le plan reste en repère local (pas de fond de carte).
+    private sealed record St(string Label, double E, double N, string ColorHex, double? Lon, double? Lat);
+    private sealed record Pt(string Id, double E, double N, bool Included, double? Lon, double? Lat);
     private sealed record Sight(string StationLabel, string PointId, string ColorHex, bool Included);
+
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(6) };
+
+    static StationPlanRenderer()
+    {
+        try { Http.DefaultRequestHeaders.UserAgent.ParseAdd("Nova-Fiches/PdfExport (+https://novatlas.fr)"); } catch { }
+    }
 
     public static void AppendFromPayload(PdfDocument doc, string payloadJson, string buildFooter)
     {
@@ -49,6 +65,8 @@ internal static class StationPlanRenderer
             var points = ReadPoints(planView);
             var sightings = ReadSightings(planView);
             if (stations.Count == 0 && points.Count == 0) return;
+            string basemapKind = GetStr(planView, "basemap");
+            if (string.IsNullOrWhiteSpace(basemapKind)) basemapKind = "plan";
 
             var page = doc.AddPage();
             page.Size = PdfSharp.PageSize.A4;
@@ -57,7 +75,7 @@ internal static class StationPlanRenderer
                 DrawHeader(g, page, root);
                 double y = Units.MmToPt(6) + Units.MmToPt(22) + Units.MmToPt(6);
                 DrawTitleBar(g, page, ref y, "PLAN STATION");
-                DrawPlan(g, page, y, stations, points, sightings);
+                DrawPlan(g, page, y, stations, points, sightings, basemapKind);
                 DrawFooter(g, page, buildFooter);
             }
 
@@ -90,7 +108,9 @@ internal static class StationPlanRenderer
         {
             if (it.ValueKind != JsonValueKind.Object) continue;
             if (!TryGetDouble(it, "e", out var e) || !TryGetDouble(it, "n", out var n)) continue;
-            list.Add(new St(GetStr(it, "label"), e, n, GetStr(it, "color")));
+            double? lon = TryGetDouble(it, "lon", out var lonV) ? lonV : null;
+            double? lat = TryGetDouble(it, "lat", out var latV) ? latV : null;
+            list.Add(new St(GetStr(it, "label"), e, n, GetStr(it, "color"), lon, lat));
         }
         return list;
     }
@@ -103,7 +123,9 @@ internal static class StationPlanRenderer
         {
             if (it.ValueKind != JsonValueKind.Object) continue;
             if (!TryGetDouble(it, "e", out var e) || !TryGetDouble(it, "n", out var n)) continue;
-            list.Add(new Pt(GetStr(it, "id"), e, n, GetBool(it, "included", true)));
+            double? lon = TryGetDouble(it, "lon", out var lonV) ? lonV : null;
+            double? lat = TryGetDouble(it, "lat", out var latV) ? latV : null;
+            list.Add(new Pt(GetStr(it, "id"), e, n, GetBool(it, "included", true), lon, lat));
         }
         return list;
     }
@@ -120,7 +142,7 @@ internal static class StationPlanRenderer
         return list;
     }
 
-    private static void DrawPlan(XGraphics g, PdfPage page, double yTop, List<St> stations, List<Pt> points, List<Sight> sightings)
+    private static void DrawPlan(XGraphics g, PdfPage page, double yTop, List<St> stations, List<Pt> points, List<Sight> sightings, string basemapKind)
     {
         double footerSafe = Units.MmToPt(26);
         var frame = new XRect(MarginL, yTop, page.Width.Point - MarginL - MarginR, page.Height.Point - yTop - footerSafe - Units.MmToPt(14));
@@ -133,6 +155,80 @@ internal static class StationPlanRenderer
             return;
         }
 
+        double pad = Units.MmToPt(6);
+        var inner = new XRect(frame.X + pad, frame.Y + pad, frame.Width - 2 * pad, frame.Height - 2 * pad);
+
+        if (!TryDrawGeoPlan(g, inner, stations, points, sightings, basemapKind))
+            DrawLocalPlan(g, inner, stations, points, sightings);
+
+        DrawLegend(g, frame, stations);
+    }
+
+    // Fond de carte réel (tuiles OSM/Esri, assemblées côté C# - pas une capture d'écran,
+    // donc aucun souci CORS/DOM WebView2). Nécessite lon/lat sur au moins un point ou
+    // une station (renseignés par MainForm.EnrichStationPlanViewWithLonLat avant l'appel
+    // à StationPlanRenderer) et une connexion Internet au moment de générer le PDF ;
+    // renvoie false pour tout échec (pas de lon/lat, pas de réseau, timeout...), auquel
+    // cas DrawLocalPlan prend le relais avec le repère local (comportement 2.3.1.36).
+    private static bool TryDrawGeoPlan(XGraphics g, XRect inner, List<St> stations, List<Pt> points, List<Sight> sightings, string basemapKind)
+    {
+        try
+        {
+            var allLon = stations.Where(s => s.Lon.HasValue).Select(s => s.Lon!.Value)
+                .Concat(points.Where(p => p.Lon.HasValue).Select(p => p.Lon!.Value)).ToList();
+            var allLat = stations.Where(s => s.Lat.HasValue).Select(s => s.Lat!.Value)
+                .Concat(points.Where(p => p.Lat.HasValue).Select(p => p.Lat!.Value)).ToList();
+            if (allLon.Count == 0 || allLat.Count == 0) return false;
+
+            double minLon = allLon.Min(), maxLon = allLon.Max();
+            double minLat = allLat.Min(), maxLat = allLat.Max();
+            double padLon = Math.Max((maxLon - minLon) * 0.15, 0.0003);
+            double padLat = Math.Max((maxLat - minLat) * 0.15, 0.0002);
+            minLon -= padLon; maxLon += padLon; minLat -= padLat; maxLat += padLat;
+
+            var grid = ComputeTileGrid(minLon, minLat, maxLon, maxLat);
+            if (grid == null) return false;
+            var (z, txMin, tyMin, txMax, tyMax) = grid.Value;
+
+            using var bitmap = FetchAndStitchTilesAsync(txMin, tyMin, txMax, tyMax, z, basemapKind).GetAwaiter().GetResult();
+            if (bitmap == null) return false;
+
+            double bitmapW = (txMax - txMin + 1) * 256.0;
+            double bitmapH = (tyMax - tyMin + 1) * 256.0;
+            double scale = Math.Min(inner.Width / bitmapW, inner.Height / bitmapH);
+            if (!double.IsFinite(scale) || scale <= 0) scale = 1;
+            double usedW = bitmapW * scale, usedH = bitmapH * scale;
+            double offX = inner.X + (inner.Width - usedW) / 2.0;
+            double offY = inner.Y + (inner.Height - usedH) / 2.0;
+
+            using (var ms = new System.IO.MemoryStream())
+            {
+                bitmap.Save(ms, ImageFormat.Png);
+                ms.Position = 0;
+                using var ximg = XImage.FromStream(ms);
+                g.DrawImage(ximg, new XRect(offX, offY, usedW, usedH));
+            }
+
+            XPoint? MapGeo(double? lon, double? lat)
+            {
+                if (!lon.HasValue || !lat.HasValue) return null;
+                double wx = LonToTileX(lon.Value, z) * 256.0 - txMin * 256.0;
+                double wy = LatToTileY(lat.Value, z) * 256.0 - tyMin * 256.0;
+                return new XPoint(offX + wx * scale, offY + wy * scale);
+            }
+
+            // Pas de rotation ici (contrairement à DrawLocalPlan) : un fond de carte est
+            // toujours nord en haut, on ne peut pas pivoter les tuiles comme un simple repère local.
+            DrawOverlay(g, stations, points, sightings, s => MapGeo(s.Lon, s.Lat), p => MapGeo(p.Lon, p.Lat));
+            return true;
+        }
+        catch { return false; }
+    }
+
+    // Repli sans fond de carte (repère E/N local du chantier) : comportement 2.3.1.36,
+    // utilisé quand la reprojection ou le fond de carte ne sont pas disponibles.
+    private static void DrawLocalPlan(XGraphics g, XRect inner, List<St> stations, List<Pt> points, List<Sight> sightings)
+    {
         var allE = stations.Select(s => s.E).Concat(points.Select(p => p.E)).ToList();
         var allN = stations.Select(s => s.N).Concat(points.Select(p => p.N)).ToList();
         double rawMinE = allE.Min(), rawMaxE = allE.Max();
@@ -157,8 +253,6 @@ internal static class StationPlanRenderer
         du = Math.Max(0.001, maxU - minU);
         dv = Math.Max(0.001, maxV - minV);
 
-        double pad = Units.MmToPt(6);
-        var inner = new XRect(frame.X + pad, frame.Y + pad, frame.Width - 2 * pad, frame.Height - 2 * pad);
         double scale = Math.Min(inner.Width / du, inner.Height / dv);
         if (!double.IsFinite(scale) || scale <= 0) scale = 1;
         double usedW = du * scale, usedH = dv * scale;
@@ -173,19 +267,32 @@ internal static class StationPlanRenderer
             return new XPoint(px, py);
         }
 
-        var stationByLabel = stations.ToDictionary(s => s.Label, s => s, StringComparer.OrdinalIgnoreCase);
+        DrawOverlay(g, stations, points, sightings, s => Map(s.E, s.N), p => Map(p.E, p.N));
+    }
+
+    // Traits de visée + points + stations, communs aux deux modes (fond de carte réel /
+    // repère local) - seule la fonction de projection (mapStation/mapPoint) change.
+    private static void DrawOverlay(XGraphics g, List<St> stations, List<Pt> points, List<Sight> sightings,
+        Func<St, XPoint?> mapStation, Func<Pt, XPoint?> mapPoint)
+    {
+        var stationByLabel = new Dictionary<string, St>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in stations)
+            if (!string.IsNullOrWhiteSpace(s.Label) && !stationByLabel.ContainsKey(s.Label)) stationByLabel[s.Label] = s;
+        var pointById = new Dictionary<string, Pt>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in points)
+            if (!string.IsNullOrWhiteSpace(p.Id) && !pointById.ContainsKey(p.Id)) pointById[p.Id] = p;
 
         // 1) Traits de visée (en dessous des marqueurs)
         foreach (var s2 in sightings)
         {
             if (!stationByLabel.TryGetValue(s2.StationLabel, out var st)) continue;
-            var pt = points.FirstOrDefault(p => string.Equals(p.Id, s2.PointId, StringComparison.OrdinalIgnoreCase));
-            if (pt == null) continue;
-            var a = Map(st.E, st.N);
-            var b = Map(pt.E, pt.N);
+            if (!pointById.TryGetValue(s2.PointId, out var pt2)) continue;
+            var a = mapStation(st);
+            var b = mapPoint(pt2);
+            if (a == null || b == null) continue;
             var pen = new XPen(ParseHexColorAlpha(s2.ColorHex, 140, BrandBlue), 1.1);
             if (!s2.Included) pen.DashStyle = XDashStyle.Dash;
-            g.DrawLine(pen, a, b);
+            g.DrawLine(pen, a.Value, b.Value);
         }
 
         var fontLbl = NovatlasTheme.FontBody(8);
@@ -195,7 +302,9 @@ internal static class StationPlanRenderer
         for (int i = 0; i < points.Count; i++)
         {
             var p = points[i];
-            var pt = Map(p.E, p.N);
+            var ptXY = mapPoint(p);
+            if (ptXY == null) continue;
+            var pt = ptXY.Value;
             var fill = p.Included ? Green : Red;
             g.DrawEllipse(new XPen(XColors.White, 1.0), new XSolidBrush(fill), pt.X - r, pt.Y - r, 2 * r, 2 * r);
 
@@ -215,7 +324,9 @@ internal static class StationPlanRenderer
         double sz = Units.MmToPt(3.2);
         foreach (var s in stations)
         {
-            var pt = Map(s.E, s.N);
+            var ptXY = mapStation(s);
+            if (ptXY == null) continue;
+            var pt = ptXY.Value;
             var color = ParseHexColor(s.ColorHex, BrandBlue);
             var tri = new XPoint[]
             {
@@ -231,9 +342,85 @@ internal static class StationPlanRenderer
             var rectLbl = new XRect(pt.X - size.Width / 2.0, pt.Y - sz - size.Height - 2, size.Width, size.Height);
             g.DrawString(text, fontSt, XBrushes.Black, rectLbl, XStringFormats.TopLeft);
         }
+    }
 
-        // Légende (bande fine sous le cadre)
-        DrawLegend(g, frame, stations);
+    // ===== Tuiles (Web Mercator, formules standard "slippy map") =====
+
+    private static double LonToTileX(double lon, int z) => (lon + 180.0) / 360.0 * (1 << z);
+
+    private static double LatToTileY(double lat, int z)
+    {
+        double latRad = lat * Math.PI / 180.0;
+        return (1.0 - Math.Log(Math.Tan(latRad) + 1.0 / Math.Cos(latRad)) / Math.PI) / 2.0 * (1 << z);
+    }
+
+    // Choisit le zoom le plus détaillé dont la grille de tuiles couvrant l'emprise reste
+    // dans le budget (maxTilesPerSide) - évite de télécharger des dizaines de tuiles pour
+    // une emprise large, tout en restant aussi net que possible pour une petite emprise
+    // de chantier (cas courant du Plan station).
+    private static (int z, int txMin, int tyMin, int txMax, int tyMax)? ComputeTileGrid(
+        double minLon, double minLat, double maxLon, double maxLat, int maxTilesPerSide = 6)
+    {
+        for (int z = 19; z >= 2; z--)
+        {
+            double xA = LonToTileX(minLon, z), xB = LonToTileX(maxLon, z);
+            double yA = LatToTileY(minLat, z), yB = LatToTileY(maxLat, z);
+            int txMin = (int)Math.Floor(Math.Min(xA, xB));
+            int txMax = (int)Math.Floor(Math.Max(xA, xB));
+            int tyMin = (int)Math.Floor(Math.Min(yA, yB));
+            int tyMax = (int)Math.Floor(Math.Max(yA, yB));
+            if (txMax - txMin + 1 <= maxTilesPerSide && tyMax - tyMin + 1 <= maxTilesPerSide)
+                return (z, txMin, tyMin, txMax, tyMax);
+        }
+        return null;
+    }
+
+    private static string TileUrl(int x, int y, int z, string kind)
+    {
+        if (string.Equals(kind, "satellite", StringComparison.OrdinalIgnoreCase))
+            return $"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+        // OSM répartit la charge sur les sous-domaines a/b/c ; répartition simple et déterministe.
+        char sub = "abc"[Math.Abs(x + y) % 3];
+        return $"https://{sub}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+    }
+
+    // Une tuile en échec (réseau, 404...) laisse juste un trou gris à cet endroit plutôt
+    // que de faire échouer tout le fond de carte - cohérent avec la tolérance déjà en
+    // place pour les repères NGF (IgnGeodesyService) et l'affichage carte à l'écran.
+    private static async Task<Bitmap?> FetchAndStitchTilesAsync(int txMin, int tyMin, int txMax, int tyMax, int z, string kind)
+    {
+        int cols = txMax - txMin + 1;
+        int rows = tyMax - tyMin + 1;
+        var bitmap = new Bitmap(cols * 256, rows * 256);
+        using (var gfx = System.Drawing.Graphics.FromImage(bitmap))
+            gfx.Clear(Color.FromArgb(235, 235, 235));
+
+        var lockObj = new object();
+        var tasks = new List<Task>();
+        for (int tx = txMin; tx <= txMax; tx++)
+        {
+            for (int ty = tyMin; ty <= tyMax; ty++)
+            {
+                int localTx = tx, localTy = ty;
+                tasks.Add(Task.Run(async () =>
+                {
+                    try
+                    {
+                        var bytes = await Http.GetByteArrayAsync(TileUrl(localTx, localTy, z, kind));
+                        using var ms = new System.IO.MemoryStream(bytes);
+                        using var tileImg = Image.FromStream(ms);
+                        lock (lockObj)
+                        {
+                            using var gfx = System.Drawing.Graphics.FromImage(bitmap);
+                            gfx.DrawImage(tileImg, (localTx - txMin) * 256, (localTy - tyMin) * 256, 256, 256);
+                        }
+                    }
+                    catch { /* tuile manquante : trou gris à cet endroit, le reste continue */ }
+                }));
+            }
+        }
+        await Task.WhenAll(tasks);
+        return bitmap;
     }
 
     private static void DrawLegend(XGraphics g, XRect frame, List<St> stations)
