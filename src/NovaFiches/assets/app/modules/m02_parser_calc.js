@@ -1442,6 +1442,10 @@ let nfViewPointIds = { station: [], implant: [], lineref: [], refalti: [], topo:
 // Derniers arguments de renderStationMap (onglet "Plan station"), rejoués au
 // tab-switch car le conteneur a une taille nulle tant qu'il est masqué.
 let nfLastStationMapArgs = null;
+// stations/points dérivés au dernier renderStationMap (pour l'export PDF, voir plus bas).
+let nfLastStationMapDerived_ = { stations: [], points: [] };
+// Coché via #stationMapSendToPdf : inclure ou non le plan station en dernière page du PDF Station.
+let nfStationMapSendToPdf_ = false;
 
 function nfPointCode_(p){
   try{
@@ -1691,6 +1695,9 @@ function renderStationMap(stationRuns, data){
     });
 
     const points = Array.from(pointsByKey.values());
+    // Conservés pour "Envoyer sur la fiche station" (window.nfGetStationPlanViewForPdf),
+    // afin de ne pas recalculer stations/points au moment de générer le PDF.
+    nfLastStationMapDerived_ = { stations, points };
     container.querySelectorAll('svg').forEach(el => el.remove());
 
     if(stations.length === 0){
@@ -1746,7 +1753,11 @@ function renderStationMap(stationRuns, data){
     points.forEach((p, idx) => {
       const anyIncluded = p.occurrences.some(o => o.included);
       const color = anyIncluded ? '#2f9e44' : '#b91c1c';
-      svgParts.push(`<circle data-tt="pt-${idx}" cx="${toX(p.E)}" cy="${toY(p.N)}" r="6" fill="${color}" stroke="#fff" stroke-width="1.5" style="cursor:pointer;" />`);
+      const x = toX(p.E), y = toY(p.N);
+      svgParts.push(`<circle data-tt="pt-${idx}" cx="${x}" cy="${y}" r="6" fill="${color}" stroke="#fff" stroke-width="1.5" style="cursor:pointer;" />`);
+      // Libellé au-dessus (pair) / en dessous (impair) pour limiter les recouvrements entre points proches.
+      const ty = (idx % 2 === 0) ? y - 10 : y + 18;
+      svgParts.push(`<text x="${x}" y="${ty}" font-size="10" font-weight="600" fill="#0b1020" text-anchor="middle" style="paint-order:stroke; stroke:#fff; stroke-width:3px;">${escHtml(p.id)}</text>`);
     });
 
     stations.forEach((s, idx) => {
@@ -1811,6 +1822,40 @@ window.nfRenderStationMap = function(){
   if(nfLastStationMapArgs) renderStationMap(nfLastStationMapArgs[0], nfLastStationMapArgs[1]);
 };
 
+// Appelé au moment de générer le PDF Station (m03c_pdf_reports_export.js) quand la
+// case "Envoyer sur la fiche station" est cochée. Renvoie null si la case n'est pas
+// cochée ou s'il n'y a rien à dessiner - le payload PDF n'aura alors simplement pas
+// de clé stationPlanView, et StationPlanRenderer (C#) n'ajoutera pas de page.
+// Le PDF redessine le plan en vectoriel à partir de ces coordonnées (mêmes formules
+// que le schéma SVG) plutôt que de capturer une image de la carte : fiable hors-ligne,
+// pas de dépendance aux tuiles du fond de carte, qualité d'impression garantie.
+window.nfGetStationPlanViewForPdf = function(){
+  try{
+    if(!nfStationMapSendToPdf_) return null;
+    const { stations, points } = nfLastStationMapDerived_ || {};
+    if(!Array.isArray(stations) || stations.length === 0) return null;
+
+    const sightings = [];
+    stations.forEach((s, idx) => {
+      const color = nfStationColor_(idx);
+      (points || []).forEach(p => {
+        const occ = p.occurrences.find(o => o.stationLabel === s.label);
+        if(!occ) return;
+        sightings.push({ stationLabel: s.label, pointId: p.id, color, included: !!occ.included });
+      });
+    });
+
+    return {
+      stations: stations.map((s, idx) => ({ label: s.label, e: s.E, n: s.N, color: nfStationColor_(idx) })),
+      points: (points || []).map(p => ({ id: p.id, e: p.E, n: p.N, included: p.occurrences.some(o => o.included) })),
+      sightings
+    };
+  }catch(err){
+    console.warn('[Nova-Fiches] nfGetStationPlanViewForPdf a échoué.', err);
+    return null;
+  }
+};
+
 /* ===== Plan station : fond de carte réel (Leaflet + reprojection GPS) =====
    Les E/N du plan schématique sont dans le système de coordonnées du
    chantier (Lambert-93, CC, NTF...), pas en WGS84 - il faut les reprojeter
@@ -1829,8 +1874,25 @@ const nfStationMapGeo = {
   basemap: 'plan',
   markersLayer: null,
   requestToken: 0,
-  pendingRequests: new Map()
+  pendingRequests: new Map(),
+  locked: false
 };
+
+// Bloque/débloque le zoom et le déplacement de la carte ("Figer la vue"). Appelée à
+// chaque (re)création de la carte pour que l'état coché survive à un changement de
+// CRS/fond de carte (qui reconstruit nfStationMapGeo.map).
+function nfApplyStationMapLock_(){
+  const map = nfStationMapGeo.map;
+  if(!map) return;
+  const locked = nfStationMapGeo.locked;
+  ['dragging', 'scrollWheelZoom', 'doubleClickZoom', 'boxZoom', 'touchZoom', 'keyboard'].forEach(h => {
+    if(map[h]) locked ? map[h].disable() : map[h].enable();
+  });
+  if(map.zoomControl){
+    if(locked) map.zoomControl.remove();
+    else if(!map.zoomControl._map) map.zoomControl.addTo(map);
+  }
+}
 
 function nfPostToHost_(payload){
   try{
@@ -1959,6 +2021,7 @@ async function nfBuildStationMapLeaflet(lonLatById, stationsById, pointsById){
     nfStationMapGeo.map = L.map(leafletDiv, { attributionControl: true });
     nfStationMapGeo.baseLayer = nfCreateStationMapTileLayer(nfStationMapGeo.basemap);
     nfStationMapGeo.baseLayer.addTo(nfStationMapGeo.map);
+    nfApplyStationMapLock_();
   }
   const map = nfStationMapGeo.map;
 
@@ -2006,6 +2069,16 @@ async function nfBuildStationMapLeaflet(lonLatById, stationsById, pointsById){
       </div>`).join('');
     marker.bindTooltip(`<b>${escHtml(p.id)}</b><br>E ${fmtN(p.E)} · N ${fmtN(p.N)} · H ${fmtN(p.H)}${rows}`, { direction: 'top' });
     marker.addTo(nfStationMapGeo.markersLayer);
+
+    // Étiquette ID à côté du point : un marqueur séparé, non-interactif, pour ne pas
+    // gêner le survol/clic du cercle en dessous (comme le libellé des stations).
+    const labelIcon = L.divIcon({
+      className: '',
+      html: `<span style="display:inline-block; transform:translate(6px,-8px); font-size:10px; font-weight:600; color:#0b1020; background:rgba(255,255,255,.8); padding:0 2px; border-radius:2px; white-space:nowrap; pointer-events:none;">${escHtml(p.id)}</span>`,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0]
+    });
+    L.marker([ll.lat, ll.lon], { icon: labelIcon, interactive: false }).addTo(nfStationMapGeo.markersLayer);
   });
 
   stationsById.forEach((s, id) => {
@@ -2475,6 +2548,20 @@ function renderAll(data){
         nfStationMapGeo.baseLayer.addTo(nfStationMapGeo.map);
       }
     };
+
+    const lockSel = document.getElementById('stationMapLockView');
+    if(lockSel){
+      nfStationMapGeo.locked = !!lockSel.checked;
+      lockSel.onchange = (ev) => {
+        nfStationMapGeo.locked = !!ev.target.checked;
+        nfApplyStationMapLock_();
+      };
+    }
+    const sendPdfSel = document.getElementById('stationMapSendToPdf');
+    if(sendPdfSel){
+      nfStationMapSendToPdf_ = !!sendPdfSel.checked;
+      sendPdfSel.onchange = (ev) => { nfStationMapSendToPdf_ = !!ev.target.checked; };
+    }
   }catch(_){/* ignore */}
 
   // Update counts after render

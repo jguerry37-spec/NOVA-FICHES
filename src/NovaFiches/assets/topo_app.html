@@ -679,6 +679,14 @@
                   <option value="satellite">Satellite (Esri)</option>
                 </select>
               </div>
+              <label style="display:flex; align-items:center; gap:6px;" title="Bloque le zoom et le déplacement de la carte.">
+                <input type="checkbox" id="stationMapLockView">
+                Figer la vue
+              </label>
+              <label style="display:flex; align-items:center; gap:6px;" title="Ajoute ce plan en dernière page du PDF Station, en conservant l'en-tête et le pied de page standards.">
+                <input type="checkbox" id="stationMapSendToPdf">
+                Envoyer sur la fiche station
+              </label>
               <span id="stationMapStatus" class="small"></span>
             </div>
             <div id="stationMapLegend" class="small" style="display:flex; gap:16px; align-items:center; margin-bottom:8px; flex-wrap:wrap;"></div>

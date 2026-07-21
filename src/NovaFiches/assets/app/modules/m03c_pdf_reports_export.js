@@ -525,6 +525,11 @@ async function exportPdf(kind){
           // Core data
           stationLibreRuns: nfSanitizeStationRunsForPdf_(Array.isArray(data?.stationLibreRuns) ? data.stationLibreRuns : (Array.isArray(lastData?.stationLibreRuns) ? lastData.stationLibreRuns : [])),
           refAltiPoints: nfCollectRefAltiPoints_(data),
+
+          // "Envoyer sur la fiche station" (onglet Plan station) : null si la case n'est
+          // pas cochée, sinon {stations,points,sightings} redessiné en dernière page du
+          // PDF par StationPlanRenderer (C#).
+          stationPlanView: (typeof window.nfGetStationPlanViewForPdf === "function") ? window.nfGetStationPlanViewForPdf() : null,
         };
         payload.stationLibre = Array.isArray(payload.stationLibreRuns) && payload.stationLibreRuns.length ? payload.stationLibreRuns[0] : null;
 

@@ -254,6 +254,9 @@ private static void SaveBytesWithFallback(byte[] pdfBytes, string outputPath)
 
     StationReportRenderer.Render(doc, payloadJson, buildProof);
     PhotoAppendixRenderer.AppendFromPayload(doc, payloadJson, buildProof);
+    // "Envoyer sur la fiche station" (onglet Plan station) : ajoutée en tout dernier,
+    // donc en toute dernière page du document, comme demandé.
+    StationPlanRenderer.AppendFromPayload(doc, payloadJson, buildProof);
 
     Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
         doc.Save(outputPdfPath);

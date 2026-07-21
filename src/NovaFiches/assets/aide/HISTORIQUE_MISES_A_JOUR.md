@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.36
+
+- Station / Levé topo, onglet "Plan station" : les numéros des points visés s'affichent désormais à côté de chaque point (comme les libellés de station), sur le plan schématique et sur le fond de carte.
+- Deux nouvelles cases à cocher : "Figer la vue" bloque le zoom et le déplacement du fond de carte (utile pour le montrer sans le décaler par mégarde) ; "Envoyer sur la fiche station" ajoute ce plan en toute dernière page du PDF Station, avec le même en-tête/pied de page que les autres pages annexes (photos). Le plan est redessiné en vectoriel à partir des coordonnées (comme la "Vue en plan" du module Récolement), pas capturé en image : rendu net à l'impression, aucune dépendance au réseau/aux tuiles du fond de carte au moment de l'export. L'orientation (portrait, contenu pivoté si l'emprise est plus large que haute) suit la même logique déjà utilisée pour les vues en plan.
+- Build : passage de l'application et du moteur PDF en **2.3.1.36**.
+
 ## 2.3.1.35
 
 - Station / Levé topo : sur le "Plan station" (fond de carte réel comme plan schématique de repli), chaque mise en station a désormais sa propre couleur (triangle + tous ses traits de visée), au lieu d'une seule couleur bleue pour toutes les stations - la lecture était brouillonne dès qu'il y avait plusieurs stations sur le même plan avec des traits qui se croisent. Les points visés restent en vert (inclus) / rouge (exclu), inchangé. Pour ne pas perdre l'information "visée exclue du calcul" qui reposait auparavant sur la couleur du trait, un trait en pointillé remplace désormais le rouge pour une visée exclue (plein sinon).
