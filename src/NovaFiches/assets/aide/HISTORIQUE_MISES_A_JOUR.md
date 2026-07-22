@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.44
+
+- Correction : dans les fiches PDF d'implantation générées à partir d'un LandXML sans cible d'altitude réelle (`DesignPointOrthoHeight` à 0, cas fréquent pour les implantations planimétriques de pieux/poteaux, y compris en GNSS), la colonne "Dz / dA" affichait l'altitude mesurée brute au lieu d'un écart - Leica écrit `0.000000` même quand il n'y a pas de vraie cible, la formule prenait donc ce 0 pour une vraie référence. La colonne reste vide dans ce cas plutôt que d'afficher une valeur trompeuse.
+- Station / Levé topo : l'onglet "Station libre" est maintenant grisé/inaccessible quand le fichier importé ne contient aucune mise en station TPS (résection) - notamment les levés purement GNSS, qui n'ont pas de mise en station. Les autres onglets (Implantation, Ligne de référence, Levé topo...) restent disponibles normalement.
+- Build : passage de l'application et du moteur PDF en **2.3.1.44**.
+
 ## 2.3.1.43
 
 - Nouveau bouton "PDF — Page de garde" dans la carte "Projet" (onglet Projet) : génère un PDF d'une seule page avec l'en-tête + le cartouche NOVATLAS (mêmes infos dossier que le PDF Station : ville, adresse, CHA, intervenant, système de coordonnées, PPM...), corps vide, pied de page standard. Ne nécessite aucun LandXML/AppLog importé - utilisable seul dès que les infos dossier sont saisies.

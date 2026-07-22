@@ -91,6 +91,7 @@
     .tabs { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
     .tab { display:inline-flex; align-items:center; justify-content:center; padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14); cursor:pointer; color:var(--mut); background: rgba(255,255,255,.03); white-space:nowrap; user-select:none; }
     .tab.active { color: var(--txt); background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.20); }
+    .tab.tab-disabled { opacity:.45; cursor:not-allowed; pointer-events:none; }
     .tabs{ align-items:center; }
     .tab{ display:inline-flex; white-space:nowrap; }
 

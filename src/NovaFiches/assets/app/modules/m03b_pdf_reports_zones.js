@@ -801,6 +801,19 @@ function applyReportButtonStateFromData(data){
     const bSta = document.getElementById("btnPdfStation");
     if(bSta) bSta.disabled = !hasStation;
 
+    // Onglet "Station libre" : grisé/inaccessible si le LandXML importé ne contient
+    // aucune mise en station TPS (ex. levé GNSS pur, sans résection) - il n'y a alors
+    // simplement rien de pertinent à montrer dans cette vue.
+    const tabSta = document.querySelector('.tab[data-view="station"]');
+    if(tabSta){
+      tabSta.classList.toggle("tab-disabled", !hasStation);
+      tabSta.title = hasStation ? "" : "Aucune mise en station (résection TPS) dans ce fichier - probablement un levé GNSS sans mise en station.";
+      if(!hasStation && tabSta.classList.contains("active")){
+        const fallback = document.querySelector('.tab[data-view="implant"]') || document.querySelector('.tab[data-view]:not([data-view="station"])');
+        if(fallback) fallback.click();
+      }
+    }
+
     const bPts = document.getElementById("btnPdfPointsTopo");
     if(bPts) bPts.disabled = topoCount === 0;
     const bHt = document.getElementById("btnPdfHeightTransfer");

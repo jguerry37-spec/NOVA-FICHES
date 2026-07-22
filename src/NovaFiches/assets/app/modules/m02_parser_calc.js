@@ -1052,7 +1052,14 @@ purpose: o.purpose ?? null
 
         let dx = (mesE!=null && theoE!=null) ? (mesE-theoE) : num(n.getAttribute('StakeoutEastingDiff'));
         let dy = (mesN!=null && theoN!=null) ? (mesN-theoN) : num(n.getAttribute('StakeoutNorthingDiff'));
-        let dz = (mesH!=null && theoH!=null) ? (mesH-theoH) : num(n.getAttribute('StakeoutHeightDiff'));
+        // DesignPointOrthoHeight="0.000000" chez Leica signifie "pas de cible d'altitude"
+        // (implantation planimétrique seule, cas courant pour des pieux/poteaux), pas une
+        // vraie cible à l'altitude zéro. Sans ce garde-fou, dz = mesH - 0 = mesH : la colonne
+        // "Dz / dA" du PDF affichait l'altitude mesurée brute comme si c'était un écart de
+        // contrôle. StakeoutHeightDiff (repli Leica) est tout aussi faux dans ce cas précis,
+        // donc on laisse dz à null plutôt que d'essayer les deux.
+        let dz = (theoH === 0) ? null
+          : (mesH!=null && theoH!=null) ? (mesH-theoH) : num(n.getAttribute('StakeoutHeightDiff'));
 
         // Reprise d'implantation (ex: "IPt_337@96" généré par Leica quand un point est
         // réimplanté) : la position mesurée n'est pas conservée sous ce nom exact dans le
