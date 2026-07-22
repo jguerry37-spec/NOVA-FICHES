@@ -1150,11 +1150,8 @@ private static double DrawBar(
 
                 var pen = new XPen(XColors.Black, 0.6);
                 double w = page.Width.Point - MarginL - MarginR;
-                double boxH = Units.MmToPt(28);
-                g.DrawRectangle(pen, MarginL, y, w, boxH);
 
                 var f = NovatlasTheme.FontBody(8.2);
-                double yy = y + Units.MmToPt(2);
 
                 // Station key (for grouping) + display name (for PDF)
                 string id = Fmt(run, "results", "idStation");
@@ -1174,37 +1171,68 @@ private static double DrawBar(
                 string devN = FmtNum(run, "results", "devN");
                 string devH = FmtNum(run, "results", "devH");
                 string devOri = FmtNum(run, "results", "devOri");
-
-                g.DrawString($"Méthode : Station libre", f, XBrushes.Black,
-                    new XRect(MarginL + Units.MmToPt(2), yy, w - Units.MmToPt(4), Units.MmToPt(4.8)), XStringFormats.CenterLeft);
-                yy += Units.MmToPt(4.8);
-
-                g.DrawString($"Station : {stationLabel}", f, XBrushes.Black,
-                    new XRect(MarginL + Units.MmToPt(2), yy, w - Units.MmToPt(4), Units.MmToPt(4.8)), XStringFormats.CenterLeft);
-                yy += Units.MmToPt(4.8);
-
-                g.DrawString($"Coordonnées : E={E}  N={N}  H={H}", f, XBrushes.Black,
-                    new XRect(MarginL + Units.MmToPt(2), yy, w - Units.MmToPt(4), Units.MmToPt(4.8)), XStringFormats.CenterLeft);
-                yy += Units.MmToPt(4.8);
-
-                // Legacy-like line template (best-effort)
                 string azOrient = FmtNum(run, "results", "azOrient");
                 string factScale = FmtNum(run, "results", "factScale");
-                var line1 = $"Corr. orientat° {corrOrient}     |     Fact. échelle {factScale}     |     Dev.std E/N/H {devE} / {devN} / {devH}     |     Ori. {azOrient}";
-                var line2 = $"Orientation : CorrOri={corrOrient}  AzOri={azOrient}";
-                g.DrawString(line1, f, XBrushes.Black,
-                    new XRect(MarginL + Units.MmToPt(2), yy, w - Units.MmToPt(4), Units.MmToPt(4.8)), XStringFormats.CenterLeft);
-                yy += Units.MmToPt(4.8);
-                g.DrawString(line2, f, XBrushes.Black,
-                    new XRect(MarginL + Units.MmToPt(2), yy, w - Units.MmToPt(4), Units.MmToPt(4.8)), XStringFormats.CenterLeft);
+
+                string method = Fmt(run, "results", "method");
+                if (string.IsNullOrWhiteSpace(method)) method = "Station libre";
+                bool isGnss = string.Equals(method, "GNSS", StringComparison.OrdinalIgnoreCase);
+
+                var stationLines = new List<string> { $"Méthode : {method}" };
+                stationLines.Add($"Station : {stationLabel}");
+                if (isGnss)
+                {
+                    // GNSS (RTK) : pas de résection TPS - récepteur + référence RTK au lieu de
+                    // coordonnées de station / corrections d'orientation, qui n'ont pas de sens ici.
+                    string receiver = Fmt(run, "results", "receiver");
+                    string antennaHeight = FmtNum(run, "results", "antennaHeight");
+                    if (!string.IsNullOrWhiteSpace(receiver) || !string.IsNullOrWhiteSpace(antennaHeight))
+                    {
+                        var recLine = "Récepteur : " + (string.IsNullOrWhiteSpace(receiver) ? "—" : receiver);
+                        if (!string.IsNullOrWhiteSpace(antennaHeight)) recLine += $"  |  Hauteur d'antenne : {antennaHeight} m";
+                        stationLines.Add(recLine);
+                    }
+                    if (run.TryGetProperty("results", out var resEl) && resEl.ValueKind == JsonValueKind.Object &&
+                        resEl.TryGetProperty("rtkRef", out var rtkRefEl) && rtkRefEl.ValueKind == JsonValueKind.Object)
+                    {
+                        string rtkName = Fmt(rtkRefEl, "name");
+                        string rtkE = FmtNum(rtkRefEl, "E");
+                        string rtkN = FmtNum(rtkRefEl, "N");
+                        string rtkH = FmtNum(rtkRefEl, "H");
+                        if (!string.IsNullOrWhiteSpace(rtkName) || !string.IsNullOrWhiteSpace(rtkE) || !string.IsNullOrWhiteSpace(rtkN))
+                        {
+                            var rtkLine = "Référence RTK : " + (string.IsNullOrWhiteSpace(rtkName) ? "—" : rtkName);
+                            if (!string.IsNullOrWhiteSpace(rtkE) || !string.IsNullOrWhiteSpace(rtkN) || !string.IsNullOrWhiteSpace(rtkH))
+                                rtkLine += $"  (E={rtkE}  N={rtkN}  H={rtkH})";
+                            stationLines.Add(rtkLine);
+                        }
+                    }
+                }
+                else
+                {
+                    stationLines.Add($"Coordonnées : E={E}  N={N}  H={H}");
+                    stationLines.Add($"Corr. orientat° {corrOrient}     |     Fact. échelle {factScale}     |     Dev.std E/N/H {devE} / {devN} / {devH}     |     Ori. {azOrient}");
+                    stationLines.Add($"Orientation : CorrOri={corrOrient}  AzOri={azOrient}");
+                }
+
+                double lineH = Units.MmToPt(4.8);
+                double boxH = Math.Max(Units.MmToPt(14), stationLines.Count * lineH + Units.MmToPt(3));
+                g.DrawRectangle(pen, MarginL, y, w, boxH);
+                double yy = y + Units.MmToPt(2);
+                foreach (var line in stationLines)
+                {
+                    g.DrawString(line, f, XBrushes.Black,
+                        new XRect(MarginL + Units.MmToPt(2), yy, w - Units.MmToPt(4), lineH), XStringFormats.CenterLeft);
+                    yy += lineH;
+                }
 
                 y += boxH + Units.MmToPt(3);
 
                 // Constante de prisme par point (fallback pour le bloc LEVÉ / LandXML)
                 var prismConstById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                // OBSERVATIONS table (optional)
-                if (!suppressObsTables)
+                // OBSERVATIONS table (optional) - sans objet pour un run GNSS (pas de résection TPS).
+                if (!suppressObsTables && !isGnss)
                 {
                     EnsurePage(doc, ref page, ref g, ref y, Units.MmToPt(30));
                     y = DrawBar(g, page, y, "OBSERVATIONS", LightGray);
@@ -1255,52 +1283,55 @@ private static double DrawBar(
                     }
                 }
 
-                // RÉSIDUS table
-                EnsurePage(doc, ref page, ref g, ref y, Units.MmToPt(30));
-                y = DrawBar(g, page, y, "RÉSIDUS", LightGray);
-
-                var resRows = new List<string[]>();
-                if (run.TryGetProperty("residuals", out var res) && res.ValueKind == JsonValueKind.Array)
+                // RÉSIDUS table - sans objet pour un run GNSS (pas de résection TPS).
+                if (!isGnss)
                 {
-                    foreach (var r in res.EnumerateArray())
+                    EnsurePage(doc, ref page, ref g, ref y, Units.MmToPt(30));
+                    y = DrawBar(g, page, y, "RÉSIDUS", LightGray);
+
+                    var resRows = new List<string[]>();
+                    if (run.TryGetProperty("residuals", out var res) && res.ValueKind == JsonValueKind.Array)
                     {
-                        if (r.ValueKind != JsonValueKind.Object) continue;
-                        var used = Fmt(r, "used");
-                        if (string.IsNullOrWhiteSpace(used)) used = Fmt(r, "useKind");
-                        if (string.IsNullOrWhiteSpace(used)) used = Fmt(r, "usekind");
-                        if (string.IsNullOrWhiteSpace(used)) used = Fmt(r, "UseKind");
-                        if (!string.IsNullOrWhiteSpace(used))
+                        foreach (var r in res.EnumerateArray())
                         {
-                            used = used.Trim();
-                            if (string.Equals(used, "true", StringComparison.OrdinalIgnoreCase)) used = "Oui";
-                            else if (string.Equals(used, "false", StringComparison.OrdinalIgnoreCase)) used = "Non";
-                            else if (string.Equals(used, "3d", StringComparison.OrdinalIgnoreCase)) used = "3D";
-                            else if (string.Equals(used, "2d", StringComparison.OrdinalIgnoreCase)) used = "2D";
+                            if (r.ValueKind != JsonValueKind.Object) continue;
+                            var used = Fmt(r, "used");
+                            if (string.IsNullOrWhiteSpace(used)) used = Fmt(r, "useKind");
+                            if (string.IsNullOrWhiteSpace(used)) used = Fmt(r, "usekind");
+                            if (string.IsNullOrWhiteSpace(used)) used = Fmt(r, "UseKind");
+                            if (!string.IsNullOrWhiteSpace(used))
+                            {
+                                used = used.Trim();
+                                if (string.Equals(used, "true", StringComparison.OrdinalIgnoreCase)) used = "Oui";
+                                else if (string.Equals(used, "false", StringComparison.OrdinalIgnoreCase)) used = "Non";
+                                else if (string.Equals(used, "3d", StringComparison.OrdinalIgnoreCase)) used = "3D";
+                                else if (string.Equals(used, "2d", StringComparison.OrdinalIgnoreCase)) used = "2D";
+                            }
+
+                            resRows.Add(new[]
+                            {
+                                StripAtId(Fmt(r, "id")),
+                                FmtNum(r, "dHz"),
+                                FmtNum(r, "dAlti"),
+                                FmtNum(r, "dDH"),
+                                used
+                            });
                         }
-
-                        resRows.Add(new[]
-                        {
-                            StripAtId(Fmt(r, "id")),
-                            FmtNum(r, "dHz"),
-                            FmtNum(r, "dAlti"),
-                            FmtNum(r, "dDH"),
-                            used
-                        });
                     }
-                }
 
-                if (resRows.Count == 0)
-                {
-                    y = DrawTextLine(g, page, y, "Aucun résidu.");
-                }
-                else
-                {
-                    DrawSimpleTable(doc, ref page, ref g, ref y,
-                        null,
-                        new[] { "ID", "dHz", "dAlti", "dDH", "Utilisé" },
-                        resRows,
-                        Units.MmToPt(6.5));
-                    y += Units.MmToPt(2);
+                    if (resRows.Count == 0)
+                    {
+                        y = DrawTextLine(g, page, y, "Aucun résidu.");
+                    }
+                    else
+                    {
+                        DrawSimpleTable(doc, ref page, ref g, ref y,
+                            null,
+                            new[] { "ID", "dHz", "dAlti", "dDH", "Utilisé" },
+                            resRows,
+                            Units.MmToPt(6.5));
+                        y += Units.MmToPt(2);
+                    }
                 }
 
                 // IMPLANTATION / LEVÉ (per station)

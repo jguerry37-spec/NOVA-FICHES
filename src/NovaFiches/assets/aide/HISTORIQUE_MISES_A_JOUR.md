@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.46
+
+- Correction de 2.3.1.45 : le bloc GNSS (Méthode/Récepteur/Référence RTK) n'apparaissait pas dans le "Rapport d'intervention" / "Récolement des pieux" - ce PDF passe par un second renderer (`ImplantationFullReportRenderer`), distinct de celui déjà corrigé, qui avait sa propre copie du bloc "TYPE DE STATION" avec "Méthode : Station libre" écrit en dur. Il lit maintenant la méthode réelle et affiche récepteur/référence RTK + masque Observations/Résidus pour un run GNSS, comme le PDF "Station" seul.
+- Build : passage de l'application et du moteur PDF en **2.3.1.46**.
+
 ## 2.3.1.45
 
 - PDF "Station", fichiers GNSS (RTK) sans mise en station TPS : le bloc "TYPE DE STATION" affiche maintenant "Méthode : GNSS", le récepteur utilisé (fabricant/modèle/série) avec sa hauteur d'antenne, et la référence RTK (nom + coordonnées) lue dans le LandXML - au lieu de rester vide. Les sections "Observations" et "Résidus" (propres aux résections TPS) sont masquées pour ces fichiers, "Implantation" reste inchangée.
