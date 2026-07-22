@@ -345,7 +345,9 @@ internal static class StationReportRenderer
         return Units.MmToPt(24);
     }
 
-    private static void DrawFooterAllPages(XGraphics g, PdfPage page, int pageIndex, int totalPages, string buildFooter)
+    // internal (pas private) : réutilisée par CoverOnlyReportRenderer pour l'export
+    // "Page de garde" - même en-tête/cartouche/pied de page que le PDF Station.
+    internal static void DrawFooterAllPages(XGraphics g, PdfPage page, int pageIndex, int totalPages, string buildFooter)
     {
         double yLine = page.Height.Point - Units.MmToPt(14);
         g.DrawLine(new XPen(LineGray, 0.4), MarginL, yLine, page.Width.Point - MarginR, yLine);
@@ -745,7 +747,7 @@ internal static class StationReportRenderer
         return s;
     }
 
-    private static double DrawTopHeader(XGraphics g, PdfPage page, JsonElement root)
+    internal static double DrawTopHeader(XGraphics g, PdfPage page, JsonElement root)
     {
         double contentW = page.Width.Point - MarginL - MarginR;
 
@@ -864,7 +866,7 @@ internal static class StationReportRenderer
 	        }
     }
 
-    private static double DrawInfoCartouche(XGraphics g, PdfPage page, double y, JsonElement root)
+    internal static double DrawInfoCartouche(XGraphics g, PdfPage page, double y, JsonElement root)
     {
         // Match validated IMP splits (including the explicit red-line separator at 0.676*w)
         double w = page.Width.Point - MarginL - MarginR;

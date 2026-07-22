@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.43
+
+- Nouveau bouton "PDF — Page de garde" dans la carte "Projet" (onglet Projet) : génère un PDF d'une seule page avec l'en-tête + le cartouche NOVATLAS (mêmes infos dossier que le PDF Station : ville, adresse, CHA, intervenant, système de coordonnées, PPM...), corps vide, pied de page standard. Ne nécessite aucun LandXML/AppLog importé - utilisable seul dès que les infos dossier sont saisies.
+- Build : passage de l'application et du moteur PDF en **2.3.1.43**.
+
 ## 2.3.1.42
 
 - Station / Levé topo, onglet "Plan station" : nouvelle réduction des triangles de station (toujours jugés trop imposants après 2.3.1.39/2.3.1.41) - fond de carte à l'écran (12px → 8px), plan schématique (9px → 6px) et page PDF (2 mm → 1,3 mm), cette fois de façon plus marquée.

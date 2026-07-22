@@ -262,5 +262,20 @@ private static void SaveBytesWithFallback(byte[] pdfBytes, string outputPath)
         SaveWithFallback(doc, outputPdfPath);
     }
 
+    /// <summary>
+    /// "Page de garde" : en-tête + cartouche (infos dossier) sur une seule page, corps
+    /// vide. Indépendant de toute donnée de levé (LandXML/AppLog) - n'accepte que les
+    /// champs de cartouche du payload.
+    /// </summary>
+    public static void GenerateCoverOnlyFromJson(string outputPdfPath, string payloadJson, string buildProof)
+    {
+        using var doc = new PdfDocument();
+        doc.Info.Title = "Page de garde";
+        doc.Info.Creator = "Nova-Fiches (PdfSharp)";
 
+        CoverOnlyReportRenderer.Render(doc, payloadJson, buildProof);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
+        SaveWithFallback(doc, outputPdfPath);
+    }
 }

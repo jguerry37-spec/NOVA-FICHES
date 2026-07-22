@@ -2559,7 +2559,43 @@ if (string.Equals(type, "pdfsharp_height_transfer", StringComparison.OrdinalIgno
                     }
                     return;
                 }
-                
+
+// ===== PdfSharp: page de garde seule (en-tête + cartouche, corps vide) =====
+if (string.Equals(type, "pdfsharp_cover", StringComparison.OrdinalIgnoreCase))
+{
+    try
+    {
+        string fileNameSuggested = root.TryGetProperty("fileName", out var fEl)
+            ? (JsonElToString(fEl) ?? "NOVA_Page_de_garde.pdf")
+            : "NOVA_Page_de_garde.pdf";
+
+        var payloadJson = e.WebMessageAsJson;
+        TryWritePdfSharpDebugPayload("pdfsharp_cover", payloadJson);
+
+        using var sfd = new SaveFileDialog
+        {
+            Title = "Enregistrer le PDF - Page de garde (PdfSharp)",
+            Filter = "PDF (*.pdf)|*.pdf",
+            FileName = SanitizeFileName(fileNameSuggested),
+            InitialDirectory = ExportsDir
+        };
+        if (sfd.ShowDialog(this) != DialogResult.OK) return;
+        var proof = GetPdfFooterVersion();
+
+        NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateCoverOnlyFromJson(sfd.FileName, payloadJson, proof);
+        try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+
+        SendToUi(new { type = "pdf_result", report = "cover", ok = true, filePath = sfd.FileName });
+    }
+    catch (Exception ex2)
+    {
+        AppLog.Error("PdfSharp cover-only generation failed", ex2);
+        MessageBox.Show(this, "Erreur génération PDF (Page de garde).\n\n" + ex2.Message, "Nova-Fiches", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        SendToUi(new { type = "pdf_result", report = "cover", ok = false, error = ex2.Message });
+    }
+    return;
+}
+
 // ===== PdfSharp: reportage photo autonome =====
 if (string.Equals(type, "pdfsharp_photo_report", StringComparison.OrdinalIgnoreCase))
 {

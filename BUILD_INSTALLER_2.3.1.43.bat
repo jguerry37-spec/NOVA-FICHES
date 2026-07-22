@@ -3,7 +3,7 @@ setlocal EnableExtensions
 
 set "ROOT_DIR=%~dp0"
 set "ROOT_DIR=%ROOT_DIR:~0,-1%"
-set "VERSION=2.3.1.42"
+set "VERSION=2.3.1.43"
 set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 set "ISS_FILE=%ROOT_DIR%\NovaFiches_2.3.0.100.iss"
 

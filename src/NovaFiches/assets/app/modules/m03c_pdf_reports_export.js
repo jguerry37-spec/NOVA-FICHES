@@ -685,6 +685,50 @@ document.getElementById("btnPdfStation")?.addEventListener("click", async () => 
   }
 });
 
+// PDF "Page de garde" : en-tête + cartouche NOVATLAS (infos dossier), corps vide, pied de
+// page standard. Volontairement indépendant de tout LandXML/AppLog importé - contrairement
+// à exportPdf(), pas de garde-fou "aucune donnée" ici, puisque c'est justement le but.
+async function buildPdfCoverOnly(){
+  try{
+    setStatus("Génération du PDF en cours…");
+    if(!isPdfSharpAvailable()){
+      showErrorDialog("Mode PdfSharp indisponible (WebView2 host)");
+      return;
+    }
+    const R = (typeof rf === "function") ? rf() : {};
+    const payload = {
+      type: "pdfsharp_cover",
+      fileName: (typeof buildExportFileName === "function")
+        ? buildExportFileName("PAGE_DE_GARDE", "PDF")
+        : "NOVA_Page_de_garde.pdf",
+      nomIntervention: (R && R.elements) ? R.elements : "",
+      entreprise: (R && (R.client || R.entreprise || R.ent)) ? (R.client || R.entreprise || R.ent) : "",
+      contactClient: (R && (R.siteContact || R.contactClient || R.contact)) ? (R.siteContact || R.contactClient || R.contact) : "",
+      systemeCoord: (R && (R.sysCoord || R.systemeCoord || R.systemeCo || R.coordSystem)) ? (R.sysCoord || R.systemeCoord || R.systemeCo || R.coordSystem) : "",
+      ppm: (R && (R.ppm || R.PPM)) ? (R.ppm || R.PPM) : "",
+      intervenant: getAutoIntervenant(R),
+      systemeAlti: (R && (R.sysAlti || R.systemeAlti || R.altimetricSystem)) ? (R.sysAlti || R.systemeAlti || R.altimetricSystem) : "",
+      planRef: (R && (R.planRef || R.plan || R.reference)) ? (R.planRef || R.plan || R.reference) : "",
+      date: (R && (R.date || R.dateIntervention)) ? (R.date || R.dateIntervention) : "",
+      appareil: (R && (R.appareil || R.instrument || R.app)) ? (R.appareil || R.instrument || R.app) : "",
+      serialNumber: (R && (R.serialNumber || R.numeroSerie || R.serial)) ? (R.serialNumber || R.numeroSerie || R.serial) : "",
+      ville: (R && R.ville) ? R.ville : "",
+      adresse: (R && (R.adresseChantier || R.adresse || R.address)) ? (R.adresseChantier || R.adresse || R.address) : "",
+      cha: (R && (R.cha || R.numCha || R.noCha)) ? (R.cha || R.numCha || R.noCha) : ""
+    };
+    if(window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === "function")
+      window.chrome.webview.postMessage(payload);
+  }catch(err){
+    console.error(err);
+    setStatus("Erreur PDF: " + (err?.message || String(err)), true);
+    showErrorDialog(String(err?.message || err));
+  }
+}
+
+document.getElementById("btnPdfCoverOnly")?.addEventListener("click", async () => {
+  await buildPdfCoverOnly();
+});
+
 
 
 document.getElementById("btnPdfPointsTopo")?.addEventListener("click", async () => {
