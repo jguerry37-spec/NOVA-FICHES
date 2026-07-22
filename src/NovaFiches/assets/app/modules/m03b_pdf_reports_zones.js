@@ -59,7 +59,7 @@ function computeHasStation(data){
     return runs.some(r => {
       const SR = r?.results || {};
       const obs = Array.isArray(r?.observations) ? r.observations : [];
-      return !!(SR.idStation || SR.E!=null || SR.N!=null || SR.H!=null || obs.length);
+      return !!(SR.idStation || SR.E!=null || SR.N!=null || SR.H!=null || obs.length || SR.method === "GNSS");
     });
   }catch(_){ return false; }
 }

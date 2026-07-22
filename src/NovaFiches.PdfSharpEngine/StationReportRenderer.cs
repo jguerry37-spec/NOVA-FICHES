@@ -129,27 +129,33 @@ internal static class StationReportRenderer
         // Station block (boxed text)
         y = DrawStationBlock(g, page, y, run);
 
-        // OBSERVATIONS
-        y = EnsurePage(doc, ref page, ref g, y, Units.MmToPt(40));
-        y = DrawLightBar(g, page, y, "OBSERVATIONS", LightGray);
-        var obsRows = ReadObservations(run);
-        DrawSimpleTable(doc, ref page, ref g, ref y,
-            null,
-            new[] { "ID", "Hz", "Vz", "Dp", "Hr", "Const prisme" },
-            obsRows,
-            Units.MmToPt(6.5));
-        y += Units.MmToPt(2.5);
+        // GNSS (RTK) : pas de mise en station TPS, donc pas d'observations/résidus
+        // angulaires a afficher - ces deux sections n'ont pas de sens ici.
+        bool isGnss = string.Equals(GetRunMethod(run), "GNSS", StringComparison.OrdinalIgnoreCase);
+        if (!isGnss)
+        {
+            // OBSERVATIONS
+            y = EnsurePage(doc, ref page, ref g, y, Units.MmToPt(40));
+            y = DrawLightBar(g, page, y, "OBSERVATIONS", LightGray);
+            var obsRows = ReadObservations(run);
+            DrawSimpleTable(doc, ref page, ref g, ref y,
+                null,
+                new[] { "ID", "Hz", "Vz", "Dp", "Hr", "Const prisme" },
+                obsRows,
+                Units.MmToPt(6.5));
+            y += Units.MmToPt(2.5);
 
-        // RÉSIDUS
-        y = EnsurePage(doc, ref page, ref g, y, Units.MmToPt(40));
-        y = DrawLightBar(g, page, y, "RÉSIDUS", XColor.FromArgb(230, 230, 230));
-        var resRows = ReadResiduals(run);
-        DrawSimpleTable(doc, ref page, ref g, ref y,
-            null,
-            new[] { "ID", "dHz", "dAlti", "dDH", "Utilisé" },
-            resRows,
-            Units.MmToPt(6.5));
-        y += Units.MmToPt(3);
+            // RÉSIDUS
+            y = EnsurePage(doc, ref page, ref g, y, Units.MmToPt(40));
+            y = DrawLightBar(g, page, y, "RÉSIDUS", XColor.FromArgb(230, 230, 230));
+            var resRows = ReadResiduals(run);
+            DrawSimpleTable(doc, ref page, ref g, ref y,
+                null,
+                new[] { "ID", "dHz", "dAlti", "dDH", "Utilisé" },
+                resRows,
+                Units.MmToPt(6.5));
+            y += Units.MmToPt(3);
+        }
 
         // RÉFÉRENCE ALTIMÉTRIQUE (globale)
         var refAltiH = GetRefAltiSectionHeight(root: default);
@@ -220,6 +226,30 @@ internal static class StationReportRenderer
         if (!string.IsNullOrWhiteSpace(id)) lines.Add($"Station : {id}");
         if (!string.IsNullOrWhiteSpace(E) || !string.IsNullOrWhiteSpace(N) || !string.IsNullOrWhiteSpace(H))
             lines.Add($"Coordonnees : E={E}  N={N}  H={H}");
+
+        // GNSS : recepteur + hauteur d'antenne + reference RTK (pas de resection TPS ici).
+        string receiver = GetAnyString(S, "receiver").Trim();
+        string antennaHeight = GetAnyString(S, "antennaHeight").Trim();
+        if (!string.IsNullOrWhiteSpace(receiver) || !string.IsNullOrWhiteSpace(antennaHeight))
+        {
+            var recLine = "Recepteur : " + (string.IsNullOrWhiteSpace(receiver) ? "—" : receiver);
+            if (!string.IsNullOrWhiteSpace(antennaHeight)) recLine += $"  |  Hauteur d'antenne : {Fmt3(antennaHeight)} m";
+            lines.Add(recLine);
+        }
+        if (S.ValueKind == JsonValueKind.Object && S.TryGetProperty("rtkRef", out var rtkRefEl) && rtkRefEl.ValueKind == JsonValueKind.Object)
+        {
+            string rtkName = GetAnyString(rtkRefEl, "name").Trim();
+            string rtkE = GetAnyString(rtkRefEl, "E").Trim();
+            string rtkN = GetAnyString(rtkRefEl, "N").Trim();
+            string rtkH = GetAnyString(rtkRefEl, "H").Trim();
+            if (!string.IsNullOrWhiteSpace(rtkName) || !string.IsNullOrWhiteSpace(rtkE) || !string.IsNullOrWhiteSpace(rtkN))
+            {
+                var rtkLine = "Reference RTK : " + (string.IsNullOrWhiteSpace(rtkName) ? "—" : rtkName);
+                if (!string.IsNullOrWhiteSpace(rtkE) || !string.IsNullOrWhiteSpace(rtkN) || !string.IsNullOrWhiteSpace(rtkH))
+                    rtkLine += $"  (E={rtkE}  N={rtkN}  H={rtkH})";
+                lines.Add(rtkLine);
+            }
+        }
 
         if (!string.IsNullOrWhiteSpace(corr) || !string.IsNullOrWhiteSpace(az) || !string.IsNullOrWhiteSpace(devOri) ||
             !string.IsNullOrWhiteSpace(devE) || !string.IsNullOrWhiteSpace(devN) || !string.IsNullOrWhiteSpace(devH) ||
@@ -712,6 +742,18 @@ internal static class StationReportRenderer
             if (!LooksLikeSetupId(s)) return s;
         }
         return fallback;
+    }
+
+    private static string GetRunMethod(JsonElement run)
+    {
+        JsonElement S = default;
+        if (run.ValueKind == JsonValueKind.Object)
+        {
+            if (run.TryGetProperty("results", out var rEl) && rEl.ValueKind == JsonValueKind.Object) S = rEl;
+            else if (run.TryGetProperty("stationLibre", out var slEl) && slEl.ValueKind == JsonValueKind.Object) S = slEl;
+            else S = run;
+        }
+        return GetAnyString(S, "method", "type", "methode").Trim();
     }
 
     private static string GetAnyString(JsonElement el, params string[] keys)

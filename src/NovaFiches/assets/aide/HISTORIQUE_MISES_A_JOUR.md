@@ -2,6 +2,12 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.45
+
+- PDF "Station", fichiers GNSS (RTK) sans mise en station TPS : le bloc "TYPE DE STATION" affiche maintenant "Méthode : GNSS", le récepteur utilisé (fabricant/modèle/série) avec sa hauteur d'antenne, et la référence RTK (nom + coordonnées) lue dans le LandXML - au lieu de rester vide. Les sections "Observations" et "Résidus" (propres aux résections TPS) sont masquées pour ces fichiers, "Implantation" reste inchangée.
+- Ajustement de 2.3.1.44 : l'onglet "Station libre" n'est plus grisé pour les fichiers GNSS puisqu'il affiche maintenant des informations utiles - il reste grisé uniquement quand le fichier importé ne contient vraiment aucune donnée de station (ni TPS, ni GNSS).
+- Build : passage de l'application et du moteur PDF en **2.3.1.45**.
+
 ## 2.3.1.44
 
 - Correction : dans les fiches PDF d'implantation générées à partir d'un LandXML sans cible d'altitude réelle (`DesignPointOrthoHeight` à 0, cas fréquent pour les implantations planimétriques de pieux/poteaux, y compris en GNSS), la colonne "Dz / dA" affichait l'altitude mesurée brute au lieu d'un écart - Leica écrit `0.000000` même quand il n'y a pas de vraie cible, la formule prenait donc ce 0 pour une vraie référence. La colonne reste vide dans ce cas plutôt que d'afficher une valeur trompeuse.

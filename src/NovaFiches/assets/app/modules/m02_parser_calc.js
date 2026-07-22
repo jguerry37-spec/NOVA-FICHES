@@ -940,6 +940,64 @@ purpose: o.purpose ?? null
     });
   }catch(_){ }
 
+  // ---- GNSS (RTK) : pas de mise en station TPS - un fix par point mesuré, pas de résection.
+  // Si aucune station TPS n'a été trouvée mais que le fichier contient des GPSSetup, on
+  // construit un run de synthèse (récepteur + référence RTK) pour que la fiche "Station"
+  // affiche ces infos au lieu de rester vide. Le GPSSetup sans GPSReceiverDetailsID est la
+  // référence RTK (correction réseau/RTCM) ; les autres sont les fix du rover, un par point.
+  if(runs.length === 0){
+    try{
+      const gpsSetupNodes = Array.from(doc.getElementsByTagName('*')).filter(n => ln(n) === 'GPSSetup');
+      if(gpsSetupNodes.length){
+        const receiverById = {};
+        Array.from(doc.getElementsByTagName('*')).filter(n => ln(n) === 'GPSReceiverDetails').forEach(n => {
+          const id = n.getAttribute('id');
+          if(id) receiverById[id] = {
+            manufacturer: (n.getAttribute('manufacturer') || '').trim(),
+            model: (n.getAttribute('model') || '').trim(),
+            serialNumber: (n.getAttribute('serialNumber') || '').trim()
+          };
+        });
+
+        const refNode = gpsSetupNodes.find(n => !n.getAttribute('GPSReceiverDetailsID'));
+        const roverNode = gpsSetupNodes.find(n => !!n.getAttribute('GPSReceiverDetailsID'));
+
+        let rtkRef = null;
+        if(refNode){
+          const tgtNode = Array.from(refNode.getElementsByTagName('*')).find(n => ln(n) === 'TargetPoint');
+          let E = null, N = null, H = null;
+          if(tgtNode){
+            const parts = (tgtNode.textContent || '').trim().split(/\s+/).map(x => num(x)).filter(x => x != null);
+            // Meme convention que CgPoint : N E H
+            if(parts.length >= 1) N = parts[0];
+            if(parts.length >= 2) E = parts[1];
+            if(parts.length >= 3) H = parts[2];
+          }
+          rtkRef = { name: refNode.getAttribute('stationName') || null, E, N, H };
+        }
+
+        let receiver = null;
+        let antennaHeight = null;
+        if(roverNode){
+          const rec = receiverById[roverNode.getAttribute('GPSReceiverDetailsID')];
+          if(rec) receiver = [rec.manufacturer, rec.model].filter(Boolean).join(' ') + (rec.serialNumber ? ` (série ${rec.serialNumber})` : '');
+          antennaHeight = num(roverNode.getAttribute('antennaHeight'));
+        }
+
+        const gnssRun = {
+          setupId: 'GNSS',
+          stationId: null,
+          stationName: null,
+          method: 'GNSS',
+          observations: [],
+          residuals: [],
+          results: { idStation: null, method: 'GNSS', receiver, antennaHeight, rtkRef }
+        };
+        runs.push(gnssRun);
+      }
+    }catch(_){ }
+  }
+
   out.stationLibreRuns = runs;
 
   // ---- Transfert d'altitude (Leica heightTransfer) ----
