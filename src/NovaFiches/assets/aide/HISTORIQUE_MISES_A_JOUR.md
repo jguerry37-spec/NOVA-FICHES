@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.50
+
+- Module "Récolement MNT" masqué du menu de navigation - peu testé pour l'instant, peu de retour de contrôle. Le module et toutes ses données restent pleinement fonctionnels en interne (import, parsing, export), seul l'accès depuis le menu est retiré temporairement.
+- Build : passage de l'application et du moteur PDF en **2.3.1.50**.
+
 ## 2.3.1.49
 
 - Correction : dans l'onglet "Levé topo" (visualisation) et le PDF "Points topo", les coordonnées X et Y (E et N) de chaque point observé étaient inversées - une erreur de lecture du LandXML/AppLog (l'élément `TargetPoint` de chaque observation était lu en ordre "E N H" au lieu de "N E H", contrairement aux 4 autres lectures de coordonnées du fichier, correctes). Les coordonnées de station, l'Implantation et la Ligne de référence n'étaient pas concernées (chemins de lecture différents, déjà corrects).
