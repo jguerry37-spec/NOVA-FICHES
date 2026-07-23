@@ -188,14 +188,17 @@ internal static class StationReportRenderer
         string method = GetAnyString(S, "method", "type", "methode")
             .Trim();
         if (string.IsNullOrWhiteSpace(method)) method = "Station libre";
+        bool isGnssId = string.Equals(method, "GNSS", StringComparison.OrdinalIgnoreCase);
 
-        string id = FirstNonEmptyNonSetupId(
+        // GNSS : pas de "station" au sens TPS (un fix par point) - on n'essaie pas de deviner
+        // un id dans le fichier, la case affiche simplement "GNSS".
+        string id = isGnssId ? "GNSS" : FirstNonEmptyNonSetupId(
             GetAnyString(S, "stationName"),
             GetAnyString(run, "stationName"),
             GetAnyString(S, "name", "station"),
             GetAnyString(run, "name", "station")
         ).Trim();
-        if (string.IsNullOrWhiteSpace(id))
+        if (!isGnssId && string.IsNullOrWhiteSpace(id))
             id = GetAnyString(S, "idStation", "stationId", "id").Trim();
         string E = GetAnyString(S, "E", "X").Trim();
         string N = GetAnyString(S, "N", "Y").Trim();

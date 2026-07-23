@@ -1153,12 +1153,26 @@ private static double DrawBar(
 
                 var f = NovatlasTheme.FontBody(8.2);
 
+                string method = Fmt(run, "results", "method");
+                if (string.IsNullOrWhiteSpace(method)) method = "Station libre";
+                bool isGnss = string.Equals(method, "GNSS", StringComparison.OrdinalIgnoreCase);
+
                 // Station key (for grouping) + display name (for PDF)
+                // GNSS : pas de "station" au sens TPS (un fix par point) - on n'essaie pas de
+                // deviner un id dans le fichier, la case affiche simplement "GNSS".
                 string id = Fmt(run, "results", "idStation");
                 if (string.IsNullOrWhiteSpace(id)) id = Fmt(run, "idStation");
-                string stationLabel = Fmt(run, "stationName");
-                if (string.IsNullOrWhiteSpace(stationLabel) || stationLabel.StartsWith("TPSSetupID_", StringComparison.OrdinalIgnoreCase)) stationLabel = Fmt(run, "results", "stationName");
-                if (string.IsNullOrWhiteSpace(stationLabel) || stationLabel.StartsWith("TPSSetupID_", StringComparison.OrdinalIgnoreCase)) stationLabel = id;
+                string stationLabel;
+                if (isGnss)
+                {
+                    stationLabel = "GNSS";
+                }
+                else
+                {
+                    stationLabel = Fmt(run, "stationName");
+                    if (string.IsNullOrWhiteSpace(stationLabel) || stationLabel.StartsWith("TPSSetupID_", StringComparison.OrdinalIgnoreCase)) stationLabel = Fmt(run, "results", "stationName");
+                    if (string.IsNullOrWhiteSpace(stationLabel) || stationLabel.StartsWith("TPSSetupID_", StringComparison.OrdinalIgnoreCase)) stationLabel = id;
+                }
 
                 // Coords (E/N/H)
                 string E = FmtNum(run, "results", "E");
@@ -1173,10 +1187,6 @@ private static double DrawBar(
                 string devOri = FmtNum(run, "results", "devOri");
                 string azOrient = FmtNum(run, "results", "azOrient");
                 string factScale = FmtNum(run, "results", "factScale");
-
-                string method = Fmt(run, "results", "method");
-                if (string.IsNullOrWhiteSpace(method)) method = "Station libre";
-                bool isGnss = string.Equals(method, "GNSS", StringComparison.OrdinalIgnoreCase);
 
                 var stationLines = new List<string> { $"Méthode : {method}" };
                 stationLines.Add($"Station : {stationLabel}");
