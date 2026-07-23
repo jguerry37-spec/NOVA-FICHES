@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.51
+
+- Qualité (CI) : corrige une instabilité aléatoire de la suite de tests (`Object is currently in use elsewhere` lors du rendu du logo dans un PDF), causée par une image PdfSharp mise en cache et partagée entre threads - sans impact sur l'application livrée (génération de PDF toujours mono-thread côté utilisateur), mais empêchait la CI GitHub de rester au vert de façon fiable.
+- Build : passage de l'application et du moteur PDF en **2.3.1.51**.
+
 ## 2.3.1.50
 
 - Module "Récolement MNT" masqué du menu de navigation - peu testé pour l'instant, peu de retour de contrôle. Le module et toutes ses données restent pleinement fonctionnels en interne (import, parsing, export), seul l'accès depuis le menu est retiré temporairement.

@@ -21,16 +21,17 @@ public static class NovatlasTheme
 
 public const string NovatlasAddress = "NOVATLAS — 24 boulevard Paul Vaillant Couturier — 94200 IVRY SUR SEINE";
 
-private static XImage? _logo;
 public static XImage? TryLoadLogo()
 {
     try
     {
-        if (_logo != null) return _logo;
+        // Ne pas mettre en cache l'XImage : PdfSharp/GDI+ n'est pas thread-safe et un
+        // rendu PDF en parallele (plusieurs PdfDocument embarquant la meme instance en
+        // meme temps) fait planter System.Drawing.Image.Save avec "Object is currently
+        // in use elsewhere". Un fichier logo est minuscule - le recharger a chaque appel
+        // coute rien et garantit qu'aucun etat mutable n'est partage entre threads.
         var path = Path.Combine(AppContext.BaseDirectory, "assets", "novatlas_logo.png");
-        if (File.Exists(path))
-            _logo = XImage.FromFile(path);
-        return _logo;
+        return File.Exists(path) ? XImage.FromFile(path) : null;
     }
     catch { return null; }
 }
