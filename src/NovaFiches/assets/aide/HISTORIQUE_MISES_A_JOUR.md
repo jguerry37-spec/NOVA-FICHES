@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.49
+
+- Correction : dans l'onglet "Levé topo" (visualisation) et le PDF "Points topo", les coordonnées X et Y (E et N) de chaque point observé étaient inversées - une erreur de lecture du LandXML/AppLog (l'élément `TargetPoint` de chaque observation était lu en ordre "E N H" au lieu de "N E H", contrairement aux 4 autres lectures de coordonnées du fichier, correctes). Les coordonnées de station, l'Implantation et la Ligne de référence n'étaient pas concernées (chemins de lecture différents, déjà corrects).
+- Build : passage de l'application et du moteur PDF en **2.3.1.49**.
+
 ## 2.3.1.48
 
 - Ajustement de 2.3.1.47 (mal placé) : la ligne "Station" dans "TYPE DE STATION" redevient vide pour un run GNSS (elle n'a pas de sens - un fix par point, pas de résection). À la place, le champ "Appareil" de l'en-tête (cartouche) affiche "GNSS" par défaut quand le LandXML importé est un fichier GNSS sans que l'utilisateur ait renseigné un appareil - Leica n'y journalise que le contrôleur de terrain (ex: CS20), jamais l'antenne GNSS réellement utilisée.

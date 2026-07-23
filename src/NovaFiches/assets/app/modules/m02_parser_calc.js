@@ -310,8 +310,10 @@ try{
         pid = String(tp.getAttribute('name')||tp.getAttribute('pntRef')||'').trim();
         if(!pid && tp.textContent) pid = String(tp.textContent).trim().split(/\s+/)[0]||"";
         if(tp.textContent){
+          // LandXML TargetPoint utilise l'ordre N E H (même convention que CgPoint/InstrumentPoint,
+          // cf. ligne ~483) - ce site avait N et E inversés, faussant tous les points de "Levé topo".
           const parts = String(tp.textContent).trim().split(/\s+/);
-          if(parts.length>=3){ tE=num(parts[0]); tN=num(parts[1]); tH=num(parts[2]); }
+          if(parts.length>=3){ tN=num(parts[0]); tE=num(parts[1]); tH=num(parts[2]); }
         }
       }
     }catch(e){ console.warn('[Nova-Fiches][TXT] Points topo : TargetPoint illisible pour la station', sid || '(sans id)', e); }
@@ -1336,8 +1338,10 @@ try{
         pid = String(tp.getAttribute('name')||tp.getAttribute('pntRef')||'').trim();
         if(!pid && tp.textContent) pid = String(tp.textContent).trim().split(/\s+/)[0]||"";
         if(tp.textContent){
+          // LandXML TargetPoint utilise l'ordre N E H (même convention que CgPoint/InstrumentPoint,
+          // cf. ligne ~483) - ce site avait N et E inversés, faussant tous les points de "Levé topo".
           const parts = String(tp.textContent).trim().split(/\s+/);
-          if(parts.length>=3){ tE=num(parts[0]); tN=num(parts[1]); tH=num(parts[2]); }
+          if(parts.length>=3){ tN=num(parts[0]); tE=num(parts[1]); tH=num(parts[2]); }
         }
       }
     }catch(e){ console.warn('[Nova-Fiches][LandXML] Points topo : TargetPoint illisible pour la station', sid || '(sans id)', e); }
