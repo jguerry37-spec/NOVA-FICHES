@@ -487,6 +487,10 @@ var pen = new XPen(XColors.Black, 0.8);
         if (!string.IsNullOrWhiteSpace(appareil)) appareil = $"{appareil} – {appareilSerial}";
         else appareil = appareilSerial;
     }
+    // GNSS (RTK) : pas de "modèle d'appareil" saisi côté LandXML (Leica ne journalise que le
+    // contrôleur, pas l'antenne) - par défaut, on indique juste "GNSS" plutôt que de laisser vide.
+    if (string.IsNullOrWhiteSpace(appareil) && RootHasGnssRun(root)) appareil = "GNSS";
+
     string intervenant = GetString(root, "intervenant");
     if (string.IsNullOrWhiteSpace(intervenant)) intervenant = GetString(root, "operator");
     if (string.IsNullOrWhiteSpace(intervenant)) intervenant = GetString(root, "operateur");
@@ -595,6 +599,24 @@ private static double DrawBar(
         g.DrawString(title, NovatlasTheme.FontBold(9.5), XBrushes.Black,
             new XRect(MarginL, y, page.Width.Point - MarginL - MarginR, h), XStringFormats.Center);
         return y + h + Units.MmToPt(2);
+    }
+
+    private static bool RootHasGnssRun(JsonElement root)
+    {
+        try
+        {
+            if (root.TryGetProperty("stationLibreRuns", out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var r in arr.EnumerateArray())
+                {
+                    if (string.Equals(Fmt(r, "results", "method"), "GNSS", StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            if (root.TryGetProperty("stationLibre", out var one) && one.ValueKind == JsonValueKind.Object &&
+                string.Equals(Fmt(one, "results", "method"), "GNSS", StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        catch { }
+        return false;
     }
 
     private static string Fmt(JsonElement el, params string[] path)
@@ -1158,21 +1180,11 @@ private static double DrawBar(
                 bool isGnss = string.Equals(method, "GNSS", StringComparison.OrdinalIgnoreCase);
 
                 // Station key (for grouping) + display name (for PDF)
-                // GNSS : pas de "station" au sens TPS (un fix par point) - on n'essaie pas de
-                // deviner un id dans le fichier, la case affiche simplement "GNSS".
                 string id = Fmt(run, "results", "idStation");
                 if (string.IsNullOrWhiteSpace(id)) id = Fmt(run, "idStation");
-                string stationLabel;
-                if (isGnss)
-                {
-                    stationLabel = "GNSS";
-                }
-                else
-                {
-                    stationLabel = Fmt(run, "stationName");
-                    if (string.IsNullOrWhiteSpace(stationLabel) || stationLabel.StartsWith("TPSSetupID_", StringComparison.OrdinalIgnoreCase)) stationLabel = Fmt(run, "results", "stationName");
-                    if (string.IsNullOrWhiteSpace(stationLabel) || stationLabel.StartsWith("TPSSetupID_", StringComparison.OrdinalIgnoreCase)) stationLabel = id;
-                }
+                string stationLabel = Fmt(run, "stationName");
+                if (string.IsNullOrWhiteSpace(stationLabel) || stationLabel.StartsWith("TPSSetupID_", StringComparison.OrdinalIgnoreCase)) stationLabel = Fmt(run, "results", "stationName");
+                if (string.IsNullOrWhiteSpace(stationLabel) || stationLabel.StartsWith("TPSSetupID_", StringComparison.OrdinalIgnoreCase)) stationLabel = id;
 
                 // Coords (E/N/H)
                 string E = FmtNum(run, "results", "E");

@@ -188,17 +188,14 @@ internal static class StationReportRenderer
         string method = GetAnyString(S, "method", "type", "methode")
             .Trim();
         if (string.IsNullOrWhiteSpace(method)) method = "Station libre";
-        bool isGnssId = string.Equals(method, "GNSS", StringComparison.OrdinalIgnoreCase);
 
-        // GNSS : pas de "station" au sens TPS (un fix par point) - on n'essaie pas de deviner
-        // un id dans le fichier, la case affiche simplement "GNSS".
-        string id = isGnssId ? "GNSS" : FirstNonEmptyNonSetupId(
+        string id = FirstNonEmptyNonSetupId(
             GetAnyString(S, "stationName"),
             GetAnyString(run, "stationName"),
             GetAnyString(S, "name", "station"),
             GetAnyString(run, "name", "station")
         ).Trim();
-        if (!isGnssId && string.IsNullOrWhiteSpace(id))
+        if (string.IsNullOrWhiteSpace(id))
             id = GetAnyString(S, "idStation", "stationId", "id").Trim();
         string E = GetAnyString(S, "E", "X").Trim();
         string N = GetAnyString(S, "N", "Y").Trim();
@@ -747,6 +744,24 @@ internal static class StationReportRenderer
         return fallback;
     }
 
+    private static bool RootHasGnssRun(JsonElement root)
+    {
+        try
+        {
+            if (root.TryGetProperty("stationLibreRuns", out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var r in arr.EnumerateArray())
+                {
+                    if (string.Equals(GetRunMethod(r), "GNSS", StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            if (root.TryGetProperty("stationLibre", out var one) && one.ValueKind == JsonValueKind.Object &&
+                string.Equals(GetRunMethod(one), "GNSS", StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        catch { }
+        return false;
+    }
+
     private static string GetRunMethod(JsonElement run)
     {
         JsonElement S = default;
@@ -982,6 +997,9 @@ internal static class StationReportRenderer
         string appareil = appareilModel;
         if (!string.IsNullOrWhiteSpace(appareilSerial))
             appareil = string.IsNullOrWhiteSpace(appareil) ? appareilSerial : $"{appareil} – {appareilSerial}";
+        // GNSS (RTK) : pas de "modèle d'appareil" saisi côté LandXML (Leica ne journalise que le
+        // contrôleur, pas l'antenne) - par défaut, on indique juste "GNSS" plutôt que de laisser vide.
+        if (string.IsNullOrWhiteSpace(appareil) && RootHasGnssRun(root)) appareil = "GNSS";
 
         string intervenant = GetString(root, "intervenant");
         if (string.IsNullOrWhiteSpace(intervenant)) intervenant = GetString(root, "operator");

@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.48
+
+- Ajustement de 2.3.1.47 (mal placé) : la ligne "Station" dans "TYPE DE STATION" redevient vide pour un run GNSS (elle n'a pas de sens - un fix par point, pas de résection). À la place, le champ "Appareil" de l'en-tête (cartouche) affiche "GNSS" par défaut quand le LandXML importé est un fichier GNSS sans que l'utilisateur ait renseigné un appareil - Leica n'y journalise que le contrôleur de terrain (ex: CS20), jamais l'antenne GNSS réellement utilisée.
+- Build : passage de l'application et du moteur PDF en **2.3.1.48**.
+
 ## 2.3.1.47
 
 - PDF "Station"/"Rapport d'intervention", run GNSS : la ligne "Station" affiche désormais "GNSS" par défaut (au lieu de rester vide) - un fichier GNSS n'a pas d'identifiant de station TPS, inutile de chercher dans le fichier.
