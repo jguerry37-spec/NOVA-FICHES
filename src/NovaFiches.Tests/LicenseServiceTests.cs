@@ -22,10 +22,30 @@ public class LicenseServiceTests
         return (Convert.ToBase64String(ecdsa.ExportSubjectPublicKeyInfo()), ecdsa);
     }
 
-    private static string SignLicense(ECDsa signingKey, string licensedTo, DateTime issuedAtUtc, DateTime? expiresAtUtc, string? machineId)
+    private static string SignLicense(ECDsa signingKey, string licensedTo, DateTime issuedAtUtc, DateTime? expiresAtUtc, string? machineId, IReadOnlyList<string>? features = null)
     {
-        var canonicalPayload = LicensePayloadFormat.BuildCanonicalPayload(licensedTo, issuedAtUtc, expiresAtUtc, machineId);
+        var canonicalPayload = LicensePayloadFormat.BuildCanonicalPayload(licensedTo, issuedAtUtc, expiresAtUtc, machineId, features);
         var payloadBytes = Encoding.UTF8.GetBytes(canonicalPayload);
+        var signature = signingKey.SignData(payloadBytes, HashAlgorithmName.SHA256);
+
+        return JsonSerializer.Serialize(new
+        {
+            payload = Convert.ToBase64String(payloadBytes),
+            signature = Convert.ToBase64String(signature)
+        });
+    }
+
+    /// <summary>
+    /// Signe un payload canonique construit SANS le champ "features" (simule une licence
+    /// émise avant l'introduction de ce champ), pour vérifier la compatibilité ascendante.
+    /// </summary>
+    private static string SignLegacyLicenseWithoutFeatures(ECDsa signingKey, string licensedTo, DateTime issuedAtUtc)
+    {
+        var legacyCanonicalPayload = "{\"licensedTo\":\"" + licensedTo + "\","
+            + "\"issuedAtUtc\":\"" + issuedAtUtc.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture) + "\","
+            + "\"expiresAtUtc\":null,"
+            + "\"machineId\":null}";
+        var payloadBytes = Encoding.UTF8.GetBytes(legacyCanonicalPayload);
         var signature = signingKey.SignData(payloadBytes, HashAlgorithmName.SHA256);
 
         return JsonSerializer.Serialize(new
@@ -159,5 +179,49 @@ public class LicenseServiceTests
         var result = LicenseService.Validate(license, publicKey);
 
         Assert.Equal(LicenseStatus.Valid, result.Status);
+    }
+
+    [Fact]
+    public void Validate_WithFeatures_RoundTripsFeatureList()
+    {
+        var (publicKey, key) = NewTestKeyPair();
+        using var _ = key;
+        var license = SignLicense(key, "Client Manager", DateTime.UtcNow, null, null, new[] { "fiches-signaletiques", "devis" });
+
+        var result = LicenseService.Validate(license, publicKey);
+
+        Assert.Equal(LicenseStatus.Valid, result.Status);
+        Assert.Equal(new[] { "fiches-signaletiques", "devis" }, result.Payload?.Features);
+    }
+
+    [Fact]
+    public void Validate_NoFeaturesSpecified_ReturnsEmptyFeatureArray()
+    {
+        var (publicKey, key) = NewTestKeyPair();
+        using var _ = key;
+        var license = SignLicense(key, "Client Standard", DateTime.UtcNow, null, null);
+
+        var result = LicenseService.Validate(license, publicKey);
+
+        Assert.Equal(LicenseStatus.Valid, result.Status);
+        Assert.NotNull(result.Payload?.Features);
+        Assert.Empty(result.Payload!.Features);
+    }
+
+    [Fact]
+    public void Validate_LegacyLicenseWithoutFeaturesField_StillValidatesWithEmptyFeatures()
+    {
+        // Une licence déjà émise/installée avant l'ajout du champ "features" ne doit jamais
+        // cesser de fonctionner : sa signature porte sur un payload qui ne contient pas ce
+        // champ, et ParseCanonicalPayload doit le tolérer.
+        var (publicKey, key) = NewTestKeyPair();
+        using var _ = key;
+        var license = SignLegacyLicenseWithoutFeatures(key, "Client Historique", DateTime.UtcNow);
+
+        var result = LicenseService.Validate(license, publicKey);
+
+        Assert.Equal(LicenseStatus.Valid, result.Status);
+        Assert.NotNull(result.Payload?.Features);
+        Assert.Empty(result.Payload!.Features);
     }
 }

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 
@@ -13,17 +14,19 @@ internal static class LicensePayloadFormat
 {
     private const string DateFormat = "yyyy-MM-ddTHH:mm:ssZ";
 
-    public static string BuildCanonicalPayload(string licensedTo, DateTime issuedAtUtc, DateTime? expiresAtUtc, string? machineId)
+    public static string BuildCanonicalPayload(string licensedTo, DateTime issuedAtUtc, DateTime? expiresAtUtc, string? machineId, IReadOnlyList<string>? features = null)
     {
         var exp = expiresAtUtc.HasValue
             ? $"\"{expiresAtUtc.Value.ToString(DateFormat, CultureInfo.InvariantCulture)}\""
             : "null";
         var mid = machineId is null ? "null" : $"\"{EscapeJson(machineId)}\"";
+        var feat = "[" + string.Join(",", (features ?? Array.Empty<string>()).Select(f => "\"" + EscapeJson(f) + "\"")) + "]";
 
         return "{\"licensedTo\":\"" + EscapeJson(licensedTo) + "\","
              + "\"issuedAtUtc\":\"" + issuedAtUtc.ToString(DateFormat, CultureInfo.InvariantCulture) + "\","
              + "\"expiresAtUtc\":" + exp + ","
-             + "\"machineId\":" + mid + "}";
+             + "\"machineId\":" + mid + ","
+             + "\"features\":" + feat + "}";
     }
 
     public static string BuildLicenseFile(byte[] payloadUtf8, byte[] signature)

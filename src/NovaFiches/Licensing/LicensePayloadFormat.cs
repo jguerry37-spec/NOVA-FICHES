@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 
 namespace TopoRapportWin.Licensing;
@@ -12,17 +13,19 @@ internal static class LicensePayloadFormat
 {
     private const string DateFormat = "yyyy-MM-ddTHH:mm:ssZ";
 
-    public static string BuildCanonicalPayload(string licensedTo, DateTime issuedAtUtc, DateTime? expiresAtUtc, string? machineId)
+    public static string BuildCanonicalPayload(string licensedTo, DateTime issuedAtUtc, DateTime? expiresAtUtc, string? machineId, IReadOnlyList<string>? features = null)
     {
         var exp = expiresAtUtc.HasValue
             ? $"\"{expiresAtUtc.Value.ToString(DateFormat, CultureInfo.InvariantCulture)}\""
             : "null";
         var mid = machineId is null ? "null" : $"\"{EscapeJson(machineId)}\"";
+        var feat = "[" + string.Join(",", (features ?? Array.Empty<string>()).Select(f => "\"" + EscapeJson(f) + "\"")) + "]";
 
         return "{\"licensedTo\":\"" + EscapeJson(licensedTo) + "\","
              + "\"issuedAtUtc\":\"" + issuedAtUtc.ToString(DateFormat, CultureInfo.InvariantCulture) + "\","
              + "\"expiresAtUtc\":" + exp + ","
-             + "\"machineId\":" + mid + "}";
+             + "\"machineId\":" + mid + ","
+             + "\"features\":" + feat + "}";
     }
 
     public static LicensePayload ParseCanonicalPayload(string canonicalJson)
@@ -47,7 +50,20 @@ internal static class LicensePayloadFormat
             machineId = midEl.GetString();
         }
 
-        return new LicensePayload(licensedTo, issuedAtUtc, expiresAtUtc, machineId);
+        // "features" est absent du payload canonique des licences émises avant l'ajout de ce
+        // champ - TryGetProperty (pas GetProperty) pour que ces licences déjà en circulation
+        // continuent de valider, simplement sans aucun module complémentaire activé.
+        var features = Array.Empty<string>();
+        if (root.TryGetProperty("features", out var featEl) && featEl.ValueKind == JsonValueKind.Array)
+        {
+            features = featEl.EnumerateArray()
+                .Where(e => e.ValueKind == JsonValueKind.String)
+                .Select(e => e.GetString() ?? "")
+                .Where(s => s.Length > 0)
+                .ToArray();
+        }
+
+        return new LicensePayload(licensedTo, issuedAtUtc, expiresAtUtc, machineId, features);
     }
 
     private static string EscapeJson(string value)

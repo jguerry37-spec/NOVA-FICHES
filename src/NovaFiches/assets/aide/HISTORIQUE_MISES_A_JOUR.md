@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 2.3.1.52
+
+- Fondation (interne, sans effet visible pour l'instant) : la licence peut désormais porter une liste de modules complémentaires activés (`--features` dans `license-gen`), et l'application masque/affiche automatiquement tout élément marqué `data-nf-feature="clé"` en fonction de cette liste - même mécanisme que celui déjà utilisé pour masquer "Récolement MNT", mais piloté par la licence plutôt qu'en dur. Aucun module complémentaire n'existe encore ; les licences déjà émises continuent de fonctionner à l'identique (aucun module complémentaire par défaut).
+- Build : passage de l'application et du moteur PDF en **2.3.1.52**.
+
 ## 2.3.1.51
 
 - Qualité (CI) : corrige une instabilité aléatoire de la suite de tests (`Object is currently in use elsewhere` lors du rendu du logo dans un PDF), causée par une image PdfSharp mise en cache et partagée entre threads - sans impact sur l'application livrée (génération de PDF toujours mono-thread côté utilisateur), mais empêchait la CI GitHub de rester au vert de façon fiable.

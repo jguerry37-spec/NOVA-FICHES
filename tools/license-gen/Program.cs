@@ -49,8 +49,11 @@ internal static class Program
                   Écrit la clé PRIVÉE (à garder secrète, hors dépôt Git) dans <fichier>.
                   Affiche la clé PUBLIQUE (base64) à coller dans LicenseService.cs.
 
-              license-gen issue --key <fichier-cle-privee.txt> --to "<Nom client>" --out <license.json> [--expires yyyy-MM-dd] [--machine <hash>]
+              license-gen issue --key <fichier-cle-privee.txt> --to "<Nom client>" --out <license.json> [--expires yyyy-MM-dd] [--machine <hash>] [--features cle1,cle2,...]
                   Génère un fichier de licence signé.
+                  --features active des modules complémentaires (manager) en plus des modules
+                  standards, toujours disponibles pour toute licence. Omis ou vide = licence
+                  standard, aucun module complémentaire.
 
               license-gen machineid
                   Affiche l'identifiant machine (haché) du poste courant, au même
@@ -84,6 +87,10 @@ internal static class Program
         var outPath = GetOption(args, "--out") ?? throw new ArgumentException("--out requis.");
         var expiresRaw = GetOption(args, "--expires");
         var machine = GetOption(args, "--machine");
+        var featuresRaw = GetOption(args, "--features");
+        var features = string.IsNullOrWhiteSpace(featuresRaw)
+            ? Array.Empty<string>()
+            : featuresRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         DateTime? expiresAtUtc = null;
         if (!string.IsNullOrWhiteSpace(expiresRaw))
@@ -95,7 +102,7 @@ internal static class Program
         ecdsa.ImportECPrivateKey(Convert.FromBase64String(File.ReadAllText(keyPath).Trim()), out _);
 
         var issuedAtUtc = DateTime.UtcNow;
-        var payload = LicensePayloadFormat.BuildCanonicalPayload(to, issuedAtUtc, expiresAtUtc, machine);
+        var payload = LicensePayloadFormat.BuildCanonicalPayload(to, issuedAtUtc, expiresAtUtc, machine, features);
         var payloadBytes = Encoding.UTF8.GetBytes(payload);
         var signature = ecdsa.SignData(payloadBytes, HashAlgorithmName.SHA256);
 
@@ -107,6 +114,7 @@ internal static class Program
         Console.WriteLine($"  Émise (UTC) : {issuedAtUtc:yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"  Expire (UTC) : {(expiresAtUtc.HasValue ? expiresAtUtc.Value.ToString("yyyy-MM-dd") : "jamais")}");
         Console.WriteLine($"  Machine liée : {machine ?? "(aucune - licence portable sur tout poste)"}");
+        Console.WriteLine($"  Modules complémentaires : {(features.Length > 0 ? string.Join(", ", features) : "(aucun - licence standard)")}");
         return 0;
     }
 

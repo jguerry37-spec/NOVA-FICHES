@@ -1550,7 +1550,17 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
 
     private static string BuildFooterLicenseScript()
     {
-        var result = LicenseService.LoadAndValidate();
+        return BuildFooterLicenseScript(LicenseService.LoadAndValidate());
+    }
+
+    /// <summary>
+    /// Construit le script d'injection du statut de licence ET du masquage des modules
+    /// complémentaires (attribut HTML <c>data-nf-feature="cle"</c> sur n'importe quel
+    /// élément - bouton de nav, section...). Séparé de LoadAndValidate() (qui touche
+    /// %LOCALAPPDATA%) pour rester testable sans toucher au disque.
+    /// </summary>
+    internal static string BuildFooterLicenseScript(LicenseValidationResult result)
+    {
         string text;
         string cssClass;
 
@@ -1594,12 +1604,24 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
 
         var textJs = System.Text.Json.JsonSerializer.Serialize(text);
         var classJs = System.Text.Json.JsonSerializer.Serialize(cssClass);
+        // Licence invalide/absente = aucun module complémentaire (échec fermé), pas de
+        // tentative de lecture partielle d'une licence corrompue.
+        var features = result.IsValid ? (result.Payload?.Features ?? Array.Empty<string>()) : Array.Empty<string>();
+        var featuresJs = System.Text.Json.JsonSerializer.Serialize(features);
+
         // Ecrit directement le footer ET le panneau lateral dans la meme injection :
         // la synchronisation cote HTML (setActive, au clic sur un module) ne se
         // declenchait qu'a la navigation suivante, laissant la pastille absente du
         // panneau lateral tant que l'utilisateur n'avait pas change de module apres
         // le chargement.
-        return "(function(){['footerLicense','sbLicense'].forEach(function(id){var el=document.getElementById(id); if(el){ el.textContent=" + textJs + "; el.className=" + classJs + "; el.classList.remove('nf-hidden'); }});})();";
+        // Meme injection : masque/affiche tout element marque data-nf-feature="cle" selon
+        // les modules complementaires actives par la licence (modules manager - fondation
+        // pour de futurs modules geres par flag de licence plutot que par masquage en dur).
+        return "(function(){"
+             + "['footerLicense','sbLicense'].forEach(function(id){var el=document.getElementById(id); if(el){ el.textContent=" + textJs + "; el.className=" + classJs + "; el.classList.remove('nf-hidden'); }});"
+             + "var feats=" + featuresJs + ";"
+             + "document.querySelectorAll('[data-nf-feature]').forEach(function(el){ if(feats.indexOf(el.getAttribute('data-nf-feature'))===-1){ el.classList.add('nf-hidden'); } else { el.classList.remove('nf-hidden'); } });"
+             + "})();";
     }
 
     private static double ReadJsonDouble(JsonElement root, string property)
