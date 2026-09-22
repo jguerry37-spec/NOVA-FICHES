@@ -106,9 +106,21 @@
         attribution: 'Tiles &copy; Esri'
       });
     }
-    return L.tileLayer('https:' + '//' + '{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Plan IGN v2 (Géoplateforme, data.geopf.fr) : service public en accès libre, sans clé API -
+    // préféré à OpenStreetMap direct (bloqué à plusieurs reprises : leur politique d'usage
+    // interdit en principe de distribuer une application qui s'en sert, voir historique des
+    // versions) et à un fournisseur commercial (MapTiler, essayé un temps - aurait demandé à
+    // chaque utilisateur de créer un compte et de saisir une clé).
+    return L.tileLayer('https:' + '//' + 'data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
+        + '&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM'
+        + '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
       maxZoom: 22,
-      attribution: '&copy; OpenStreetMap'
+      // Le Plan IGN v2 ne sert des tuiles réelles que jusqu'au zoom 19 (comme OSM) - sans ça,
+      // Leaflet demanderait des tuiles z20-22 inexistantes au serveur. maxNativeZoom fait
+      // sur-échantillonner les tuiles z19 pour les zooms au-delà au lieu de continuer à
+      // interroger le serveur.
+      maxNativeZoom: 19,
+      attribution: '&copy; IGN-F/Géoportail'
     });
   }
 

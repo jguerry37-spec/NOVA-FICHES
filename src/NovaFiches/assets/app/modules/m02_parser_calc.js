@@ -1261,6 +1261,34 @@ try{
     const dy = (mes?.N!=null && calcN!=null) ? (mes.N-calcN) : null;
     const dz = (mes?.H!=null && calcH!=null) ? (mes.H-calcH) : null;
 
+    // groupKey inclut déjà lineId+horodatage exact : si ce groupe a déjà un point, ce nœud PEUT être
+    // une seconde visée de la MÊME ligne au MÊME instant (à la milliseconde près) - typiquement un
+    // double retournement de lunette (cercle 1/cercle 2) que Captivate a stocké sous deux noms de
+    // point distincts plutôt que de moyenner lui-même. Mais un même horodatage ne garantit pas à lui
+    // seul qu'il s'agit du même point physique : sur un cas réel, 2 des 6 paires partageant ligne+
+    // horodatage avaient des dL/dT écartés de plusieurs dm à plusieurs m (vraies visées distinctes,
+    // pas un doublon) - les fusionner aurait corrompu la donnée. On ne fusionne donc que si les deux
+    // visées sont suffisamment proches (≤2 cm sur dL et dT) pour être plausiblement la même cible ;
+    // sinon on les garde séparées, comme avant.
+    const already = byLine[groupKey].rabPoints[0];
+    if(already){
+      const DEDUP_TOL_M = 0.02;
+      const closeEnough = Math.abs(chain - already.ec.dL) <= DEDUP_TOL_M && Math.abs(off - already.ec.dT) <= DEDUP_TOL_M;
+      if(closeEnough){
+        const avg = (a,b) => (a!=null && b!=null) ? (a+b)/2 : (a!=null ? a : b);
+        already.mes = { E: avg(already.mes.E, mes?.E ?? null), N: avg(already.mes.N, mes?.N ?? null), H: avg(already.mes.H, mes?.H ?? null) };
+        already.calc = { E: avg(already.calc.E, calcE), N: avg(already.calc.N, calcN), H: avg(already.calc.H, calcH) };
+        already.ec = { dL: avg(already.ec.dL, chain), dT: avg(already.ec.dT, off), dA: avg(already.ec.dA, hoff) };
+        already.d = {
+          dx: (already.mes.E!=null && already.calc.E!=null) ? (already.mes.E-already.calc.E) : null,
+          dy: (already.mes.N!=null && already.calc.N!=null) ? (already.mes.N-already.calc.N) : null,
+          dz: (already.mes.H!=null && already.calc.H!=null) ? (already.mes.H-already.calc.H) : null
+        };
+        already.__nfMergedIds = (already.__nfMergedIds || [already.id]).concat(measuredPointId);
+        return;
+      }
+    }
+
     byLine[groupKey].rabPoints.push({
       id: measuredPointId,
       stationId: byLine[groupKey].stationId,
@@ -1283,8 +1311,94 @@ try{
   try{ console.warn('[LandXML][RefLine] parse failed', err); }catch(_){}
 }
 
+// ---- annotation1 (SmartWorx Viva "Stakeout ligne") -> Ligne de référence ----
+// Second dialecte Leica pour la même fonctionnalité terrain : les carnets tournant sous
+// SmartWorx Viva (fréquent sur CS15, contrairement à Captivate/CS20) n'exportent pas de bloc
+// ApplicationReflineMeasure structuré - le résultat du "Stakeout sur ligne" est encodé en texte
+// libre dans l'attribut annotation1 de chaque <Point> mesuré : "STA<chaînage> {L|R}<décalage>
+// {F|C}<hauteur>", ex. "STA19.35 L1.50 F22.24". Contrairement à Captivate, cette annotation ne
+// donne ni ID de ligne ni coordonnées de début/fin (elles restent dans le job sur le carnet,
+// jamais exportées) - seuls le chaînage et le décalage théoriques par point sont récupérables ;
+// calc/d restent donc null (LigneReferenceReportRenderer.cs ne lit de toute façon jamais
+// start/end/lineId, seulement stationId + rabPoints, donc l'absence de géométrie de ligne
+// n'empêche pas la génération du tableau, juste les colonnes "Pt théo"/"Δ X/Y/Z").
+// N'active ce chemin que si aucune ligne Captivate n'a déjà été trouvée (out.ligneRef vide) :
+// les deux dialectes ne doivent jamais coexister dans un même export.
+try{
+  if(!out.ligneRef.length){
+    const REFLINE_ANNOT_RE = /^STA(-?\d+(?:[.,]\d+)?)\s+([LR])(-?\d+(?:[.,]\d+)?)\s+[FC](-?\d+(?:[.,]\d+)?)/i;
+    // annotation1 vit sur un <Annotations> ENFANT du <Point>, pas comme attribut direct de
+    // <Point> lui-même (structure confirmée sur les 3 fichiers CS15 réels) :
+    // <Point uniqueID="EG.8" ...><Coordinates>...</Coordinates><Annotations annotation1="STA..."/></Point>
+    const annotationOf = (pointNode) => {
+      const child = Array.from(pointNode.getElementsByTagName('*')).find(x => ln(x) === 'Annotations');
+      return child ? child.getAttribute('annotation1') : null;
+    };
+    const annotPoints = Array.from(doc.getElementsByTagName('*')).filter(n => {
+      if(ln(n) !== 'Point') return false;
+      const a1 = annotationOf(n);
+      return !!a1 && REFLINE_ANNOT_RE.test(a1);
+    });
 
-  
+    if(annotPoints.length){
+      const ptMap = pointToSetup || {};
+      const byStation = {};
+
+      annotPoints.forEach(n => {
+        const pointId = n.getAttribute('uniqueID') || n.getAttribute('name') || n.getAttribute('id') || null;
+        if(!pointId) return;
+        const m = REFLINE_ANNOT_RE.exec(annotationOf(n) || '');
+        if(!m) return;
+
+        const chain = num(m[1]);
+        const side = m[2].toUpperCase();
+        const offAbs = num(m[3]);
+        // Convention non confirmée sur le terrain : Gauche négatif / Droite positif (usage
+        // topo courant en France). À vérifier visuellement sur le premier rapport généré.
+        const off = (offAbs == null) ? null : (side === 'L' ? -Math.abs(offAbs) : Math.abs(offAbs));
+
+        const strippedPointId = stripAt(pointId);
+        const stationSetupId = nfNormalizeStationKey(ptMap[pointId] || ptMap[strippedPointId] || null);
+        const stationName = (stationSetupId && baseSetups && baseSetups[stationSetupId] && baseSetups[stationSetupId].stationName) || stationSetupId || null;
+        const groupKey = stationSetupId || '';
+
+        if(!byStation[groupKey]){
+          byStation[groupKey] = {
+            stationId: stationSetupId || null,
+            stationName: stationName,
+            lineId: 'Ligne',
+            start:{ id:null, E:null, N:null, H:null },
+            end:{ id:null, E:null, N:null, H:null },
+            rabPoints:[]
+          };
+        }
+
+        const mes = pointId && cg[pointId] ? cg[pointId] : (strippedPointId && cg[strippedPointId] ? cg[strippedPointId] : null);
+
+        byStation[groupKey].rabPoints.push({
+          id: pointId,
+          stationId: byStation[groupKey].stationId,
+          stationName: byStation[groupKey].stationName,
+          code: mes?.code || (pointId && pointCodeById[pointId]) || (strippedPointId && pointCodeById[strippedPointId]) || null,
+          stakedId: pointId,
+          occurrenceId: pointId || '',
+          businessPointId: (mes && mes.oID) ? String(mes.oID) : strippedPointId,
+          timeStamp: (mes && mes.t) || null,
+          __nfPid: pointId,
+          mes: { E: mes?.E ?? null, N: mes?.N ?? null, H: mes?.H ?? null },
+          ec: { dL: chain, dT: off, dA: null },
+          calc: { E: null, N: null, H: null },
+          d: { dx: null, dy: null, dz: null }
+        });
+      });
+
+      if(Object.keys(byStation).length) out.ligneRef = Object.values(byStation);
+    }
+  }
+}catch(err){
+  try{ console.warn('[LandXML][RefLine-Viva] parse failed', err); }catch(_){}
+}
+
 // ---- Points topo (levé) : InstrumentSetup + RawObservation (hors IMP / LigneRef) ----
 try{
   const excluded = new Set();
@@ -2013,9 +2127,20 @@ function nfCreateStationMapTileLayer(kind){
       attribution: 'Tiles &copy; Esri'
     });
   }
-  return L.tileLayer('https:' + '//' + '{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  // Plan IGN v2 (Géoplateforme, data.geopf.fr) : service public en accès libre, sans clé API -
+  // préféré à OpenStreetMap direct (bloqué à plusieurs reprises : leur politique d'usage interdit
+  // en principe de distribuer une application qui s'en sert, voir historique des versions) et à
+  // un fournisseur commercial (MapTiler, essayé un temps - aurait demandé à chaque utilisateur de
+  // créer un compte et de saisir une clé).
+  return L.tileLayer('https:' + '//' + 'data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
+      + '&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM'
+      + '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
     maxZoom: 22,
-    attribution: '&copy; OpenStreetMap'
+    // Le Plan IGN v2 ne sert des tuiles réelles que jusqu'au zoom 19 (comme OSM) - maxNativeZoom
+    // fait sur-échantillonner les tuiles z19 pour les zooms au-delà au lieu de continuer à
+    // interroger le serveur.
+    maxNativeZoom: 19,
+    attribution: '&copy; IGN-F/Géoportail'
   });
 }
 

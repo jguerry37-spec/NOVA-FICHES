@@ -16,8 +16,6 @@ namespace NovaFiches.PdfSharpEngine;
 /// </summary>
 internal static class StationReportRenderer
 {
-    private static readonly XColor BrandBlue = XColor.FromArgb(18, 103, 243);
-    private static readonly XColor Orange = XColor.FromArgb(255, 90, 23);
     private static readonly XColor LightGray = XColor.FromArgb(230, 230, 230);
     private static readonly XColor LineGray = XColor.FromArgb(200, 200, 200);
 
@@ -102,10 +100,10 @@ internal static class StationReportRenderer
         {
             var p = doc.Pages[i];
             using var gg = XGraphics.FromPdfPage(p, XGraphicsPdfPageOptions.Append);
-            DrawFooterAllPages(gg, p, i + 1, total, buildFooter);
+            DrawFooterAllPages(gg, p, i + 1, total, buildFooter, root);
             // Add small logo on pages after the first (jsPDF-like)
             if (i > 0)
-                DrawRepeatHeaderLogo(gg, p);
+                DrawRepeatHeaderLogo(gg, p, root);
         }
 
         // (g already disposed above)
@@ -123,7 +121,7 @@ internal static class StationReportRenderer
         y = EnsurePage(doc, ref page, ref g, y, Units.MmToPt(55));
 
         // TYPE DE STATION
-        y = DrawBar(g, page, y, "TYPE DE STATION", Orange);
+        y = DrawBar(g, page, y, "TYPE DE STATION", NovatlasTheme.ResolveOrange(root));
         y += Units.MmToPt(1.5);
 
         // Station block (boxed text)
@@ -377,7 +375,7 @@ internal static class StationReportRenderer
 
     // internal (pas private) : réutilisée par CoverOnlyReportRenderer pour l'export
     // "Page de garde" - même en-tête/cartouche/pied de page que le PDF Station.
-    internal static void DrawFooterAllPages(XGraphics g, PdfPage page, int pageIndex, int totalPages, string buildFooter)
+    internal static void DrawFooterAllPages(XGraphics g, PdfPage page, int pageIndex, int totalPages, string buildFooter, JsonElement root = default)
     {
         double yLine = page.Height.Point - Units.MmToPt(14);
         g.DrawLine(new XPen(LineGray, 0.4), MarginL, yLine, page.Width.Point - MarginR, yLine);
@@ -385,7 +383,7 @@ internal static class StationReportRenderer
         var f = NovatlasTheme.FontBody(9);
         var f2 = NovatlasTheme.FontBody(8);
 
-        string address = NovatlasTheme.NovatlasAddress;
+        string address = NovatlasTheme.ResolveFooterAddress(root);
         g.DrawString(address, f, XBrushes.Black,
             new XRect(MarginL, yLine + Units.MmToPt(2.5), page.Width.Point - MarginL - MarginR, Units.MmToPt(5)),
             XStringFormats.Center);
@@ -402,10 +400,10 @@ internal static class StationReportRenderer
             XStringFormats.CenterRight);
     }
 
-    private static double DrawRepeatHeaderLogo(XGraphics g, PdfPage page)
+    private static double DrawRepeatHeaderLogo(XGraphics g, PdfPage page, JsonElement root = default)
     {
         // small logo top-right on pages >1
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(root);
         if (logo == null) return Units.MmToPt(24);
 
         double w = Units.MmToPt(26);
@@ -823,7 +821,7 @@ internal static class StationReportRenderer
         g.DrawRectangle(penBox, rectLeft);
         g.DrawRectangle(penBox, rectRight);
 
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(root);
         if (logo != null)
         {
             double pad = Units.MmToPt(4);
@@ -853,7 +851,7 @@ internal static class StationReportRenderer
         // Title band
         double bandY = rectLeft.Bottom + Units.MmToPt(4);
         double bandH = Units.MmToPt(12);
-        g.DrawRectangle(new XSolidBrush(BrandBlue), MarginL, bandY, contentW, bandH);
+        g.DrawRectangle(new XSolidBrush(NovatlasTheme.ResolveBlue(root)), MarginL, bandY, contentW, bandH);
         g.DrawString("RAPPORT D'INTERVENTION", NovatlasTheme.FontBold(12), XBrushes.White,
             new XRect(MarginL, bandY, contentW, bandH), XStringFormats.Center);
 

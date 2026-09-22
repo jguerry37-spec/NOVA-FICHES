@@ -14,7 +14,7 @@ public sealed class LicenseForm : Form
     private readonly Button _continueBtn;
     private LicenseValidationResult _lastResult;
 
-    public LicenseForm(LicenseValidationResult initialResult)
+    public LicenseForm(LicenseValidationResult initialResult, bool isStartupFlow = true)
     {
         _lastResult = initialResult;
 
@@ -90,7 +90,7 @@ public sealed class LicenseForm : Form
 
         var quitBtn = new Button
         {
-            Text = "Quitter",
+            Text = isStartupFlow ? "Quitter" : "Fermer",
             Location = new Point(20, 232),
             Size = new Size(110, 32),
             DialogResult = DialogResult.Cancel

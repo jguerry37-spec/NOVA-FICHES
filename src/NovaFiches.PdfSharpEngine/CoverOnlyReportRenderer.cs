@@ -34,7 +34,7 @@ internal static class CoverOnlyReportRenderer
         // par page à la fois (même contrainte que StationReportRenderer.Render).
         using (var gg = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append))
         {
-            StationReportRenderer.DrawFooterAllPages(gg, page, 1, 1, buildFooter);
+            StationReportRenderer.DrawFooterAllPages(gg, page, 1, 1, buildFooter, root);
         }
     }
 }

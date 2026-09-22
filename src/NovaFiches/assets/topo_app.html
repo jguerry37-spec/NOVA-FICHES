@@ -36,6 +36,14 @@
       <button class="nf-nav-item nf-hidden" data-target="module-recolement-mnt">Récolement MNT</button>
       <button class="nf-nav-item" data-target="module-export-kmz">Export KMZ Google Earth</button>
       <button class="nf-nav-item" data-target="module-reportage-photo">Reportage photo</button>
+      <div class="nf-nav-sep nf-hidden" data-nf-feature-any="fiches_signaletiques,controle_doublons,controle_precision"></div>
+      <button class="nf-nav-item nf-hidden" data-target="module-fiches-signaletiques" data-nf-feature="fiches_signaletiques">Fiches signalétiques</button>
+      <button class="nf-nav-item nf-hidden" data-target="module-controle-doublons" data-nf-feature="controle_doublons">Contrôle de doublons</button>
+      <button class="nf-nav-item nf-hidden" data-target="module-controle-precision" data-nf-feature="controle_precision">Contrôle classe de précision</button>
+    </nav>
+    <div class="nf-sidebar-spacer"></div>
+    <nav class="nf-nav nf-nav-bottom">
+      <button class="nf-nav-item nf-hidden" data-target="module-parametres" data-nf-feature="branding">Paramètres</button>
     </nav>
     <div class="small" style="margin-top:12px;">
       <div id="sbStatus">Prêt</div>
@@ -313,6 +321,10 @@
       <label class="dz-toggle" title="Regroupe les points dans les PDF Implantation / Ligne de référence par code (code LandXML)">
         <input id="pdfGroupByZone" type="checkbox" />
         <span class="small">Classer le PDF par code</span>
+      </label>
+      <label class="dz-toggle" title="Ajoute une page de plan (ligne + point + cotation) par ligne de référence dans le PDF Ligne de référence.">
+        <input id="linerefIncludeGraphicalPlan" type="checkbox" />
+        <span class="small">Joindre le plan graphique (Ligne de référence)</span>
       </label>
       <div style="flex:1; min-width:320px;">
         <div class="small" style="margin-bottom:4px;">Libellés PDF des codes</div>
@@ -626,6 +638,259 @@
           </div>
         </div>
       </section>
+      <section id="module-fiches-signaletiques" class="nf-module">
+        <div class="card">
+          <h2>Fiches signalétiques</h2>
+          <div class="small" style="margin-bottom:10px;">
+            Génère une fiche A4 par point à partir d'un CSV/TXT (colonnes du modèle NOVATLAS) et de photos associées par nom de fichier.
+          </div>
+          <div class="row nowrap" style="align-items:flex-end;">
+            <button id="btnFichesImportCsv" type="button" title="Importer le fichier CSV/TXT des fiches signalétiques.">Importer un CSV</button>
+            <label class="btn" for="fichesPhotoFiles">Importer des photos</label>
+            <input id="fichesPhotoFiles" type="file" accept="image/*" multiple />
+            <button id="btnFichesTemplate" type="button" title="Télécharger le modèle CSV vierge.">Modèle CSV</button>
+            <span id="fichesImportStatus" class="pill">Aucune fiche chargée</span>
+          </div>
+          <div class="small" id="fichesPhotoStatus" style="margin-top:8px;">Aucune photo chargée.</div>
+
+          <div class="row" style="margin-top:14px; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="flex:2; min-width:320px;">
+              <div class="small" style="margin-bottom:4px;">Fiches importées</div>
+              <div id="fichesTableWrap" style="max-height:320px; overflow:auto;">
+                <table id="fichesTable">
+                  <thead>
+                    <tr>
+                      <th>Point</th>
+                      <th>Dossier</th>
+                      <th>Chantier</th>
+                      <th>Commune</th>
+                      <th>Photo</th>
+                      <th>Coord.</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fichesTableBody"><tr><td colspan="6" class="small">Aucune fiche importée.</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div style="flex:1; min-width:280px;">
+              <div class="small" style="margin-bottom:4px;">Aperçu de la fiche sélectionnée</div>
+              <div id="fichesPreview" class="card" style="min-height:280px;">
+                <div id="fichesPreviewEmpty" class="small">Sélectionne une fiche dans le tableau pour voir un aperçu des champs qui apparaîtront sur le PDF.</div>
+                <div id="fichesPreviewContent" class="nf-hidden">
+                  <div class="row nowrap" style="align-items:flex-start; gap:10px;">
+                    <img id="fichesPreviewPhoto" class="nf-hidden" alt="Photo" style="width:100px; height:76px; object-fit:cover; border:1px solid rgba(0,0,0,.10); border-radius:6px; background:#f4f6f8; flex:0 0 auto;" />
+                    <div style="min-width:0;">
+                      <div id="fichesPreviewPoint" style="font-weight:700; font-size:15px;"></div>
+                      <div id="fichesPreviewDossier" class="small"></div>
+                    </div>
+                  </div>
+                  <table style="width:100%; margin-top:10px;">
+                    <tbody id="fichesPreviewFields"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:14px;">
+            <button id="btnFichesGeocode" type="button" disabled title="Remplit automatiquement adresse/commune/département des fiches sans adresse, via OpenStreetMap (Nominatim).">Géocoder les adresses manquantes</button>
+            <span id="fichesGeocodeStatus" class="small"></span>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <button id="btnFichesExportBatch" type="button" class="btn-primary" disabled title="Un seul PDF, une page par fiche.">Exporter PDF (toutes les fiches)</button>
+            <button id="btnFichesExportPerFiche" type="button" disabled title="Un PDF par fiche, dans un dossier.">Exporter PDF (une par fiche)</button>
+            <span id="fichesExportStatus" class="small"></span>
+          </div>
+        </div>
+      </section>
+      <section id="module-controle-doublons" class="nf-module">
+        <div class="card">
+          <h2>Contrôle de doublons</h2>
+          <div class="small" style="margin-bottom:10px;">
+            Fusionne plusieurs fichiers de points (TXT, même format qu'Échanges/KMZ) contre un fichier de contrôle unique. Un n° de point présent à la fois dans les entrées et le contrôle est signalé comme doublon à résoudre (moyenne d'une sélection d'occurrences, ou suppression) avant export du fichier final.
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div>
+              <button id="btnDcImportInputs" type="button" title="Sélectionne un ou plusieurs fichiers TXT de points (entrées).">Importer les fichiers d'entrée</button>
+              <div id="dcInputsStatus" class="small" style="margin-top:4px;">Aucun fichier d'entrée chargé.</div>
+            </div>
+            <div>
+              <button id="btnDcImportControl" type="button" title="Sélectionne le fichier TXT de contrôle (un seul).">Importer le fichier de contrôle</button>
+              <div id="dcControlStatus" class="small" style="margin-top:4px;">Aucun fichier de contrôle chargé.</div>
+            </div>
+          </div>
+
+          <div id="dcSummary" class="nf-hidden" style="margin-top:14px;">
+            <div id="dcSummaryText" class="small" style="font-weight:700;"></div>
+          </div>
+
+          <div id="dcToleranceRow" class="nf-hidden row" style="margin-top:8px; align-items:center; gap:8px;">
+            <label class="small" for="dcTolerance">Tolérance de validation automatique</label>
+            <input id="dcTolerance" class="box" type="number" min="0" step="0.1" value="5" style="width:80px;" />
+            <span class="small">mm</span>
+            <button id="btnDcApplyTolerance" type="button" title="Résout automatiquement (par moyenne) tout doublon dont l'écart maximal entre occurrences est sous cette tolérance.">Appliquer la tolérance</button>
+          </div>
+
+          <div id="dcDuplicatesWrap" style="margin-top:10px;"></div>
+
+          <details id="dcOrphansDetails" class="nf-hidden" style="margin-top:10px;">
+            <summary class="small" style="cursor:pointer;">Points sans correspondance (informatif)</summary>
+            <div id="dcOrphansContent" class="small" style="margin-top:6px;"></div>
+          </details>
+
+          <div class="row" style="margin-top:14px;">
+            <button id="btnDcExport" type="button" class="btn-primary" disabled title="Exporte le fichier final et le rapport de contrôle.">Exporter le fichier final</button>
+            <span id="dcExportStatus" class="small"></span>
+          </div>
+        </div>
+      </section>
+      <section id="module-controle-precision" class="nf-module">
+        <div class="card">
+          <h2>Contrôle classe de précision</h2>
+          <div class="small" style="margin-bottom:10px;">
+            Compare un fichier Levé à un fichier Contrôle (même format qu'Échanges/KMZ) et vérifie la conformité selon l'arrêté du 16 septembre 2003 (moyenne des écarts, dépassement des seuils T1/T2). Les points sont appariés par n° de point identique (sensible à la casse).
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div>
+              <button id="btnCpImportLeve" type="button" title="Sélectionne le fichier TXT du Levé.">Importer le fichier Levé</button>
+              <div id="cpLeveStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
+            </div>
+            <div>
+              <button id="btnCpImportControle" type="button" title="Sélectionne le fichier TXT de Contrôle.">Importer le fichier Contrôle</button>
+              <div id="cpControleStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
+            </div>
+          </div>
+
+          <div id="cpParamsWrap" class="nf-hidden" style="margin-top:16px;">
+            <div class="small" style="font-weight:700; margin-bottom:8px;">Informations sur l'affaire</div>
+            <div class="infoGrid3">
+              <div class="field span-3"><div class="small">Commanditaire</div><input id="cpCommanditaire" class="box" type="text" /></div>
+              <div class="field span-3"><div class="small">Rédacteur du rapport</div><input id="cpRedacteur" class="box" type="text" /></div>
+              <div class="field span-2"><div class="small">Date de rédaction</div><input id="cpDateRedaction" class="box" type="date" /></div>
+              <div class="field span-2"><div class="small">Prestataire du Levé</div><input id="cpPrestataireLeve" class="box" type="text" /></div>
+              <div class="field span-2"><div class="small">Prestataire du Contrôle</div><input id="cpPrestataireControle" class="box" type="text" value="NOVATLAS" /></div>
+              <div class="field span-3"><div class="small">Commune</div><input id="cpCommune" class="box" type="text" /></div>
+              <div class="field span-3"><div class="small">Adresse</div><input id="cpAdresse" class="box" type="text" /></div>
+              <div class="field span-3">
+                <div class="small">Type de Plan Contrôlé</div>
+                <select id="cpTypePlan" class="box">
+                  <option>Plan Topographique</option>
+                  <option>Plan de Nivellement</option>
+                  <option>Plan de Récolement de voirie</option>
+                  <option>Plan de Récolement Global</option>
+                  <option>Plan de Récolement réseaux</option>
+                  <option>Plan de Récolement travaux</option>
+                  <option>Plan de Récolement VRD</option>
+                  <option>Plan Topographique RTGE</option>
+                  <option value="Autre">Autre (préciser)</option>
+                </select>
+                <input id="cpTypePlanAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser le type de plan" />
+              </div>
+              <div class="field span-3"><div class="small">Référence / Dossier</div><input id="cpReference" class="box" type="text" /></div>
+            </div>
+
+            <div class="small" style="font-weight:700; margin:16px 0 8px;">Paramètres de contrôle</div>
+            <div class="infoGrid3">
+              <div class="field span-2"><div class="small">Tolérance XY (cm)</div><input id="cpTolXY" class="box" type="number" step="0.1" min="0" value="4" /></div>
+              <div class="field span-2"><div class="small">Tolérance Z (cm)</div><input id="cpTolZ" class="box" type="number" step="0.1" min="0" value="4" /></div>
+              <div class="field span-2">
+                <div class="small">Type de Contrôle</div>
+                <select id="cpControlType" class="box">
+                  <option value="2D">2D (Planimétrique)</option>
+                  <option value="1D">1D (Altimétrique)</option>
+                  <option value="2D+1D" selected>2D + 1D (Combiné)</option>
+                  <option value="3D">3D (Isotrope)</option>
+                </select>
+              </div>
+              <div class="field span-3"><div class="small">Coefficient de Sécurité (C)</div><input id="cpSecurityCoeff" class="box" type="number" step="0.01" min="0.1" value="2" /></div>
+              <div class="field span-3">
+                <div class="small">Taux de Confiance</div>
+                <select id="cpConfidence" class="box">
+                  <option value="1.00">Précision Forte (68%, Z=1.00)</option>
+                  <option value="1.96" selected>Précision Moyenne (95%, Z=1.96)</option>
+                  <option value="2.58">Précision Faible (99%, Z=2.58)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="cpAssemblyWrap" class="nf-hidden" style="margin-top:16px;">
+            <div class="small" style="font-weight:700; margin-bottom:8px;">Tableau d'assemblage - vérification et sélection des points</div>
+            <div id="cpAssemblyStatus" class="small" style="margin-bottom:8px;"></div>
+            <div id="cpAssemblyTable" style="max-height:420px; overflow-y:auto;"></div>
+            <div class="row" style="margin-top:12px;">
+              <button id="btnCpRunAnalysis" type="button" class="btn-primary">Lancer l'analyse de conformité</button>
+            </div>
+          </div>
+
+          <div id="cpResultsWrap" class="nf-hidden" style="margin-top:16px;">
+            <div class="small" style="font-weight:700; margin-bottom:8px;">Résultats de l'analyse</div>
+            <div id="cpSummary" class="small" style="font-weight:700; margin-bottom:10px;"></div>
+            <div id="cpConditions"></div>
+            <details id="cpDetailsWrap" style="margin-top:10px;">
+              <summary class="small" style="cursor:pointer;">Détail des points comparés (inclus dans l'analyse)</summary>
+              <div id="cpDetailsTable" style="max-height:420px; overflow-y:auto; margin-top:8px;"></div>
+            </details>
+
+            <div class="row" style="margin-top:12px; align-items:center; gap:10px;">
+              <button id="btnCpGenerateMap" type="button" title="Génère une carte de situation à partir des points inclus dans l'analyse (aucune adresse requise).">Générer la carte de situation (points inclus)</button>
+              <span id="cpMapStatus" class="small"></span>
+            </div>
+            <img id="cpMapPreview" class="nf-hidden" alt="Carte de situation" style="max-width:100%; max-height:200px; border:1px solid #ccc; margin-top:6px;" />
+          </div>
+
+          <div class="row" style="margin-top:14px;">
+            <button id="btnCpExport" type="button" class="btn-primary" disabled title="Exporte le rapport PDF de contrôle.">Exporter le rapport (PDF)</button>
+            <span id="cpExportStatus" class="small"></span>
+          </div>
+        </div>
+      </section>
+      <section id="module-parametres" class="nf-module">
+        <div class="card">
+          <h2>Paramètres</h2>
+          <div class="small" style="margin-bottom:10px;">
+            Personnalisation de l'identité visuelle des PDF générés sur ce poste (logo, adresse de pied de page, couleurs). Laisser vide pour garder l'identité NOVATLAS par défaut.
+          </div>
+
+          <div class="row" style="align-items:flex-start; gap:16px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:260px;">
+              <div class="small">Logo (PNG, ratio proche de 16:9, max 2000×2000px, 2 Mo)</div>
+              <label class="btn" for="paramLogoFile">Choisir un logo (PNG)…</label>
+              <input id="paramLogoFile" type="file" accept="image/png" />
+              <div class="row" style="margin-top:8px; align-items:center; gap:10px;">
+                <img id="paramLogoPreview" class="nf-hidden" alt="Logo personnalisé" style="max-height:60px; max-width:180px; border:1px solid #ccc; background:#fff; padding:2px;" />
+                <span id="paramLogoStatus" class="small">Aucun logo personnalisé - logo NOVATLAS utilisé</span>
+                <button id="btnParamLogoClear" type="button" class="nf-hidden">Réinitialiser le logo</button>
+              </div>
+            </div>
+
+            <div style="flex:1; min-width:260px;">
+              <div class="small">Adresse de pied de page</div>
+              <input id="paramFooterAddress" class="box" type="text" maxlength="200" placeholder="NOVATLAS — 24 boulevard Paul Vaillant Couturier — 94200 IVRY SUR SEINE" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:14px; gap:16px; flex-wrap:wrap;">
+            <div style="min-width:160px;">
+              <div class="small">Couleur bleue (bandeaux de titre)</div>
+              <input id="paramColorBlue" type="color" class="box" value="#1267F3" />
+            </div>
+            <div style="min-width:160px;">
+              <div class="small">Couleur orange (bandeaux de titre)</div>
+              <input id="paramColorOrange" type="color" class="box" value="#FF5A17" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:14px;">
+            <button id="btnParamSave" type="button" class="btn-primary">Enregistrer</button>
+            <button id="btnParamReset" type="button">Réinitialiser tout (identité NOVATLAS)</button>
+            <span id="paramStatus" class="small"></span>
+          </div>
+        </div>
+      </section>
 <div id="vizStash" class="nf-hidden">
         <div id="vizCard" class="card">
           <h2>Visualisation</h2>
@@ -798,6 +1063,10 @@
 <script src="./app/modules/m06_recolement_mnt.js" defer></script>
 <script src="./app/modules/m07_export_kmz.js" defer></script>
 <script src="./app/modules/m09_photos.js" defer></script>
+<script src="./app/modules/m10_parametres.js" defer></script>
+<script src="./app/modules/m11_fiches_signaletiques.js" defer></script>
+<script src="./app/modules/m13_controle_doublons.js" defer></script>
+<script src="./app/modules/m14_controle_precision.js" defer></script>
 <script src="./app/inline_03.js" defer></script>
 
 <!-- About modal -->

@@ -88,7 +88,12 @@ footer#pageFooter .row{ margin-top:4px !important; }
   /* Descendre le header NOVA-FICHES (menu WinForms en haut) */
   padding:22px 12px 14px;
   position:sticky; top:0; height:100vh; overflow:auto;
+  display:flex; flex-direction:column;
 }
+/* Pousse tout ce qui suit (Paramètres + statut) tout en bas de la fenêtre, séparé
+   de la navigation principale, même quand peu de modules sont affichés. */
+.nf-sidebar-spacer{ flex:1 1 auto; }
+.nf-nav-bottom{ border-top:1px solid rgba(0,0,0,.10); padding-top:6px; margin-top:6px; }
 .nf-sb-title{ font-weight:900; letter-spacing:.3px; font-size:14px; margin:6px 0 2px; }
 .nf-sb-sub{ color:var(--mut); font-size:12px; margin-bottom:10px; }
 /* V2.4 : liste de menu plate (comme une appli de bureau) au lieu d'une pile de
@@ -96,6 +101,10 @@ footer#pageFooter .row{ margin-top:4px !important; }
    teinte tres legere, pas par un remplissage. Gain de place vertical (moins de
    padding) et moins "generique IA". */
 .nf-nav{ display:flex; flex-direction:column; gap:1px; }
+/* Sépare visuellement les modules en accès libre des modules avancés (à licence) dans la nav
+   principale - juste un trait, révélé par le même mécanisme data-nf-feature que le bouton qui
+   suit (voir MainForm.BuildFooterLicenseScript). */
+.nf-nav-sep{ border-top:1px solid rgba(0,0,0,.12); margin:8px 10px 7px; }
 .nf-nav-item{
   display:flex; align-items:center; gap:10px;
   background:transparent; color:var(--txt);

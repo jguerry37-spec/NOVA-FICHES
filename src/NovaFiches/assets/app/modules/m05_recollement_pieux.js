@@ -92,6 +92,17 @@ IMPORTANT:
     m = s.match(/^0*(\d+)$/);
     if(m) return String(parseInt(m[1], 10));
 
+    // Pieux à suffixe lettre (double pieu, ex. théorique "Pi.12.A" / mesuré "12A.1" - la lettre
+    // colle au numéro, sans séparateur, une fois le ".<index>" de mesure retiré par l'appelant).
+    // Sans cette règle, le théorique retombe sur "PI.12.A" (préfixe + point conservés) et le
+    // mesuré sur "12A" (juste chiffres+lettre) - deux clés différentes qui ne se recoupent jamais,
+    // donc ces pieux n'étaient jamais reconnus comme "avec référence".
+    m = s.match(/^(?:PIEU|PI|P)[._-]?0*(\d+)\.?([A-Z])$/i);
+    if(m) return `${parseInt(m[1], 10)}${m[2].toUpperCase()}`;
+
+    m = s.match(/^0*(\d+)\.?([A-Z])$/i);
+    if(m) return `${parseInt(m[1], 10)}${m[2].toUpperCase()}`;
+
     m = s.match(/^(Z\d+(?:\.\d+)?-P)0*(\d+)(\.BIS)?$/i);
     if(m) return `${m[1].toUpperCase()}${parseInt(m[2], 10)}${(m[3] || '').toUpperCase()}`;
 

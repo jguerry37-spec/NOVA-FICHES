@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.Json;
 using PdfSharp.Drawing;
 
 namespace NovaFiches.PdfSharpEngine;
@@ -36,12 +37,78 @@ public static XImage? TryLoadLogo()
     catch { return null; }
 }
 
+// ---- Résolveurs de branding (module manager "Paramètres") ----
+// Le payload envoyé par le JS peut porter un noeud "branding" (logo/adresse/couleurs
+// personnalisés), injecté côté MainForm avant l'appel au renderer - PdfSharpEngine ne
+// référence jamais les services NovaFiches (BrandingService), donc c'est le seul point
+// d'entrée pour cette personnalisation ici. Absent/invalide => identité NOVATLAS par défaut.
+
+public static XColor ResolveBlue(JsonElement root) => TryReadBrandingColor(root, "colorBlue") ?? NovaBlue;
+
+public static XColor ResolveOrange(JsonElement root) => TryReadBrandingColor(root, "colorOrange") ?? Orange;
+
+public static string ResolveFooterAddress(JsonElement root)
+{
+    var s = TryReadBrandingString(root, "footerAddress");
+    return string.IsNullOrWhiteSpace(s) ? NovatlasAddress : s!;
+}
+
+/// <summary>
+/// Logo personnalisé si présent et lisible, sinon repli sur le logo NOVATLAS (TryLoadLogo).
+/// Comme TryLoadLogo, ne met rien en cache et n'est pas partagé entre threads.
+/// </summary>
+public static XImage? ResolveLogo(JsonElement root)
+{
+    var b64 = TryReadBrandingString(root, "logoPngBase64");
+    if (!string.IsNullOrWhiteSpace(b64))
+    {
+        try
+        {
+            var bytes = Convert.FromBase64String(b64);
+            var ms = new MemoryStream(bytes);
+            return XImage.FromStream(ms);
+        }
+        catch { /* logo personnalisé illisible : repli sur le logo par défaut */ }
+    }
+    return TryLoadLogo();
+}
+
+private static string? TryReadBrandingString(JsonElement root, string key)
+{
+    try
+    {
+        if (root.ValueKind == JsonValueKind.Object &&
+            root.TryGetProperty("branding", out var b) && b.ValueKind == JsonValueKind.Object &&
+            b.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String)
+        {
+            return v.GetString();
+        }
+    }
+    catch { }
+    return null;
+}
+
+private static XColor? TryReadBrandingColor(JsonElement root, string key)
+{
+    var hex = TryReadBrandingString(root, key)?.Trim().TrimStart('#');
+    if (string.IsNullOrWhiteSpace(hex) || hex.Length != 6) return null;
+    try
+    {
+        int r = Convert.ToInt32(hex.Substring(0, 2), 16);
+        int g = Convert.ToInt32(hex.Substring(2, 2), 16);
+        int b = Convert.ToInt32(hex.Substring(4, 2), 16);
+        return XColor.FromArgb(r, g, b);
+    }
+    catch { return null; }
+}
+
 
     // Fonts
     // Backward-compatible helpers (used by cover page, etc.)
     public static XFont FontBold(double size) => new("Arial", size, XFontStyleEx.Bold);
     public static XFont FontBody(double size) => new("Arial", size, XFontStyleEx.Regular);
     public static XFont FontBodyBold(double size) => new("Arial", size, XFontStyleEx.Bold);
+    public static XFont FontBodyItalic(double size) => new("Arial", size, XFontStyleEx.Italic);
 
 
     public static XFont TitleFont() => new("Arial", 16, XFontStyleEx.Bold);

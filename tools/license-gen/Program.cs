@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Windows.Forms;
 using Microsoft.Win32;
 
 namespace LicenseGen;
@@ -9,12 +10,19 @@ namespace LicenseGen;
 // ne jamais copier ce dossier dans le publish de Nova-Fiches.
 internal static class Program
 {
+    [STAThread]
     private static int Main(string[] args)
     {
+        // Aucun argument (double-clic sur license-gen.exe, ou lancement sans commande) :
+        // écran de génération de licence. Les commandes CLI (genkey/issue/machineid)
+        // restent disponibles pour le scripting et ne changent pas de comportement.
         if (args.Length == 0)
         {
-            PrintUsage();
-            return 1;
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new LicenseGenForm());
+            return 0;
         }
 
         try
@@ -98,24 +106,35 @@ internal static class Program
             expiresAtUtc = DateTime.Parse(expiresRaw).ToUniversalTime();
         }
 
-        using var ecdsa = ECDsa.Create();
-        ecdsa.ImportECPrivateKey(Convert.FromBase64String(File.ReadAllText(keyPath).Trim()), out _);
-
-        var issuedAtUtc = DateTime.UtcNow;
-        var payload = LicensePayloadFormat.BuildCanonicalPayload(to, issuedAtUtc, expiresAtUtc, machine, features);
-        var payloadBytes = Encoding.UTF8.GetBytes(payload);
-        var signature = ecdsa.SignData(payloadBytes, HashAlgorithmName.SHA256);
-
-        var licenseJson = LicensePayloadFormat.BuildLicenseFile(payloadBytes, signature);
-        File.WriteAllText(outPath, licenseJson);
+        var result = IssueLicense(new IssueLicenseRequest(keyPath, to, expiresAtUtc, machine, features));
+        File.WriteAllText(outPath, result.LicenseJson);
 
         Console.WriteLine("Licence générée : " + Path.GetFullPath(outPath));
         Console.WriteLine($"  Client : {to}");
-        Console.WriteLine($"  Émise (UTC) : {issuedAtUtc:yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine($"  Émise (UTC) : {result.IssuedAtUtc:yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"  Expire (UTC) : {(expiresAtUtc.HasValue ? expiresAtUtc.Value.ToString("yyyy-MM-dd") : "jamais")}");
         Console.WriteLine($"  Machine liée : {machine ?? "(aucune - licence portable sur tout poste)"}");
         Console.WriteLine($"  Modules complémentaires : {(features.Length > 0 ? string.Join(", ", features) : "(aucun - licence standard)")}");
         return 0;
+    }
+
+    /// <summary>
+    /// Coeur de la signature d'une licence, partagé entre la commande CLI "issue" et
+    /// LicenseGenForm (interface graphique), pour ne jamais avoir deux implémentations
+    /// du même format canonique/signature à maintenir en parallèle dans cet outil.
+    /// </summary>
+    internal static IssueLicenseResult IssueLicense(IssueLicenseRequest request)
+    {
+        using var ecdsa = ECDsa.Create();
+        ecdsa.ImportECPrivateKey(Convert.FromBase64String(File.ReadAllText(request.PrivateKeyPath).Trim()), out _);
+
+        var issuedAtUtc = DateTime.UtcNow;
+        var payload = LicensePayloadFormat.BuildCanonicalPayload(request.LicensedTo, issuedAtUtc, request.ExpiresAtUtc, request.MachineId, request.Features);
+        var payloadBytes = Encoding.UTF8.GetBytes(payload);
+        var signature = ecdsa.SignData(payloadBytes, HashAlgorithmName.SHA256);
+
+        var licenseJson = LicensePayloadFormat.BuildLicenseFile(payloadBytes, signature);
+        return new IssueLicenseResult(licenseJson, issuedAtUtc);
     }
 
     private static string? GetOption(string[] args, string name)
@@ -128,3 +147,12 @@ internal static class Program
         return null;
     }
 }
+
+internal readonly record struct IssueLicenseRequest(
+    string PrivateKeyPath,
+    string LicensedTo,
+    DateTime? ExpiresAtUtc,
+    string? MachineId,
+    IReadOnlyList<string> Features);
+
+internal readonly record struct IssueLicenseResult(string LicenseJson, DateTime IssuedAtUtc);

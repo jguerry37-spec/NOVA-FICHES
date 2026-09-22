@@ -11,9 +11,15 @@ public static class ImplantationFullReportRenderer
     private const double PageW = 595; // A4 portrait width in points
     private const double PageH = 842; // A4 portrait height in points
 
-    private static readonly XColor BrandBlue = XColor.FromArgb(18, 103, 243);
     private static readonly XColor LightGray = XColor.FromArgb(230, 230, 230);
     private static readonly XColor LineGray  = XColor.FromArgb(200, 200, 200);
+
+    // Branding courant du rendu en cours (module manager "Paramètres"). DrawFooter et
+    // DrawRepeatHeaderLogo sont appelés depuis des helpers de pagination génériques
+    // (EnsurePage/DrawSimpleTable, ~14 sites d'appel) qui n'ont pas "root" dans leur
+    // signature - même pattern que _rootForRefAlti dans StationReportRenderer.cs plutôt
+    // que de faire remonter root à travers toute la chaîne d'appel.
+    private static JsonElement _currentRoot;
 
     private const double MarginL = 36;
     private const double MarginR = 36;
@@ -48,7 +54,7 @@ public static class ImplantationFullReportRenderer
         var f = NovatlasTheme.FontBody(9);
         var f2 = NovatlasTheme.FontBody(8);
 
-        string address = NovatlasTheme.NovatlasAddress;
+        string address = NovatlasTheme.ResolveFooterAddress(_currentRoot);
         g.DrawString(address, f, XBrushes.Black,
             new XRect(MarginL, yLine + Units.MmToPt(2.5), page.Width.Point - MarginL - MarginR, Units.MmToPt(5)),
             XStringFormats.Center);
@@ -95,7 +101,7 @@ public static class ImplantationFullReportRenderer
         g.DrawRectangle(penBox, rectRight);
 
         // Logo centered inside left box
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(root);
         if (logo != null)
         {
             double pad = Units.MmToPt(4);
@@ -132,7 +138,7 @@ public static class ImplantationFullReportRenderer
         double bandY = rectLeft.Bottom + Units.MmToPt(4);
         double bandH = Units.MmToPt(12);
 
-        g.DrawRectangle(new XSolidBrush(BrandBlue), MarginL, bandY, contentW, bandH);
+        g.DrawRectangle(new XSolidBrush(NovatlasTheme.ResolveBlue(root)), MarginL, bandY, contentW, bandH);
         g.DrawString("RAPPORT D'INTERVENTION", NovatlasTheme.FontBold(12), XBrushes.White,
             new XRect(MarginL, bandY, contentW, bandH), XStringFormats.Center);
 
@@ -161,7 +167,7 @@ public static class ImplantationFullReportRenderer
     {
         // Continuation pages: small centered logo only (as in legacy PDF)
         double y = Units.MmToPt(6);
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(_currentRoot);
         if (logo != null)
         {
             double maxW = Units.MmToPt(28); // ~28 mm
@@ -987,6 +993,7 @@ private static double DrawBar(
     {
         using var jd = JsonDocument.Parse(payloadJson);
         var root = jd.RootElement;
+        _currentRoot = root;
 
         // Some reports (e.g. Récolement pieux) reuse this renderer for its validated
         // look & cartouche, but do NOT want the heavy observation blocks.
@@ -1140,7 +1147,7 @@ private static double DrawBar(
             if (isMntReport && runs.Count == 0 && impByStation.Any(kv => kv.Value != null && kv.Value.Count > 0))
             {
                 EnsurePage(doc, ref page, ref g, ref y, Units.MmToPt(40));
-                y = DrawBar(g, page, y, sectionImplantationTitle, BrandBlue);
+                y = DrawBar(g, page, y, sectionImplantationTitle, NovatlasTheme.ResolveBlue(root));
                 var sub = GetString(root, "subTitle");
                 if (!string.IsNullOrWhiteSpace(sub))
                 {
@@ -1403,7 +1410,7 @@ private static double DrawBar(
                 }
 
                 EnsurePage(doc, ref page, ref g, ref y, Units.MmToPt(40));
-                y = DrawBar(g, page, y, sectionImplantationTitle, BrandBlue);
+                y = DrawBar(g, page, y, sectionImplantationTitle, NovatlasTheme.ResolveBlue(root));
                 // subtitle (tolerances)
                 var sub = GetString(root, "subTitle");
                 if (!string.IsNullOrWhiteSpace(sub))

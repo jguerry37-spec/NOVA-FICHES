@@ -4,7 +4,6 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using PdfSharp.Drawing;
@@ -34,6 +33,10 @@ internal static class StationPlanRenderer
     private static readonly XColor Green = XColor.FromArgb(47, 158, 68);
     private static readonly XColor Red = XColor.FromArgb(185, 28, 28);
 
+    // Voir ImplantationFullReportRenderer._currentRoot : DrawTitleBar/DrawFooter/
+    // RestampFooters n'ont pas "root" dans leur signature.
+    private static JsonElement _currentRoot;
+
     // Lon/Lat sont optionnels : renseignés par MainForm (EnrichStationPlanViewWithLonLat)
     // avant l'appel à GenerateStationFromJson, car la reprojection (KmzExportService)
     // vit dans le projet NovaFiches, inaccessible depuis PdfSharpEngine (le sens de
@@ -43,13 +46,6 @@ internal static class StationPlanRenderer
     private sealed record Pt(string Id, double E, double N, bool Included, double? Lon, double? Lat);
     private sealed record Sight(string StationLabel, string PointId, string ColorHex, bool Included);
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(6) };
-
-    static StationPlanRenderer()
-    {
-        try { Http.DefaultRequestHeaders.UserAgent.ParseAdd("Nova-Fiches/PdfExport (+https://novatlas.fr)"); } catch { }
-    }
-
     public static void AppendFromPayload(PdfDocument doc, string payloadJson, string buildFooter)
     {
         JsonElement root;
@@ -58,6 +54,7 @@ internal static class StationPlanRenderer
         {
             using var jd = JsonDocument.Parse(payloadJson);
             root = jd.RootElement.Clone();
+            _currentRoot = root;
             if (!root.TryGetProperty("stationPlanView", out planView) || planView.ValueKind != JsonValueKind.Object)
                 return;
 
@@ -186,7 +183,7 @@ internal static class StationPlanRenderer
             double padLat = Math.Max((maxLat - minLat) * 0.15, 0.0002);
             minLon -= padLon; maxLon += padLon; minLat -= padLat; maxLat += padLat;
 
-            var grid = ComputeTileGrid(minLon, minLat, maxLon, maxLat);
+            var grid = MapTileFetcher.ComputeTileGrid(minLon, minLat, maxLon, maxLat);
             if (grid == null) return false;
             var (z, txMin, tyMin, txMax, tyMax) = grid.Value;
 
@@ -198,7 +195,7 @@ internal static class StationPlanRenderer
             // attendant le résultat : blocage total de l'application (deadlock classique
             // "sync-over-async"). Task.Run fait démarrer toute la chaîne async sur un
             // thread du pool, sans SynchronizationContext capturé, donc sans ce risque.
-            using var bitmap = Task.Run(() => FetchAndStitchTilesAsync(txMin, tyMin, txMax, tyMax, z, basemapKind)).GetAwaiter().GetResult();
+            using var bitmap = Task.Run(() => MapTileFetcher.FetchAndStitchTilesAsync(txMin, tyMin, txMax, tyMax, z, basemapKind)).GetAwaiter().GetResult();
             if (bitmap == null) return false;
 
             double bitmapW = (txMax - txMin + 1) * 256.0;
@@ -220,8 +217,8 @@ internal static class StationPlanRenderer
             XPoint? MapGeo(double? lon, double? lat)
             {
                 if (!lon.HasValue || !lat.HasValue) return null;
-                double wx = LonToTileX(lon.Value, z) * 256.0 - txMin * 256.0;
-                double wy = LatToTileY(lat.Value, z) * 256.0 - tyMin * 256.0;
+                double wx = MapTileFetcher.LonToTileX(lon.Value, z) * 256.0 - txMin * 256.0;
+                double wy = MapTileFetcher.LatToTileY(lat.Value, z) * 256.0 - tyMin * 256.0;
                 return new XPoint(offX + wx * scale, offY + wy * scale);
             }
 
@@ -352,84 +349,8 @@ internal static class StationPlanRenderer
         }
     }
 
-    // ===== Tuiles (Web Mercator, formules standard "slippy map") =====
-
-    private static double LonToTileX(double lon, int z) => (lon + 180.0) / 360.0 * (1 << z);
-
-    private static double LatToTileY(double lat, int z)
-    {
-        double latRad = lat * Math.PI / 180.0;
-        return (1.0 - Math.Log(Math.Tan(latRad) + 1.0 / Math.Cos(latRad)) / Math.PI) / 2.0 * (1 << z);
-    }
-
-    // Choisit le zoom le plus détaillé dont la grille de tuiles couvrant l'emprise reste
-    // dans le budget (maxTilesPerSide) - évite de télécharger des dizaines de tuiles pour
-    // une emprise large, tout en restant aussi net que possible pour une petite emprise
-    // de chantier (cas courant du Plan station).
-    private static (int z, int txMin, int tyMin, int txMax, int tyMax)? ComputeTileGrid(
-        double minLon, double minLat, double maxLon, double maxLat, int maxTilesPerSide = 6)
-    {
-        for (int z = 19; z >= 2; z--)
-        {
-            double xA = LonToTileX(minLon, z), xB = LonToTileX(maxLon, z);
-            double yA = LatToTileY(minLat, z), yB = LatToTileY(maxLat, z);
-            int txMin = (int)Math.Floor(Math.Min(xA, xB));
-            int txMax = (int)Math.Floor(Math.Max(xA, xB));
-            int tyMin = (int)Math.Floor(Math.Min(yA, yB));
-            int tyMax = (int)Math.Floor(Math.Max(yA, yB));
-            if (txMax - txMin + 1 <= maxTilesPerSide && tyMax - tyMin + 1 <= maxTilesPerSide)
-                return (z, txMin, tyMin, txMax, tyMax);
-        }
-        return null;
-    }
-
-    private static string TileUrl(int x, int y, int z, string kind)
-    {
-        if (string.Equals(kind, "satellite", StringComparison.OrdinalIgnoreCase))
-            return $"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-        // OSM répartit la charge sur les sous-domaines a/b/c ; répartition simple et déterministe.
-        char sub = "abc"[Math.Abs(x + y) % 3];
-        return $"https://{sub}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-    }
-
-    // Une tuile en échec (réseau, 404...) laisse juste un trou gris à cet endroit plutôt
-    // que de faire échouer tout le fond de carte - cohérent avec la tolérance déjà en
-    // place pour les repères NGF (IgnGeodesyService) et l'affichage carte à l'écran.
-    private static async Task<Bitmap?> FetchAndStitchTilesAsync(int txMin, int tyMin, int txMax, int tyMax, int z, string kind)
-    {
-        int cols = txMax - txMin + 1;
-        int rows = tyMax - tyMin + 1;
-        var bitmap = new Bitmap(cols * 256, rows * 256);
-        using (var gfx = System.Drawing.Graphics.FromImage(bitmap))
-            gfx.Clear(Color.FromArgb(235, 235, 235));
-
-        var lockObj = new object();
-        var tasks = new List<Task>();
-        for (int tx = txMin; tx <= txMax; tx++)
-        {
-            for (int ty = tyMin; ty <= tyMax; ty++)
-            {
-                int localTx = tx, localTy = ty;
-                tasks.Add(Task.Run(async () =>
-                {
-                    try
-                    {
-                        var bytes = await Http.GetByteArrayAsync(TileUrl(localTx, localTy, z, kind)).ConfigureAwait(false);
-                        using var ms = new System.IO.MemoryStream(bytes);
-                        using var tileImg = Image.FromStream(ms);
-                        lock (lockObj)
-                        {
-                            using var gfx = System.Drawing.Graphics.FromImage(bitmap);
-                            gfx.DrawImage(tileImg, (localTx - txMin) * 256, (localTy - tyMin) * 256, 256, 256);
-                        }
-                    }
-                    catch { /* tuile manquante : trou gris à cet endroit, le reste continue */ }
-                }));
-            }
-        }
-        await Task.WhenAll(tasks).ConfigureAwait(false);
-        return bitmap;
-    }
+    // Tuiles (Web Mercator, fond de carte OSM/Esri) : voir MapTileFetcher (extrait de ce
+    // fichier, réutilisé aussi par FicheSignaletiqueRenderer).
 
     private static void DrawLegend(XGraphics g, XRect frame, List<St> stations)
     {
@@ -515,7 +436,7 @@ internal static class StationPlanRenderer
         double h = Units.MmToPt(18);
 
         g.DrawRectangle(new XPen(XColors.Black, 0.8), x, y, logoW, h);
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(root);
         if (logo != null)
         {
             double pad = Units.MmToPt(3);
@@ -530,7 +451,7 @@ internal static class StationPlanRenderer
 
         double titleX = x + logoW + Units.MmToPt(5);
         double titleW = w - logoW - Units.MmToPt(5);
-        g.DrawRectangle(new XSolidBrush(BrandBlue), titleX, y, titleW, Units.MmToPt(8));
+        g.DrawRectangle(new XSolidBrush(NovatlasTheme.ResolveBlue(root)), titleX, y, titleW, Units.MmToPt(8));
         g.DrawString("ANNEXE", NovatlasTheme.FontBold(11), XBrushes.White,
             new XRect(titleX, y, titleW, Units.MmToPt(8)), XStringFormats.Center);
         g.DrawRectangle(new XPen(XColors.Black, 0.8), titleX, y + Units.MmToPt(8), titleW, Units.MmToPt(10));
@@ -549,7 +470,7 @@ internal static class StationPlanRenderer
         double barH = Units.MmToPt(10);
         double w = page.Width.Point - MarginL - MarginR;
         var rect = new XRect(MarginL, y, w, barH);
-        g.DrawRectangle(new XSolidBrush(BrandBlue), rect);
+        g.DrawRectangle(new XSolidBrush(NovatlasTheme.ResolveBlue(_currentRoot)), rect);
         g.DrawString(title, NovatlasTheme.FontBold(12), XBrushes.White, rect, XStringFormats.Center);
         y += barH + Units.MmToPt(4);
     }
@@ -559,7 +480,7 @@ internal static class StationPlanRenderer
         double yLine = page.Height.Point - Units.MmToPt(14);
         g.DrawLine(new XPen(LineGray, 0.4), MarginL, yLine, page.Width.Point - MarginR, yLine);
 
-        g.DrawString(NovatlasTheme.NovatlasAddress, NovatlasTheme.FontBody(9), XBrushes.Black,
+        g.DrawString(NovatlasTheme.ResolveFooterAddress(_currentRoot), NovatlasTheme.FontBody(9), XBrushes.Black,
             new XRect(MarginL, yLine + Units.MmToPt(2.5), page.Width.Point - MarginL - MarginR, Units.MmToPt(5)),
             XStringFormats.Center);
 
@@ -586,7 +507,7 @@ internal static class StationPlanRenderer
             g.DrawRectangle(XBrushes.White, new XRect(0, wipeY, page.Width.Point, page.Height.Point - wipeY));
             g.DrawLine(new XPen(LineGray, 0.4), MarginL, yLine, page.Width.Point - MarginR, yLine);
 
-            g.DrawString(NovatlasTheme.NovatlasAddress, NovatlasTheme.FontBody(9), XBrushes.Black,
+            g.DrawString(NovatlasTheme.ResolveFooterAddress(_currentRoot), NovatlasTheme.FontBody(9), XBrushes.Black,
                 new XRect(MarginL, yLine + Units.MmToPt(2.5), page.Width.Point - MarginL - MarginR, Units.MmToPt(5)),
                 XStringFormats.Center);
 

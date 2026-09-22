@@ -2,14 +2,14 @@
 
   <PropertyGroup>
      <!-- Version unique de la release -->
-	<Version>2.3.1.52</Version>
+	<Version>3.1.16.0</Version>
 
   <!-- Version binaire Windows -->
-	<AssemblyVersion>2.3.1.52</AssemblyVersion>
-	<FileVersion>2.3.1.52</FileVersion>
+	<AssemblyVersion>3.1.16.0</AssemblyVersion>
+	<FileVersion>3.1.16.0</FileVersion>
 
   <!-- Version “lisible” affichable côté app / logs -->
-	<InformationalVersion>2.3.1.52</InformationalVersion>
+	<InformationalVersion>3.1.16.0</InformationalVersion>
 
   <!-- Empêche le SDK .NET d'ajouter automatiquement "+<hash git>" à la version
        affichée (PDF, appli) : ces infos internes n'ont rien à faire côté client. -->
@@ -34,6 +34,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2739.15" />
+    <!-- Composition de la carte de situation "Contrôle classe de précision"
+         (ControlePrecisionMapService) et rendu du QR code de licence (LicenseForm) - même version
+         que NovaFiches.PdfSharpEngine pour rester cohérent. -->
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
   </ItemGroup>
 
   <!-- Permet à NovaFiches.Tests d'appeler les services "internal" (LicenseService,

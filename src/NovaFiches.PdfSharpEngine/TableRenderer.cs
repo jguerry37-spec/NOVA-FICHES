@@ -89,6 +89,13 @@ public static ImplantationTablePayload PayloadFromJsonTable(JsonElement root, st
         /// Brush used for shaded rows. If null, a light grey default is used.
         /// </summary>
         public XBrush? ShadeBrush { get; set; } = null;
+
+        /// <summary>
+        /// Optional per-cell background color (row index, column index) -> color, or null for no
+        /// fill. Drawn on top of AlternateRowShading for that cell only (e.g. tercile color-coding
+        /// of a deviation column).
+        /// </summary>
+        public Func<int, int, XColor?>? CellBackground { get; set; }
     }
 
     /// <summary>
@@ -245,6 +252,10 @@ public static ImplantationTablePayload PayloadFromJsonTable(JsonElement root, st
         {
             string txt = c < row.Length ? (row[c] ?? "") : "";
             var rect = new XRect(cx, y, widths[c], RowHeight);
+
+            var cellBg = layout.CellBackground?.Invoke(globalRowIndex, c);
+            if (cellBg != null)
+                gfx.DrawRectangle(new XSolidBrush(cellBg.Value), rect);
 
             // Colonne "ID point" : toujours privilégier l'ajustement de taille (pas de retour à la ligne).
             if (c == 0)

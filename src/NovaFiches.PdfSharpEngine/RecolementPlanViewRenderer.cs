@@ -17,10 +17,7 @@ public static class RecolementPlanViewRenderer
     private const double MarginL = 36;
     private const double MarginR = 36;
 
-    private static readonly XColor BrandBlue = XColor.FromArgb(18, 103, 243);
     private static readonly XColor LineGray  = XColor.FromArgb(200, 200, 200);
-    // NOVATLAS orange (from brand guidelines)
-    private static readonly XColor NovatlasOrange = XColor.FromArgb(255, 90, 23);
 
     private static PdfPage AddPage(PdfDocument doc)
     {
@@ -61,7 +58,7 @@ public static class RecolementPlanViewRenderer
         g.DrawRectangle(penBox, rectRight);
 
         // Logo
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(root);
         if (logo != null)
         {
             double pad = Units.MmToPt(4);
@@ -109,12 +106,12 @@ public static class RecolementPlanViewRenderer
         g.DrawString(cha, fontCha, XBrushes.Black, new XRect(inner.X, y0 + hVille + hAdr, inner.Width, hCha), XStringFormats.Center);
     }
 
-    private static void DrawTitleBar(XGraphics g, PdfPage page, ref double y, string title)
+    private static void DrawTitleBar(XGraphics g, PdfPage page, ref double y, string title, JsonElement root)
     {
         double barH = Units.MmToPt(10);
         double w = page.Width.Point - MarginL - MarginR;
         var rect = new XRect(MarginL, y, w, barH);
-        g.DrawRectangle(new XSolidBrush(BrandBlue), rect);
+        g.DrawRectangle(new XSolidBrush(NovatlasTheme.ResolveBlue(root)), rect);
         g.DrawString(title, NovatlasTheme.FontBold(12), XBrushes.White, rect, XStringFormats.Center);
         y += barH + Units.MmToPt(4);
     }
@@ -261,7 +258,7 @@ public static class RecolementPlanViewRenderer
         // Header + title
         DrawHeader(g, page, root);
         double yTop = Units.MmToPt(6) + Units.MmToPt(22) + Units.MmToPt(6);
-        DrawTitleBar(g, page, ref yTop, planView.TryGetProperty("title", out var tEl) ? (tEl.GetString() ?? "VUE EN PLAN") : "VUE EN PLAN");
+        DrawTitleBar(g, page, ref yTop, planView.TryGetProperty("title", out var tEl) ? (tEl.GetString() ?? "VUE EN PLAN") : "VUE EN PLAN", root);
 
         // Plan frame area (leave space for footer)
         double footerSafe = Units.MmToPt(26);
@@ -353,10 +350,12 @@ public static class RecolementPlanViewRenderer
         }
 
         // Draw points
-        var penPoint = new XPen(mntStyle ? BrandBlue : XColors.Black, 0.8);
-        var brushPoint = mntStyle ? new XSolidBrush(BrandBlue) : XBrushes.Black;
+        var resolvedBlue = NovatlasTheme.ResolveBlue(root);
+        var resolvedOrange = NovatlasTheme.ResolveOrange(root);
+        var penPoint = new XPen(mntStyle ? resolvedBlue : XColors.Black, 0.8);
+        var brushPoint = mntStyle ? new XSolidBrush(resolvedBlue) : XBrushes.Black;
         // Highlight (Option B): orange outline only (no fill) to avoid darker overlap zones when points are close.
-        var penHi = new XPen(NovatlasOrange, 1.1);
+        var penHi = new XPen(resolvedOrange, 1.1);
 
         double r = 1.7;
         double rHi = 5.0;
@@ -413,7 +412,7 @@ public static class RecolementPlanViewRenderer
             if (isControlled && emphasizeControlled)
             {
                 // Extra emphasis for the selected/controlled pieu (stronger outline)
-                if(!hideImplantedRings) g.DrawEllipse(new XPen(NovatlasOrange, 2.2), pt.X - (ringRadius + 2), pt.Y - (ringRadius + 2), 2 * (ringRadius + 2), 2 * (ringRadius + 2));
+                if(!hideImplantedRings) g.DrawEllipse(new XPen(NovatlasTheme.ResolveOrange(root), 2.2), pt.X - (ringRadius + 2), pt.Y - (ringRadius + 2), 2 * (ringRadius + 2), 2 * (ringRadius + 2));
             }
 
             // Label placement (only implanted)

@@ -14,9 +14,12 @@ public static class LigneReferenceReportRenderer
     private const double PageW = 595; // A4 portrait width in points
     private const double PageH = 842; // A4 portrait height in points
 
-    private static readonly XColor BrandBlue = XColor.FromArgb(18, 103, 243);
     private static readonly XColor LightGray = XColor.FromArgb(230, 230, 230);
     private static readonly XColor LineGray  = XColor.FromArgb(200, 200, 200);
+
+    // Voir ImplantationFullReportRenderer._currentRoot : DrawFooter/DrawRepeatHeaderLogo sont
+    // appelés depuis des helpers de pagination génériques sans "root" dans leur signature.
+    private static JsonElement _currentRoot;
 
     private const double MarginL = 36;
     private const double MarginR = 36;
@@ -127,7 +130,7 @@ public static class LigneReferenceReportRenderer
         var f = NovatlasTheme.FontBody(9);
         var f2 = NovatlasTheme.FontBody(8);
 
-        string address = NovatlasTheme.NovatlasAddress;
+        string address = NovatlasTheme.ResolveFooterAddress(_currentRoot);
         g.DrawString(address, f, XBrushes.Black,
             new XRect(MarginL, yLine + Units.MmToPt(2.5), page.Width.Point - MarginL - MarginR, Units.MmToPt(5)),
             XStringFormats.Center);
@@ -174,7 +177,7 @@ public static class LigneReferenceReportRenderer
         g.DrawRectangle(penBox, rectRight);
 
         // Logo centered inside left box
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(root);
         if (logo != null)
         {
             double pad = Units.MmToPt(4);
@@ -211,7 +214,7 @@ public static class LigneReferenceReportRenderer
         double bandY = rectLeft.Bottom + Units.MmToPt(4);
         double bandH = Units.MmToPt(12);
 
-        g.DrawRectangle(new XSolidBrush(BrandBlue), MarginL, bandY, contentW, bandH);
+        g.DrawRectangle(new XSolidBrush(NovatlasTheme.ResolveBlue(root)), MarginL, bandY, contentW, bandH);
         g.DrawString("RAPPORT D'INTERVENTION", NovatlasTheme.FontBold(12), XBrushes.White,
             new XRect(MarginL, bandY, contentW, bandH), XStringFormats.Center);
 
@@ -240,7 +243,7 @@ public static class LigneReferenceReportRenderer
     {
         // Continuation pages: small centered logo only (as in legacy PDF)
         double y = Units.MmToPt(6);
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(_currentRoot);
         if (logo != null)
         {
             double maxW = Units.MmToPt(28); // ~28 mm
@@ -1080,6 +1083,7 @@ private static double DrawBar(
     {
         using var jd = JsonDocument.Parse(payloadJson);
         var root = jd.RootElement;
+        _currentRoot = root;
 
         PdfPage page = AddPage(doc);
         var g = XGraphics.FromPdfPage(page);
@@ -1318,7 +1322,7 @@ private static double DrawBar(
 
                 // IMPLANTATION (per station)
                 EnsurePage(doc, ref page, ref g, ref y, Units.MmToPt(40));
-                y = DrawBar(g, page, y, "MESURE SUR LIGNE", BrandBlue);
+                y = DrawBar(g, page, y, "MESURE SUR LIGNE", NovatlasTheme.ResolveBlue(root));
                 // subtitle (tolerances)
                 var sub = GetString(root, "subTitle");
                 if (!string.IsNullOrWhiteSpace(sub))

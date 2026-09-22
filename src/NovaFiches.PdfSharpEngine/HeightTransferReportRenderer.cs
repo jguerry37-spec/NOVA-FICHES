@@ -10,9 +10,11 @@ namespace NovaFiches.PdfSharpEngine;
 
 internal static class HeightTransferReportRenderer
 {
-    private static readonly XColor BrandBlue = XColor.FromArgb(18, 103, 243);
     private static readonly XColor LightGray = XColor.FromArgb(230, 230, 230);
     private static readonly XColor LineGray = XColor.FromArgb(200, 200, 200);
+
+    // Voir ImplantationFullReportRenderer._currentRoot.
+    private static JsonElement _currentRoot;
 
     private const double MarginL = 36;
     private const double MarginR = 36;
@@ -23,6 +25,7 @@ internal static class HeightTransferReportRenderer
     {
         using var json = JsonDocument.Parse(payloadJson);
         var root = json.RootElement;
+        _currentRoot = root;
         var transfers = ReadArray(root, "heightTransfers").ToList();
 
         var page = AddPage(doc);
@@ -68,7 +71,7 @@ internal static class HeightTransferReportRenderer
     private static double DrawTransfer(PdfDocument doc, ref PdfPage page, ref XGraphics g, double y, JsonElement tr)
     {
         y = EnsurePage(doc, ref page, ref g, y, 120);
-        y = Bar(g, page, y, "TRANSFERT D'ALTITUDE", NovatlasTheme.Orange, XBrushes.White);
+        y = Bar(g, page, y, "TRANSFERT D'ALTITUDE", NovatlasTheme.ResolveOrange(_currentRoot), XBrushes.White);
 
         string station = First(Get(tr, "stationName"), Get(tr, "setupId"));
         string setup = Get(tr, "setupId");
@@ -190,7 +193,7 @@ internal static class HeightTransferReportRenderer
         g.DrawRectangle(penBox, rectLeft);
         g.DrawRectangle(penBox, rectRight);
 
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(root);
         if (logo != null)
         {
             double pad = Units.MmToPt(4);
@@ -218,7 +221,7 @@ internal static class HeightTransferReportRenderer
 
         double bandY = rectLeft.Bottom + Units.MmToPt(4);
         double bandH = Units.MmToPt(12);
-        g.DrawRectangle(new XSolidBrush(BrandBlue), MarginL, bandY, contentW, bandH);
+        g.DrawRectangle(new XSolidBrush(NovatlasTheme.ResolveBlue(root)), MarginL, bandY, contentW, bandH);
         g.DrawString("RAPPORT D'INTERVENTION", NovatlasTheme.FontBold(12), XBrushes.White,
             new XRect(MarginL, bandY, contentW, bandH), XStringFormats.Center);
 
@@ -345,7 +348,7 @@ internal static class HeightTransferReportRenderer
     private static double DrawRepeatHeaderLogo(XGraphics g, PdfPage page)
     {
         double y = Units.MmToPt(6);
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(_currentRoot);
         if (logo != null)
         {
             double maxW = Units.MmToPt(28);
@@ -533,7 +536,7 @@ internal static class HeightTransferReportRenderer
     private static void DrawFooter(XGraphics g, PdfPage page, int p, int total, string buildFooter)
     {
         double y = page.Height.Point - 24;
-        g.DrawString("NOVATLAS - 24 boulevard Paul Vaillant Couturier - 94200 IVRY SUR SEINE", Font(7), XBrushes.Black,
+        g.DrawString(NovatlasTheme.ResolveFooterAddress(_currentRoot), Font(7), XBrushes.Black,
             new XRect(MarginL, y, page.Width.Point - MarginL - MarginR, 9), XStringFormats.Center);
         g.DrawString($"{buildFooter}    Page {p} / {total}", Font(7), XBrushes.Black,
             new XRect(MarginL, y + 10, page.Width.Point - MarginL - MarginR, 9), XStringFormats.Center);

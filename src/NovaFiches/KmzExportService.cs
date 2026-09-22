@@ -398,7 +398,10 @@ public static class KmzExportService
         sb.AppendLine("  </Style>");
     }
 
-    private static (double Lon, double Lat) ToWgs84(double x, double y, string sourceCrs)
+    // internal (pas private) : réutilisé par FicheSignaletiqueReprojection.ToWgs84FromEpsg,
+    // qui a besoin d'appeler la même math de reprojection sans dupliquer les constantes
+    // Lambert/RGF93-CC ci-dessous.
+    internal static (double Lon, double Lat) ToWgs84(double x, double y, string sourceCrs)
     {
         if (sourceCrs.Contains("4326", StringComparison.OrdinalIgnoreCase) ||
             sourceCrs.Contains("WGS84", StringComparison.OrdinalIgnoreCase))

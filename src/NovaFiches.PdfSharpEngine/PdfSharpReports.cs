@@ -235,6 +235,9 @@ private static void SaveBytesWithFallback(byte[] pdfBytes, string outputPath)
 
     // Renderer gère tout (header/footer/pagination) + parse JSON en interne.
     LigneReferenceReportRenderer.Render(doc, payloadJson, buildProof);
+    // Annexe graphique optionnelle (includeGraphicalPlan) - avant PhotoAppendixRenderer pour que
+    // son RestampFooters(doc, buildProof) final retamponne aussi ces nouvelles pages.
+    LigneReferencePlanRenderer.AppendFromPayload(doc, payloadJson, buildProof);
     PhotoAppendixRenderer.AppendFromPayload(doc, payloadJson, buildProof);
 
     Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
@@ -274,6 +277,41 @@ private static void SaveBytesWithFallback(byte[] pdfBytes, string outputPath)
         doc.Info.Creator = "Nova-Fiches (PdfSharp)";
 
         CoverOnlyReportRenderer.Render(doc, payloadJson, buildProof);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
+        SaveWithFallback(doc, outputPdfPath);
+    }
+
+    /// <summary>
+    /// Module manager "Fiches signalétiques" : une page par ligne du payload
+    /// (fichesSignaletiques.rows). Utilisé aussi bien pour l'export "toutes les fiches"
+    /// (payload avec toutes les lignes) que pour "une fiche par fichier" (MainForm appelle
+    /// cette même méthode une fois par ligne, avec un payload à une seule ligne).
+    /// </summary>
+    public static void GenerateFichesSignaletiquesFromJson(string outputPdfPath, string payloadJson, string buildProof)
+    {
+        using var doc = new PdfDocument();
+        doc.Info.Title = "Fiches signalétiques";
+        doc.Info.Creator = "Nova-Fiches (PdfSharp)";
+
+        FicheSignaletiqueRenderer.AppendFromPayload(doc, payloadJson, buildProof);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
+        SaveWithFallback(doc, outputPdfPath);
+    }
+
+    /// <summary>
+    /// Module manager "Contrôle classe de précision" (Phase 1) : page de garde, paramètres/résumé,
+    /// conditions réglementaires, conclusion, tableau détaillé, annexe. Le payload est déjà
+    /// entièrement calculé côté MainForm.cs (ControlePrecisionService.Analyze).
+    /// </summary>
+    public static void GenerateControlePrecisionFromJson(string outputPdfPath, string payloadJson, string buildProof)
+    {
+        using var doc = new PdfDocument();
+        doc.Info.Title = "Contrôle classe de précision";
+        doc.Info.Creator = "Nova-Fiches (PdfSharp)";
+
+        ControlePrecisionRenderer.Render(doc, payloadJson, buildProof);
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
         SaveWithFallback(doc, outputPdfPath);

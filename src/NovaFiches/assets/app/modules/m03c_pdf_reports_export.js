@@ -657,6 +657,10 @@ document.getElementById("btnPdfLigneRef")?.addEventListener("click", async () =>
         ligneRefRowsByStation,
         groupByZone: nfPdfGroupByZoneEnabled_(),
         zoneLabels: nfGetZoneRenameMap(),
+
+        // Annexe graphique optionnelle (LigneReferencePlanRenderer côté C#) : une page de plan
+        // (ligne + point + cotation) par ligne de référence, en plus du tableau existant.
+        includeGraphicalPlan: !!document.getElementById("linerefIncludeGraphicalPlan")?.checked,
       };
 
       if(window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === "function")

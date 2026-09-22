@@ -2,6 +2,53 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 3.1.16
+
+- Fond de carte "Plan" : remplacé par le **Plan IGN v2** (service public Géoplateforme, data.geopf.fr) à la place d'OpenStreetMap direct. Le correctif de la 3.1.15 (limitation des requêtes + cache) réduisait le risque de blocage, mais la politique d'usage d'OpenStreetMap interdit en principe de distribuer une application qui utilise leurs tuiles sans autorisation préalable - indépendamment du soin apporté au rythme des requêtes -, donc le blocage pouvait se reproduire. Le service IGN est en accès libre, sans clé API ni compte à créer, et l'application l'utilise déjà pour les repères NGF. Le fond "Satellite" (Esri) n'est pas concerné, il continue de fonctionner tel quel.
+  - S'applique partout où un fond "Plan" est utilisé : Export KMZ (carte à l'écran), Plan station, Fiches signalétiques, Contrôle classe de précision.
+- Build : passage de l'application et du moteur PDF en **3.1.16.0**.
+
+## 3.1.15
+
+- Correction : les fonds de carte OpenStreetMap (Export KMZ, Fiches signalétiques, Contrôle classe de précision) pouvaient s'afficher en tuiles "Access blocked - App is not following the tile usage policy". Cause réelle : la récupération des tuiles pour les cartes générées par l'application (PDF, cartes PNG) lançait toutes les tuiles d'une grille en téléchargement simultané, sans aucune limite ni mise en cache - au point de dépasser ce que la politique d'usage des serveurs OpenStreetMap (bénévoles, capacité limitée) tolère, jusqu'à se faire bloquer. Les requêtes sont désormais limitées à 2 en simultané et les tuiles déjà récupérées pendant la session ne sont plus redemandées. Au passage, la carte affichée à l'écran (Export KMZ) demandait aussi des niveaux de zoom (20 à 22) qu'OpenStreetMap ne fournit pas réellement (le serveur s'arrête à 19) - corrigé pour ne plus interroger ces niveaux inexistants.
+  - Si le blocage persiste malgré cette correction : OpenStreetMap peut bloquer une adresse IP pendant un moment après un usage jugé abusif, indépendamment du correctif logiciel - la situation devrait se résorber d'elle-même après un délai.
+- Build : passage de l'application et du moteur PDF en **3.1.15.0**.
+
+## 3.1.14
+
+- Rattrapage de journal : les versions 3.1.1 à 3.1.13 n'ont pas été consignées individuellement ici (écart repéré lors d'un audit du 2026-09-03). Trois nouveaux modules manager sont apparus dans le menu de navigation depuis la 3.1.0, jamais mentionnés jusqu'ici :
+  - **Paramètres** : personnalisation du logo, de l'adresse de pied de page et des couleurs (bleu/orange) appliqués à tous les PDF générés par l'application.
+  - **Fiches signalétiques** : import CSV, géocodage automatique, export PDF (une fiche par point ou un lot complet).
+  - **Contrôle de doublons** : fusionne plusieurs fichiers de points TXT contre un fichier de contrôle unique, avec résolution manuelle de chaque conflit (moyenne d'une sélection d'occurrences, ou suppression) avant export.
+- **Module PPSPS retiré de Nova-Fiches.** Il redevient une application autonome, distincte de Nova-Fiches (plus de gestion de licence pour cette partie) - décision actée le 2026-09-03. Toute trace du module (module manager, lecture automatique PGC/PPSPS, rédaction assistée par IA, génération Word/PDF) a été retirée de l'application ; les dépendances qui ne servaient qu'à lui (PdfPig, DocumentFormat.OpenXml) ont été retirées du projet.
+- Audit complet de l'application (2026-09-03) - corrections trouvées :
+  - Contrôle de doublons : correction - un point dont l'identifiant contenait par coïncidence la lettre X, Y, Z ou N (ex. "PTX12", "BORNE-N2") était pris à tort pour une ligne d'en-tête et disparaissait silencieusement de l'import, sans rejet ni avertissement, s'il se trouvait être la toute première ligne du fichier. La détection d'en-tête compare désormais chaque colonne au mot exact "X"/"Y"/"Z"/"N" plutôt que de chercher ces lettres n'importe où dans la ligne. Même correction appliquée au parseur historique d'Échanges/KMZ, qui partageait la même faiblesse.
+  - Contrôle classe de précision : correction - contrairement à tous les autres exports PDF de l'application, ce rapport n'appliquait jamais le logo/les couleurs personnalisés configurés dans Paramètres (retombait silencieusement sur l'identité NOVATLAS par défaut). La couleur du point de repère sur la carte de situation de ce même rapport était elle aussi codée en dur ; les deux suivent désormais la personnalisation.
+- Build : passage de l'application et du moteur PDF en **3.1.14.0**.
+
+## 3.1.0
+
+- Contrôle classe de précision : correction - un fichier de référence dont le champ "code" contient un texte libre à plusieurs mots (ex. "Point de construction 1") faisait basculer à tort le parseur sur le format "brut" (10 colonnes théo+mesuré), qui rejetait alors silencieusement la ligne entière en tentant de lire ce texte comme une coordonnée. Sur un cas réel, cela faisait disparaître 740 points valides du fichier de référence (import réduit à 2454 points sur 3194) et 2 points de contrôle ne trouvaient plus leur correspondance (appariement à tort réduit de 40 à 38). Le format "brut" n'est désormais retenu que si les colonnes concernées sont bien numériques.
+- Contrôle classe de précision : le contrôle "3D Isotrope" n'apparaissait dans le rapport PDF que si le type de contrôle sélectionné contenait littéralement "3D" - absent à tort pour le réglage courant "2D+1D", alors qu'il s'agit d'un contrôle croisé toujours informatif. Affiché systématiquement désormais.
+- Contrôle classe de précision : la page "Répartition Spatiale des Points" pouvait apparaître quasiment vide sur un gros fichier Levé (plusieurs milliers de points) si une poignée de lignes mal formées produisaient une coordonnée aberrante - une seule valeur à des centaines de milliers de mètres des autres suffisait à écraser toute l'échelle du graphique. Le cadrage est désormais résistant aux valeurs aberrantes (clôture statistique), sans dépendre de la correction ci-dessus.
+- Contrôle classe de précision : ajout d'une pointe de flèche sur les vecteurs d'écarts de la "Carte des Vecteurs" (auparavant un simple trait, sans indication de sens) ; facteur d'exagération et épaisseur des traits augmentés pour se rapprocher du rendu du modèle de référence.
+- Contrôle classe de précision : points de la carte de situation agrandis (rayon et contour), trop peu visibles une fois la carte étirée à la largeur de la page.
+- Contrôle classe de précision : hauteur de cellule augmentée sur l'ensemble des tableaux du rapport (paramètres, résumé, conditions, seuils, barycentres, histogrammes) ; interligne et espacement entre paragraphes augmentés dans l'Annexe.
+- Build : passage de l'application et du moteur PDF en **3.1.0**.
+
+## 3.0.0
+
+- Ligne de référence : nouvelle annexe graphique optionnelle (case à cocher) ajoutée au PDF - dessine chaque ligne de contrôle (ligne théorique, point mesuré, point théorique, cotation), en plus du tableau existant qui reste inchangé.
+  - Régime "zone groupée" (A3 paysage) pour les contrôles ponctuels proches : plusieurs lignes regroupées par proximité réelle sur une même page, à une échelle normalisée (1:N) choisie automatiquement.
+  - Régime "pleine page" (A4) pour les lignes longues (ex. façade avec plusieurs points implantés le long du linéaire).
+  - Nouvelle page de transition "Vue générale" : tous les points du document sur un seul plan A3, avec le cercle et le n° de page de chaque zone.
+  - Repère "Situation" intégré au cadre de chaque page (recadrage dans l'ensemble du document).
+  - Légende Dl/Dt (écart longitudinal/transversal) + flèche rouge indiquant le sens de la ligne (start → end).
+  - Sur les pages "zone groupée" : chaque point ne porte plus qu'un simple n°, les valeurs Dl/Dt étant renvoyées dans de petits tableaux posés dans le cadre (un par amas de points) - évite les chevauchements de texte qui apparaissaient sur les contrôles très rapprochés (percements/joints groupés).
+- Ligne de référence (import LandXML) : les mesures en double face (cercle 1 / cercle 2 d'un même point, même ligne + même horodatage à 2 cm près) sont désormais fusionnées en un seul point (moyenne) au lieu d'apparaître comme deux points distincts.
+- Récolement de pieux : correction - les pieux nommés avec un suffixe lettre (double pieu, ex. "Pi.12.A" / "Pi.12.B") n'étaient jamais reconnus comme "avec référence théorique" lors de l'import TXT, faute d'une règle de normalisation commune entre l'identifiant théorique et l'identifiant mesuré.
+- Build : passage de l'application et du moteur PDF en **3.0.0** (nouveau cap majeur de version après la série 2.3.x).
+
 ## 2.3.1.52
 
 - Fondation (interne, sans effet visible pour l'instant) : la licence peut désormais porter une liste de modules complémentaires activés (`--features` dans `license-gen`), et l'application masque/affiche automatiquement tout élément marqué `data-nf-feature="clé"` en fonction de cette liste - même mécanisme que celui déjà utilisé pour masquer "Récolement MNT", mais piloté par la licence plutôt qu'en dur. Aucun module complémentaire n'existe encore ; les licences déjà émises continuent de fonctionner à l'identique (aucun module complémentaire par défaut).

@@ -12,13 +12,18 @@ internal static class PhotoAppendixRenderer
 {
     private const double MarginL = 36;
     private const double MarginR = 36;
-    private static readonly XColor BrandBlue = XColor.FromArgb(18, 103, 243);
     private static readonly XColor LineGray = XColor.FromArgb(200, 200, 200);
+
+    // Voir ImplantationFullReportRenderer._currentRoot. Ici, Append() ne reçoit que la liste
+    // de PhotoItem déjà extraite (pas le JsonElement root), donc même pattern pour le logo/
+    // couleurs/adresse personnalisés.
+    private static JsonElement _currentRoot;
 
     internal sealed record PhotoItem(string ModuleLabel, string Name, string Caption, string ImageData, string LinkedPointId, int? OrderKey, double? LinkedPointX = null, double? LinkedPointY = null, double? LinkedPointZ = null);
 
     public static void AppendFromPayload(PdfDocument doc, string payloadJson, string buildFooter)
     {
+        SetCurrentRoot(payloadJson);
         var photos = ReadPhotos(payloadJson).ToList();
         if (photos.Count == 0) return;
         Append(doc, photos, buildFooter);
@@ -26,6 +31,7 @@ internal static class PhotoAppendixRenderer
 
     public static void RenderStandaloneReport(PdfDocument doc, string payloadJson, string buildFooter)
     {
+        SetCurrentRoot(payloadJson);
         var info = ReadInfo(payloadJson);
         var photosPerPage = ReadPhotosPerPage(payloadJson);
         var photos = ReadPhotos(payloadJson)
@@ -33,6 +39,16 @@ internal static class PhotoAppendixRenderer
             .ToList();
         if (photos.Count == 0) return;
         Append(doc, photos, buildFooter, "REPORTAGE PHOTOS", info, photosPerPage);
+    }
+
+    private static void SetCurrentRoot(string payloadJson)
+    {
+        try
+        {
+            using var jd = JsonDocument.Parse(payloadJson);
+            _currentRoot = jd.RootElement.Clone();
+        }
+        catch { _currentRoot = default; }
     }
 
     private static int ReadPhotosPerPage(string payloadJson)
@@ -324,7 +340,7 @@ internal static class PhotoAppendixRenderer
         g.DrawRectangle(penBox, rectLeft);
         g.DrawRectangle(penBox, rectRight);
 
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(_currentRoot);
         if (logo != null)
         {
             double pad = Units.MmToPt(4);
@@ -346,7 +362,7 @@ internal static class PhotoAppendixRenderer
 
         double bandY = rectLeft.Bottom + Units.MmToPt(4);
         double bandH = Units.MmToPt(12);
-        g.DrawRectangle(new XSolidBrush(BrandBlue), MarginL, bandY, contentW, bandH);
+        g.DrawRectangle(new XSolidBrush(NovatlasTheme.ResolveBlue(_currentRoot)), MarginL, bandY, contentW, bandH);
         g.DrawString("RAPPORT D'INTERVENTION", NovatlasTheme.FontBold(12), XBrushes.White,
             new XRect(MarginL, bandY, contentW, bandH), XStringFormats.Center);
 
@@ -464,7 +480,7 @@ internal static class PhotoAppendixRenderer
         double h = Units.MmToPt(18);
 
         g.DrawRectangle(new XPen(XColors.Black, 0.8), x, y, logoW, h);
-        var logo = NovatlasTheme.TryLoadLogo();
+        var logo = NovatlasTheme.ResolveLogo(_currentRoot);
         if (logo != null)
         {
             double pad = Units.MmToPt(3);
@@ -479,7 +495,7 @@ internal static class PhotoAppendixRenderer
 
         double titleX = x + logoW + Units.MmToPt(5);
         double titleW = w - logoW - Units.MmToPt(5);
-        g.DrawRectangle(new XSolidBrush(BrandBlue), titleX, y, titleW, Units.MmToPt(8));
+        g.DrawRectangle(new XSolidBrush(NovatlasTheme.ResolveBlue(_currentRoot)), titleX, y, titleW, Units.MmToPt(8));
         g.DrawString(string.IsNullOrWhiteSpace(pageTitle) ? "ANNEXE PHOTOS" : pageTitle, NovatlasTheme.FontBold(11), XBrushes.White,
             new XRect(titleX, y, titleW, Units.MmToPt(8)), XStringFormats.Center);
         g.DrawRectangle(new XPen(XColors.Black, 0.8), titleX, y + Units.MmToPt(8), titleW, Units.MmToPt(10));
@@ -492,7 +508,7 @@ internal static class PhotoAppendixRenderer
         double yLine = page.Height.Point - Units.MmToPt(14);
         g.DrawLine(new XPen(LineGray, 0.4), MarginL, yLine, page.Width.Point - MarginR, yLine);
 
-        g.DrawString(NovatlasTheme.NovatlasAddress, NovatlasTheme.FontBody(9), XBrushes.Black,
+        g.DrawString(NovatlasTheme.ResolveFooterAddress(_currentRoot), NovatlasTheme.FontBody(9), XBrushes.Black,
             new XRect(MarginL, yLine + Units.MmToPt(2.5), page.Width.Point - MarginL - MarginR, Units.MmToPt(5)),
             XStringFormats.Center);
 
@@ -535,7 +551,7 @@ internal static class PhotoAppendixRenderer
             g.DrawRectangle(XBrushes.White, new XRect(0, wipeY, page.Width.Point, page.Height.Point - wipeY));
             g.DrawLine(new XPen(LineGray, 0.4), MarginL, yLine, page.Width.Point - MarginR, yLine);
 
-            g.DrawString(NovatlasTheme.NovatlasAddress, NovatlasTheme.FontBody(9), XBrushes.Black,
+            g.DrawString(NovatlasTheme.ResolveFooterAddress(_currentRoot), NovatlasTheme.FontBody(9), XBrushes.Black,
                 new XRect(MarginL, yLine + Units.MmToPt(2.5), page.Width.Point - MarginL - MarginR, Units.MmToPt(5)),
                 XStringFormats.Center);
 
