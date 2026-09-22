@@ -251,9 +251,25 @@ var pen = new XPen(XColors.Black, 0.8);
         string counts = isLeve
             ? $"Points mesurés : {pointsMesures}    Non eval. : {noneval}"
             : $"Points mesurés : {pointsMesures}    Valides : {valides}    Refuses : {refuses}    Non eval. : {noneval}";
-        g.DrawString(counts, fSmall, XBrushes.Black,
-            new XRect(rectCtl.Left + Units.MmToPt(3), rectCtl.Top + headH, rectCtl.Width - Units.MmToPt(6), rectCtl.Height - headH),
-            XStringFormats.CenterLeft);
+
+        var tol = ToleranceDisplay.Parse(root);
+        string tolLine = isLeve ? "" : ToleranceDisplay.FormatLine(tol);
+
+        var contentRect = new XRect(rectCtl.Left + Units.MmToPt(3), rectCtl.Top + headH, rectCtl.Width - Units.MmToPt(6), rectCtl.Height - headH);
+        if (string.IsNullOrEmpty(tolLine))
+        {
+            g.DrawString(counts, fSmall, XBrushes.Black, contentRect, XStringFormats.CenterLeft);
+        }
+        else
+        {
+            var fTol = NovatlasTheme.FontBody(8);
+            double lineH = Units.MmToPt(4.4);
+            double top = contentRect.Top + (contentRect.Height - lineH * 2) / 2.0;
+            g.DrawString(counts, fSmall, XBrushes.Black,
+                new XRect(contentRect.Left, top, contentRect.Width, lineH), XStringFormats.CenterLeft);
+            g.DrawString(tolLine, fTol, XBrushes.Black,
+                new XRect(contentRect.Left, top + lineH, contentRect.Width, lineH), XStringFormats.CenterLeft);
+        }
 
         y = yBoxesTop;
 
@@ -880,6 +896,13 @@ private static double DrawBar(
         // Use a local variable that we refresh after each EnsurePage() call.
         XGraphics gfx = g;
 
+        // Dx/Dy/Dz sit at fixed indices 7/8/9 in the 11-column layout this function is always
+        // called with (ID, X/Y/Z théo, X/Y/Z mes, Dx, Dy, Dz, STATUT) - highlight them in red
+        // when out of the tolerance already used to compute STATUT (JS-owned, not recomputed here).
+        var tol = ToleranceDisplay.Parse(_currentRoot);
+        var redBrush = new XSolidBrush(ToleranceDisplay.OutOfToleranceColor);
+        bool hasDxDyDz = colCount == 11;
+
         void DrawHeaderRow(double yy)
         {
             double xx = MarginL;
@@ -899,7 +922,14 @@ private static double DrawBar(
             {
                 string txt = c < row.Length ? (row[c] ?? "") : "";
                 var rect = new XRect(xx, yy, colW[c], rowH);
-                gfx.DrawString(txt, fC, XBrushes.Black, rect, XStringFormats.Center);
+                bool bad = hasDxDyDz && c switch
+                {
+                    7 => ToleranceDisplay.IsOutOfRangeXY(ToleranceDisplay.ParseCell(txt), tol),
+                    8 => ToleranceDisplay.IsOutOfRangeXY(ToleranceDisplay.ParseCell(txt), tol),
+                    9 => ToleranceDisplay.IsOutOfRangeZ(ToleranceDisplay.ParseCell(txt), tol),
+                    _ => false
+                };
+                gfx.DrawString(txt, fC, bad ? redBrush : XBrushes.Black, rect, XStringFormats.Center);
                 xx += colW[c];
             }
         }

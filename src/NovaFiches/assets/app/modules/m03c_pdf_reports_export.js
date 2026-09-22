@@ -95,6 +95,8 @@ cha: (R && (R.cha || R.CHA)) ? (R.cha || R.CHA) : "",
         tolZOn: !!O.zOn,
         tolXY: isFinite(O.tXY) ? O.tXY : null,
         tolZ: isFinite(O.tZ) ? O.tZ : null,
+        tolXYMinus: isFinite(O.tXYMinus) ? O.tXYMinus : null,
+        tolZMinus: isFinite(O.tZMinus) ? O.tZMinus : null,
         observations: (R && (R.obs || R.observations)) ? (R.obs || R.observations) : ""
       },
 
@@ -205,6 +207,8 @@ document.getElementById("btnPdfCompletPdfSharp")?.addEventListener("click", asyn
         tolZOn: !!O.zOn,
         tolXY: isFinite(O.tXY) ? O.tXY : null,
         tolZ: isFinite(O.tZ) ? O.tZ : null,
+        tolXYMinus: isFinite(O.tXYMinus) ? O.tXYMinus : null,
+        tolZMinus: isFinite(O.tZMinus) ? O.tZMinus : null,
         observations: (R && (R.obs || R.observations)) ? (R.obs || R.observations) : ""
       },
     };
@@ -242,6 +246,8 @@ document.getElementById("btnPdfCompletPdfSharp")?.addEventListener("click", asyn
         tolZOn: !!document.getElementById("tolZOn")?.checked,
         tolXY: Number(document.getElementById("tolXY")?.value || 0),
         tolZ: Number(document.getElementById("tolZ")?.value || 0),
+        tolXYMinus: Number(document.getElementById("tolXYMinus")?.value || 0),
+        tolZMinus: Number(document.getElementById("tolZMinus")?.value || 0),
         observations: (R && (R.obs || R.observations)) ? (R.obs || R.observations) : ""
       },
 
@@ -369,6 +375,8 @@ async function buildPdfPointsTopo(data){
         tolZOn: !!O.zOn,
         tolXY: isFinite(O.tXY) ? O.tXY : null,
         tolZ: isFinite(O.tZ) ? O.tZ : null,
+        tolXYMinus: isFinite(O.tXYMinus) ? O.tXYMinus : null,
+        tolZMinus: isFinite(O.tZMinus) ? O.tZMinus : null,
         observations: (R && (R.obs || R.observations)) ? (R.obs || R.observations) : ""
       },
 
@@ -500,6 +508,8 @@ async function exportPdf(kind){
             tolZOn: !!document.getElementById("tolZOn")?.checked,
             tolXY: Number(document.getElementById("tolXY")?.value || 0),
             tolZ: Number(document.getElementById("tolZ")?.value || 0),
+            tolXYMinus: Number(document.getElementById("tolXYMinus")?.value || 0),
+            tolZMinus: Number(document.getElementById("tolZMinus")?.value || 0),
             observations: (R && (R.obs || R.observations)) ? (R.obs || R.observations) : ""
           },
 
@@ -633,6 +643,8 @@ document.getElementById("btnPdfLigneRef")?.addEventListener("click", async () =>
           tolZOn: !!document.getElementById("tolZOn")?.checked,
           tolXY: Number(document.getElementById("tolXY")?.value || 0),
           tolZ: Number(document.getElementById("tolZ")?.value || 0),
+          tolXYMinus: Number(document.getElementById("tolXYMinus")?.value || 0),
+          tolZMinus: Number(document.getElementById("tolZMinus")?.value || 0),
           observations: (R && (R.obs || R.observations)) ? (R.obs || R.observations) : ""
         },
 
@@ -835,9 +847,35 @@ document.getElementById('pdfGroupByZone')?.addEventListener('change', ()=>{
 
 try{ nfRenderZoneLabelsEditor_(); }catch(_){ }
 
-["tolXYOn","tolZOn","tolXY","tolZ","optTol","calcDzOn"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener("change", ()=>{ refreshTolWarnings(); syncDzUI(); if(lastData){ refreshAll(); } }); el.addEventListener("input", ()=>{ refreshTolWarnings(); }); }});
+["tolXYOn","tolZOn","tolXY","tolZ","tolXYMinus","tolZMinus","optTol","calcDzOn"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener("change", ()=>{ refreshTolWarnings(); syncDzUI(); if(lastData){ refreshAll(); } }); el.addEventListener("input", ()=>{ refreshTolWarnings(); }); }});
 refreshTolWarnings();
 syncDzUI();
+
+// Tolérance Z sans calcul de Dz = STATUT silencieusement basé sur XY seul (piège rencontré en usage réel) :
+// les deux cases sont liées pour que ce ne soit plus possible.
+(function linkTolZAndCalcDz(){
+  const tolZOnEl = document.getElementById("tolZOn");
+  const calcDzOnEl = document.getElementById("calcDzOn");
+  if(!tolZOnEl || !calcDzOnEl) return;
+  tolZOnEl.addEventListener("change", ()=>{
+    if(tolZOnEl.checked && !calcDzOnEl.checked){
+      calcDzOnEl.checked = true;
+      calcDzOnEl.dispatchEvent(new Event("change", { bubbles:true }));
+    }
+  });
+  calcDzOnEl.addEventListener("change", ()=>{
+    if(!calcDzOnEl.checked && tolZOnEl.checked){
+      tolZOnEl.checked = false;
+      tolZOnEl.dispatchEvent(new Event("change", { bubbles:true }));
+    }
+  });
+  // Réconciliation immédiate : au premier chargement (ou juste après un params_load),
+  // "Tolérance Z" peut déjà être coché alors que "Calculer Dz" ne l'est pas encore.
+  if(tolZOnEl.checked && !calcDzOnEl.checked){
+    calcDzOnEl.checked = true;
+    calcDzOnEl.dispatchEvent(new Event("change", { bubbles:true }));
+  }
+})();
 
 setStatus("Prêt");
 

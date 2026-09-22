@@ -979,7 +979,10 @@ window.NOVA_getState = function(){
       tolXYOn: !!gv('tolXYOn', false),
       tolZOn: !!gv('tolZOn', false),
       tolXY: gv('tolXY',''),
-      tolZ: gv('tolZ','')
+      tolZ: gv('tolZ',''),
+      tolXYMinus: gv('tolXYMinus',''),
+      tolZMinus: gv('tolZMinus',''),
+      calcDzOn: !!gv('calcDzOn', false)
     },
     fichiers: {
       landxmlPath: String(window.__NF_PROJECT_FILES?.landxmlPath || ''),
@@ -1061,6 +1064,9 @@ window.NOVA_setState = function(data){
   sv('tolZOn', !!t.tolZOn, true);
   sv('tolXY', t.tolXY || '');
   sv('tolZ', t.tolZ || '');
+  sv('tolXYMinus', t.tolXYMinus || '');
+  sv('tolZMinus', t.tolZMinus || '');
+  sv('calcDzOn', !!t.calcDzOn, true);
 
   sv('pdfGroupByZone', !!ui.pdfGroupByZone, true);
   try{
@@ -1117,12 +1123,20 @@ function pdfFileBase(R){
 
 
 // ===== Options (single source of truth for UI toggles) =====
+// Tolérances XY/Z asymétriques (ajout) : tXY/tZ restent la borne HAUTE (+), historiquement la
+// seule valeur qui existait (± symétrique) - tXYMinus/tZMinus sont la borne BASSE (magnitude
+// positive, ex. 2 pour "-2"). Champs "...Minus" absents/vides => repli sur tXY/tZ (comportement
+// ± symétrique inchangé pour tout dossier qui ne renseigne pas explicitement une borne basse
+// différente - voir topo_app.html, value initiale des nouveaux champs = valeur par défaut du
+// champ existant).
 function getOptions(){
   const optTol = document.getElementById("optTol");
   const tolXYOn = document.getElementById("tolXYOn");
   const tolZOn = document.getElementById("tolZOn");
   const tolXY = document.getElementById("tolXY");
   const tolZ  = document.getElementById("tolZ");
+  const tolXYMinusEl = document.getElementById("tolXYMinus");
+  const tolZMinusEl  = document.getElementById("tolZMinus");
   const calcDzOn = document.getElementById("calcDzOn");
 
   const tolOn = optTol ? !!optTol.checked : false;
@@ -1130,36 +1144,59 @@ function getOptions(){
   const zOn   = tolZOn ? !!tolZOn.checked : true;
   const tXY   = tolXY ? Number(tolXY.value) : NaN;
   const tZ    = tolZ  ? Number(tolZ.value)  : NaN;
+  const tXYMinusRaw = tolXYMinusEl ? Number(tolXYMinusEl.value) : NaN;
+  const tZMinusRaw  = tolZMinusEl  ? Number(tolZMinusEl.value)  : NaN;
+  const tXYMinus = Number.isFinite(tXYMinusRaw) ? tXYMinusRaw : tXY;
+  const tZMinus  = Number.isFinite(tZMinusRaw)  ? tZMinusRaw  : tZ;
   const calcDz = calcDzOn ? !!calcDzOn.checked : true;
 
-  return { tolOn, xyOn, zOn: (calcDz ? zOn : false), tXY, tZ, calcDz };
+  return { tolOn, xyOn, zOn: (calcDz ? zOn : false), tXY, tZ, tXYMinus, tZMinus, calcDz };
 }
 
 function statusFromTol(dx, dy, dz, opts){
   const O = opts || getOptions();
   if(!O.tolOn) return "";
 
+  const tXYMinus = Number.isFinite(Number(O.tXYMinus)) ? Number(O.tXYMinus) : Number(O.tXY);
+  const tZMinus  = Number.isFinite(Number(O.tZMinus))  ? Number(O.tZMinus)  : Number(O.tZ);
+
   const checks = [];
-  const hasXY = dx!=null && dy!=null && Number.isFinite(Number(dx)) && Number.isFinite(Number(dy)) && Number.isFinite(Number(O.tXY));
-  const hasZ = dz!=null && Number.isFinite(Number(dz)) && Number.isFinite(Number(O.tZ));
+  const hasXY = dx!=null && dy!=null && Number.isFinite(Number(dx)) && Number.isFinite(Number(dy)) && Number.isFinite(Number(O.tXY)) && Number.isFinite(tXYMinus);
+  const hasZ = dz!=null && Number.isFinite(Number(dz)) && Number.isFinite(Number(O.tZ)) && Number.isFinite(tZMinus);
 
   // Une fiche peut etre exploitable uniquement en XY si le Z theorique est absent.
-  if(O.xyOn && hasXY) checks.push(Math.abs(Number(dx)) <= Number(O.tXY) && Math.abs(Number(dy)) <= Number(O.tXY));
-  if(O.zOn && hasZ) checks.push(Math.abs(Number(dz)) <= Number(O.tZ));
+  // Bornes asymétriques : D doit rester entre -tMinus et +tPlus (ex. tPlus=1, tMinus=2 =>
+  // D accepté entre -2 et +1) - appliqué indépendamment à Dx et Dy (pas un rayon XY combiné,
+  // comportement déjà établi conservé tel quel).
+  if(O.xyOn && hasXY) checks.push(
+    Number(dx) <= Number(O.tXY) && Number(dx) >= -tXYMinus &&
+    Number(dy) <= Number(O.tXY) && Number(dy) >= -tXYMinus
+  );
+  if(O.zOn && hasZ) checks.push(Number(dz) <= Number(O.tZ) && Number(dz) >= -tZMinus);
 
   if(!checks.length) return "";
 
   return checks.every(Boolean) ? "VALIDE" : "REFUSÉ";
 }
 
-
+// Texte compact d'une tolérance pour affichage (en-têtes/pieds de page PDF, résumés à l'écran) :
+// "0.02" si symétrique (+ et − identiques, cas le plus courant), "[-0.03;+0.02]" sinon - unique
+// point de formatage réutilisé par tous les rapports plutôt que réécrit à chaque endroit.
+function formatTolRange(plus, minus){
+  const p = Number(plus), m = Number(minus);
+  if(!Number.isFinite(p)) return "—";
+  const mm = Number.isFinite(m) ? m : p;
+  if(mm === p) return String(p);
+  return `[-${mm};+${p}]`;
+}
 
 function refreshTolWarnings(){
   try{
     const warn = document.getElementById("tolWarn");
     if(!warn) return;
     const O = getOptions();
-    const bad = (O.xyOn && !(Number.isFinite(O.tXY) && O.tXY>0)) || (O.zOn && !(Number.isFinite(O.tZ) && O.tZ>0));
+    const bad = (O.xyOn && !(Number.isFinite(O.tXY) && O.tXY>0 && Number.isFinite(O.tXYMinus) && O.tXYMinus>0))
+             || (O.zOn && !(Number.isFinite(O.tZ) && O.tZ>0 && Number.isFinite(O.tZMinus) && O.tZMinus>0));
     warn.style.display = bad ? "inline-block" : "none";
   }catch(e){}
 }

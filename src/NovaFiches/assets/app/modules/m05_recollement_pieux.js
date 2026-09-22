@@ -1405,6 +1405,8 @@ if(txtIn){
               tolZOn: false,
               tolXY: isFinite(O.tXY) ? O.tXY : null,
               tolZ: null,
+              tolXYMinus: isFinite(O.tXYMinus) ? O.tXYMinus : null,
+              tolZMinus: null,
               observations: (R && (R.obs || R.observations)) ? (R.obs || R.observations) : ''
             },
 

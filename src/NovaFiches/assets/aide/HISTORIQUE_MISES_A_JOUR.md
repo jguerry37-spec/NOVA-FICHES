@@ -2,6 +2,24 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 3.1.19
+
+- Les tolérances saisies apparaissent désormais dans l'encart "CONTRÔLES" en bas de tous les rapports PDF (Implantation, Mesure sur ligne, Récolement pieux, Récolement MNT, Station), sous la ligne "Points mesurés / Valides / Refusés / Non eval." - jusqu'ici invisibles sur le PDF (seul l'écran les affichait).
+- Dans le tableau de résultats de ces mêmes rapports, une valeur Dx/Dy/Dz hors tolérance apparaît maintenant en rouge dans sa propre case (au lieu de rester en noir comme les valeurs conformes), sans toucher au reste de la mise en page. Permet de repérer un écart en un coup d'œil sans avoir à comparer chaque valeur à la tolérance affichée.
+- Build : passage de l'application et du moteur PDF en **3.1.19.0**.
+
+## 3.1.18
+
+- **Correction importante** : la tolérance Z pouvait être silencieusement ignorée. "Tolérance Z" (page Projet) n'a d'effet sur le STATUT que si "Calculer Dz" (module Implantation) est aussi coché - sans quoi aucun écart Dz n'est calculé, donc rien à comparer à la tolérance : le STATUT se basait alors uniquement sur XY, affichant "VALIDE" même avec un écart Z hors tolérance, sans aucun avertissement. Repéré en usage réel (tolérance Z à 1 cm, écarts réels à 2 cm, tout affiché VALIDE). Les deux cases sont désormais liées : cocher "Tolérance Z" coche automatiquement "Calculer Dz" (et inversement, décocher "Calculer Dz" décoche "Tolérance Z") - cette incohérence n'est plus possible, y compris au premier chargement de l'application ou à la réouverture d'un projet enregistré (l'état de "Calculer Dz" est maintenant lui aussi sauvegardé avec le projet, ce qu'il n'était pas jusqu'ici).
+- Réorganisation de la page Projet : les 4 champs de tolérance sont répartis sur deux lignes (XY +/− puis Z +/−, chacune sous sa propre case à cocher), au lieu d'un bloc de 4 champs qui se repliait de façon peu lisible.
+- "Calculer Dz" est désormais décoché par défaut sur un nouveau projet (calcul Z réservé aux cas où une altimétrie théorique fiable existe), et la case "Joindre le plan graphique (Ligne de référence)" est masquée dans le module Implantation (fonctionnalité conservée mais mise en retrait, peu utilisée en l'état).
+- Build : passage de l'application et du moteur PDF en **3.1.18.0**.
+
+## 3.1.17
+
+- Tolérances XY / Z asymétriques (page Projet) : possibilité de saisir un seuil "+" et un seuil "−" distincts (ex. XY + = 0.010 m et XY − = 0.020 m accepte un écart Dx/Dy compris entre −0.020 et +0.010 m), au lieu d'une seule valeur appliquée symétriquement dans les deux sens. Les 4 champs (Tolérance XY +/−, Tolérance Z +/−) sont indépendants et affichés dans la page Projet ; ils sont pris en compte partout où le STATUT VALIDE/REFUSÉ ou l'écart Dx/Dy/Dz est calculé ou affiché (Implantation, Mesure sur ligne, Station libre multi-stations, Récolement pieux, Récolement MNT), y compris dans les PDF générés et les exports. Par défaut la valeur "−" reprend la valeur "+" (comportement symétrique inchangé pour les projets déjà enregistrés).
+- Build : passage de l'application et du moteur PDF en **3.1.17.0**.
+
 ## 3.1.16
 
 - Fond de carte "Plan" : remplacé par le **Plan IGN v2** (service public Géoplateforme, data.geopf.fr) à la place d'OpenStreetMap direct. Le correctif de la 3.1.15 (limitation des requêtes + cache) réduisait le risque de blocage, mais la politique d'usage d'OpenStreetMap interdit en principe de distribuer une application qui utilise leurs tuiles sans autorisation préalable - indépendamment du soin apporté au rythme des requêtes -, donc le blocage pouvait se reproduire. Le service IGN est en accès libre, sans clé API ni compte à créer, et l'application l'utilise déjà pour les repères NGF. Le fond "Satellite" (Esri) n'est pas concerné, il continue de fonctionner tel quel.

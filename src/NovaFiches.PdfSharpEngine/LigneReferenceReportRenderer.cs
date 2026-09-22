@@ -321,9 +321,25 @@ var pen = new XPen(XColors.Black, 0.8);
         int pointsMesures = cc.PointsMesures, valides = cc.Valides, refuses = cc.Refuses, noneval = cc.NonEval;
 
         string counts = $"Points mesurés : {pointsMesures}    Valides : {valides}    Refuses : {refuses}    Non eval. : {noneval}";
-        g.DrawString(counts, fSmall, XBrushes.Black,
-            new XRect(rectCtl.Left + Units.MmToPt(3), rectCtl.Top + headH, rectCtl.Width - Units.MmToPt(6), rectCtl.Height - headH),
-            XStringFormats.CenterLeft);
+
+        var tol = ToleranceDisplay.Parse(root);
+        string tolLine = ToleranceDisplay.FormatLine(tol);
+
+        var contentRect = new XRect(rectCtl.Left + Units.MmToPt(3), rectCtl.Top + headH, rectCtl.Width - Units.MmToPt(6), rectCtl.Height - headH);
+        if (string.IsNullOrEmpty(tolLine))
+        {
+            g.DrawString(counts, fSmall, XBrushes.Black, contentRect, XStringFormats.CenterLeft);
+        }
+        else
+        {
+            var fTol = NovatlasTheme.FontBody(8);
+            double lineH = Units.MmToPt(4.4);
+            double top = contentRect.Top + (contentRect.Height - lineH * 2) / 2.0;
+            g.DrawString(counts, fSmall, XBrushes.Black,
+                new XRect(contentRect.Left, top, contentRect.Width, lineH), XStringFormats.CenterLeft);
+            g.DrawString(tolLine, fTol, XBrushes.Black,
+                new XRect(contentRect.Left, top + lineH, contentRect.Width, lineH), XStringFormats.CenterLeft);
+        }
 
         y = yBoxesTop;
 
@@ -929,6 +945,11 @@ private static double DrawBar(
         // Use a local variable that we refresh after each EnsurePage() call.
         XGraphics gfx = g;
 
+        // Only the "Pt théo" row of each 3-row group carries actual Dx/Dy/Dz (cols 7/8/9) -
+        // the "Δ ligne" row holds dL/dT/dA instead, a different quantity not subject to XY/Z tolerance.
+        var tol = ToleranceDisplay.Parse(_currentRoot);
+        var redBrush = new XSolidBrush(ToleranceDisplay.OutOfToleranceColor);
+
         void DrawHeaderRow(double yy)
         {
             double xx = MarginL;
@@ -987,7 +1008,16 @@ private static double DrawBar(
                     ? (isLeftLabel ? XStringFormats.CenterLeft : XStringFormats.Center)
                     : XStringFormats.Center;
 
-                gfx.DrawString(finalTxt, fittedFont, XBrushes.Black, content, fmt);
+                bool isPtTheoRow = row.Length > 0 && string.Equals(row[0], "Pt théo", StringComparison.OrdinalIgnoreCase);
+                bool bad = isPtTheoRow && c switch
+                {
+                    7 => ToleranceDisplay.IsOutOfRangeXY(ToleranceDisplay.ParseCell(txt), tol),
+                    8 => ToleranceDisplay.IsOutOfRangeXY(ToleranceDisplay.ParseCell(txt), tol),
+                    9 => ToleranceDisplay.IsOutOfRangeZ(ToleranceDisplay.ParseCell(txt), tol),
+                    _ => false
+                };
+
+                gfx.DrawString(finalTxt, fittedFont, bad ? redBrush : XBrushes.Black, content, fmt);
                 gfx.Restore(state);
 
                 xx += colW[c];

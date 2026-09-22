@@ -281,11 +281,13 @@ async function buildPdfIntervention(data){
   const tolOn = document.getElementById("optTol").checked;
   const tXY = Number(document.getElementById("tolXY").value);
   const tZ = Number(document.getElementById("tolZ").value);
+  const tXYMinus = Number(document.getElementById("tolXYMinus")?.value);
+  const tZMinus  = Number(document.getElementById("tolZMinus")?.value);
   const xyOn = document.getElementById("tolXYOn").checked;
   const zOn = document.getElementById("tolZOn").checked;
 
   const tolTxt = tolOn
-    ? `Tolérances : X=${xyOn ? tXY : "—"} ; Y=${xyOn ? tXY : "—"} ; Z=${zOn ? tZ : "—"}`
+    ? `Tolérances : X=${xyOn ? formatTolRange(tXY, tXYMinus) : "—"} ; Y=${xyOn ? formatTolRange(tXY, tXYMinus) : "—"} ; Z=${zOn ? formatTolRange(tZ, tZMinus) : "—"}`
     : `Tolérances désactivées`;
 
   const renderImplantTable = (pts) => {
@@ -656,11 +658,13 @@ let y = drawHeaderV2(doc, R);
   const tolOn = document.getElementById("optTol").checked;
   const tXY = Number(document.getElementById("tolXY").value);
   const tZ = Number(document.getElementById("tolZ").value);
+  const tXYMinus = Number(document.getElementById("tolXYMinus")?.value);
+  const tZMinus  = Number(document.getElementById("tolZMinus")?.value);
   const xyOn = document.getElementById("tolXYOn").checked;
   const zOn = document.getElementById("tolZOn").checked;
 
   const tolTxt = tolOn
-    ? `Tolérances : X=${xyOn ? tXY : "—"} ; Y=${xyOn ? tXY : "—"} ; Z=${zOn ? tZ : "—"}`
+    ? `Tolérances : X=${xyOn ? formatTolRange(tXY, tXYMinus) : "—"} ; Y=${xyOn ? formatTolRange(tXY, tXYMinus) : "—"} ; Z=${zOn ? formatTolRange(tZ, tZMinus) : "—"}`
     : `Tolérances désactivées`;
   y = pdfTolBar(doc, y, tolTxt);
 

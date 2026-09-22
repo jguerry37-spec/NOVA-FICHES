@@ -250,26 +250,44 @@
           <input id="optTol" type="checkbox" />
           <span class="small">Activer STATUT (VALIDE / REFUSÉ)</span>
         </label>
+</div>
+
+      <div class="row" style="margin-top:8px;">
         <label class="dz-toggle">
           <input id="tolXYOn" type="checkbox" checked />
           <span class="small">Tolérance XY</span>
         </label>
+      </div>
+      <div class="row" style="margin-top:4px;">
+        <div style="flex:1; min-width:140px;">
+          <div class="small">Tolérance XY + (m)</div>
+          <input id="tolXY" class="box" type="number" step="0.001" value="0.020" />
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <div class="small">Tolérance XY − (m)</div>
+          <input id="tolXYMinus" class="box" type="number" step="0.001" value="0.020" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:8px;">
         <label class="dz-toggle">
           <input id="tolZOn" type="checkbox" checked />
           <span class="small">Tolérance Z</span>
         </label>
-</div>
-
-      <div class="row" style="margin-top:8px;">
-        <div style="flex:1; min-width:180px;">
-          <div class="small">Tolérance XY (m)</div>
-          <input id="tolXY" class="box" type="number" step="0.001" value="0.020" />
-        </div>
-        <div style="flex:1; min-width:180px;">
-          <div class="small">Tolérance Z (m)</div>
+      </div>
+      <div class="row" style="margin-top:4px;">
+        <div style="flex:1; min-width:140px;">
+          <div class="small">Tolérance Z + (m)</div>
           <input id="tolZ" class="box" type="number" step="0.001" value="0.020" />
         </div>
+        <div style="flex:1; min-width:140px;">
+          <div class="small">Tolérance Z − (m)</div>
+          <input id="tolZMinus" class="box" type="number" step="0.001" value="0.020" />
+        </div>
 </div>
+      <div class="small" style="margin-top:4px; opacity:.75;">
+        Bornes asymétriques possibles : ex. XY + = 0.010 et XY − = 0.020 accepte un écart Dx/Dy entre −0.020 et +0.010. Saisir la même valeur des deux côtés pour une tolérance symétrique classique (± identique).
+      </div>
 
       <div class="row tol-actions-row" style="margin-top:8px; justify-content:flex-end;">
         <button id="btnRecalc" class="btn-primary" disabled style="min-width:160px;">Recalculer</button>
@@ -297,7 +315,7 @@
         <div class="hintTitle">Règle métier</div>
         <div class="small">
           <div><b>Écarts</b> : Dx = X<sub>mes</sub> − X<sub>calc</sub> ; Dy = Y<sub>mes</sub> − Y<sub>calc</sub> ; Dz = Z<sub>mes</sub> − Z<sub>calc</sub>.</div>
-          <div style="margin-top:4px;"><b>STATUT</b> : <span class="st st-ok">VALIDE</span> si toutes les composantes <u>activées</u> respectent les tolérances (|Dx|,|Dy| ≤ Tol XY ; |Dz| ≤ Tol Z). Sinon <span class="st st-ko">REFUSÉ</span>.
+          <div style="margin-top:4px;"><b>STATUT</b> : <span class="st st-ok">VALIDE</span> si toutes les composantes <u>activées</u> respectent les tolérances (−Tol XY− ≤ Dx, Dy ≤ Tol XY+ ; −Tol Z− ≤ Dz ≤ Tol Z+). Sinon <span class="st st-ko">REFUSÉ</span>.
     </div>
   </div>
 
@@ -313,7 +331,7 @@
       <button id="btnPdfCompletPdfSharp" class="btn-primary" disabled title="Génère le PDF Rapport complet (implantation + rabattement) (moteur PdfSharp).">PDF — Rapport complet (implantation + rabattement)</button>
       <button id="btnExportImplantTxt" disabled title="Exporte les points Implantation + Ligne de référence au format TXT (N°\tX\tY\tZ).">Export — Points (TXT)</button>
       <label class="dz-toggle">
-        <input id="calcDzOn" type="checkbox" checked />
+        <input id="calcDzOn" type="checkbox" />
         <span class="small">Calculer Dz</span>
       </label>
     </div>
@@ -322,7 +340,7 @@
         <input id="pdfGroupByZone" type="checkbox" />
         <span class="small">Classer le PDF par code</span>
       </label>
-      <label class="dz-toggle" title="Ajoute une page de plan (ligne + point + cotation) par ligne de référence dans le PDF Ligne de référence.">
+      <label class="dz-toggle" style="display:none;" title="Ajoute une page de plan (ligne + point + cotation) par ligne de référence dans le PDF Ligne de référence.">
         <input id="linerefIncludeGraphicalPlan" type="checkbox" />
         <span class="small">Joindre le plan graphique (Ligne de référence)</span>
       </label>

@@ -11,7 +11,9 @@ y = pdfStationLibreFull(doc, y, data);
   const zOn  = document.getElementById("tolZOn").checked;
   const tXY = Number(document.getElementById("tolXY").value);
   const tZ  = Number(document.getElementById("tolZ").value);
-  const tolTxt = tolOn ? `Tolérances : X=${xyOn ? tXY : "—"} ; Y=${xyOn ? tXY : "—"} ; Z=${zOn ? tZ : "—"}` : `Tolérances désactivées`;
+  const tXYMinus0 = Number(document.getElementById("tolXYMinus")?.value);
+  const tZMinus0  = Number(document.getElementById("tolZMinus")?.value);
+  const tolTxt = tolOn ? `Tolérances : X=${xyOn ? formatTolRange(tXY, tXYMinus0) : "—"} ; Y=${xyOn ? formatTolRange(tXY, tXYMinus0) : "—"} ; Z=${zOn ? formatTolRange(tZ, tZMinus0) : "—"}` : `Tolérances désactivées`;
   y = pdfTolBar(doc, y, tolTxt);
 
   const body = (data.implantation?.points || []).map(rowFromPoint);
@@ -38,12 +40,16 @@ try{
         const zOn  = document.getElementById("tolZOn").checked;
         const tXY = Number(document.getElementById("tolXY").value);
         const tZ  = Number(document.getElementById("tolZ").value);
+        const tXYMinusRaw = Number(document.getElementById("tolXYMinus")?.value);
+        const tZMinusRaw  = Number(document.getElementById("tolZMinus")?.value);
+        const tXYMinus = Number.isFinite(tXYMinusRaw) ? tXYMinusRaw : tXY;
+        const tZMinus  = Number.isFinite(tZMinusRaw)  ? tZMinusRaw  : tZ;
         const dx = Number(String(row[7]).replace(",", "."));
         const dy = Number(String(row[8]).replace(",", "."));
         const dz = Number(String(row[9]).replace(",", "."));
-        const badX = xyOn && Number.isFinite(dx) && Math.abs(dx) > tXY;
-        const badY = xyOn && Number.isFinite(dy) && Math.abs(dy) > tXY;
-        const badZ = zOn  && Number.isFinite(dz) && Math.abs(dz) > tZ;
+        const badX = xyOn && Number.isFinite(dx) && (dx > tXY || dx < -tXYMinus);
+        const badY = xyOn && Number.isFinite(dy) && (dy > tXY || dy < -tXYMinus);
+        const badZ = zOn  && Number.isFinite(dz) && (dz > tZ  || dz < -tZMinus);
         const col = dataCell.column.index;
         if((col===7 && badX) || (col===8 && badY) || (col===9 && badZ)){
           dataCell.cell.styles.fontStyle = "bold";
@@ -78,7 +84,9 @@ y = pdfStationLibreFull(doc, y, data);
   const zOn  = document.getElementById("tolZOn").checked;
   const tXY = Number(document.getElementById("tolXY").value);
   const tZ  = Number(document.getElementById("tolZ").value);
-  const tolTxt = tolOn ? `Tolérances : X=${xyOn ? tXY : "—"} ; Y=${xyOn ? tXY : "—"} ; Z=${zOn ? tZ : "—"}` : `Tolérances désactivées`;
+  const tXYMinus0 = Number(document.getElementById("tolXYMinus")?.value);
+  const tZMinus0  = Number(document.getElementById("tolZMinus")?.value);
+  const tolTxt = tolOn ? `Tolérances : X=${xyOn ? formatTolRange(tXY, tXYMinus0) : "—"} ; Y=${xyOn ? formatTolRange(tXY, tXYMinus0) : "—"} ; Z=${zOn ? formatTolRange(tZ, tZMinus0) : "—"}` : `Tolérances désactivées`;
   y = pdfTolBar(doc, y, tolTxt);
 let __ptIndex = 0;
 const lrPoints = (data.ligneRef||[]).flatMap(lr=>lr.rabPoints||[]);
@@ -217,9 +225,11 @@ function buildPdfFullInto(doc, data){
   const zOn  = document.getElementById("tolZOn").checked;
   const tXY = Number(document.getElementById("tolXY").value);
   const tZ  = Number(document.getElementById("tolZ").value);
+  const tXYMinus0 = Number(document.getElementById("tolXYMinus")?.value);
+  const tZMinus0  = Number(document.getElementById("tolZMinus")?.value);
 
   const tolTxt = tolOn
-    ? `Tolérances : X=${xyOn ? tXY : "—"} ; Y=${xyOn ? tXY : "—"} ; Z=${zOn ? tZ : "—"}`
+    ? `Tolérances : X=${xyOn ? formatTolRange(tXY, tXYMinus0) : "—"} ; Y=${xyOn ? formatTolRange(tXY, tXYMinus0) : "—"} ; Z=${zOn ? formatTolRange(tZ, tZMinus0) : "—"}`
     : `Tolérances désactivées`;
 
   const allImpPts = Array.isArray(data?.implantation?.points) ? data.implantation.points : [];

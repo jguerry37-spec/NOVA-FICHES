@@ -394,14 +394,17 @@ exploitees.
     try{
       const O = (typeof getOptions === 'function') ? getOptions() : null;
       if(!O || !O.tolOn || !O.zOn || !Number.isFinite(O.tZ)) return null;
-      return Math.abs(Number(O.tZ));
+      const minusRaw = Number(O.tZMinus);
+      const minus = Number.isFinite(minusRaw) ? Math.abs(minusRaw) : Math.abs(Number(O.tZ));
+      return { plus: Math.abs(Number(O.tZ)), minus };
     }catch(_){ return null; }
   }
 
   function statusForDz(dz){
     const tol = getTolZ();
     if(tol === null) return '';
-    return Math.abs(Number(dz)) <= tol ? 'VALIDE' : 'REFUSE';
+    const v = Number(dz);
+    return (v <= tol.plus && v >= -tol.minus) ? 'VALIDE' : 'REFUSE';
   }
 
   function statusHtml(dz){
@@ -517,7 +520,8 @@ exploitees.
     }
     function color(r){
       if(tol === null) return '#1267f3';
-      return Math.abs(r.dz) <= tol ? '#219653' : '#d64545';
+      const v = Number(r.dz);
+      return (v <= tol.plus && v >= -tol.minus) ? '#219653' : '#d64545';
     }
 
     ctx.strokeStyle = '#d1d5db';
@@ -627,7 +631,7 @@ exploitees.
 
   function commonPayloadBase(){
     const R = (typeof rf === 'function') ? (rf() || {}) : {};
-    const O = (typeof getOptions === 'function') ? getOptions() : { tolOn:false, xyOn:true, zOn:true, tXY: NaN, tZ: NaN };
+    const O = (typeof getOptions === 'function') ? getOptions() : { tolOn:false, xyOn:true, zOn:true, tXY: NaN, tZ: NaN, tXYMinus: NaN, tZMinus: NaN };
     const ld = window.__NF_LASTDATA || window.lastData || null;
     return {
       elements: (R && R.elements) ? R.elements : '',
@@ -657,6 +661,8 @@ exploitees.
         tolZOn: !!O.zOn,
         tolXY: null,
         tolZ: Number.isFinite(O.tZ) ? O.tZ : null,
+        tolXYMinus: null,
+        tolZMinus: Number.isFinite(O.tZMinus) ? O.tZMinus : null,
         observations: (R && (R.obs || R.observations)) ? (R.obs || R.observations) : ''
       },
       obs: (R && (R.obs || R.observations)) ? (R.obs || R.observations) : '',
@@ -755,8 +761,9 @@ exploitees.
     qs('btnMntPdf')?.addEventListener('click', generatePdf);
     qs('btnMntExportTxt')?.addEventListener('click', exportTxt);
     qs('landXmlInput')?.addEventListener('change', ()=>setTimeout(refresh, 80));
-    ['optTol','tolZOn','tolZ'].forEach(id => qs(id)?.addEventListener('change', render));
+    ['optTol','tolZOn','tolZ','tolZMinus'].forEach(id => qs(id)?.addEventListener('change', render));
     qs('tolZ')?.addEventListener('input', render);
+    qs('tolZMinus')?.addEventListener('input', render);
     setTimeout(refresh, 250);
   }
 

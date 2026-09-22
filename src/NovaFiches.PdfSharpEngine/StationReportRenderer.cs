@@ -550,9 +550,25 @@ internal static class StationReportRenderer
         int pointsMesures = cc.PointsMesures, valides = cc.Valides, refuses = cc.Refuses, noneval = cc.NonEval;
 
         string counts = $"Points mesurés : {pointsMesures}    Valides : {valides}    Refuses : {refuses}    Non eval. : {noneval}";
-        g.DrawString(counts, fSmall, XBrushes.Black,
-            new XRect(rectCtl.Left + Units.MmToPt(3), rectCtl.Top + headH, rectCtl.Width - Units.MmToPt(6), rectCtl.Height - headH),
-            XStringFormats.CenterLeft);
+
+        var tol = ToleranceDisplay.Parse(root);
+        string tolLine = ToleranceDisplay.FormatLine(tol);
+
+        var contentRect = new XRect(rectCtl.Left + Units.MmToPt(3), rectCtl.Top + headH, rectCtl.Width - Units.MmToPt(6), rectCtl.Height - headH);
+        if (string.IsNullOrEmpty(tolLine))
+        {
+            g.DrawString(counts, fSmall, XBrushes.Black, contentRect, XStringFormats.CenterLeft);
+        }
+        else
+        {
+            var fTol = NovatlasTheme.FontBody(8);
+            double lineH = Units.MmToPt(4.4);
+            double top = contentRect.Top + (contentRect.Height - lineH * 2) / 2.0;
+            g.DrawString(counts, fSmall, XBrushes.Black,
+                new XRect(contentRect.Left, top, contentRect.Width, lineH), XStringFormats.CenterLeft);
+            g.DrawString(tolLine, fTol, XBrushes.Black,
+                new XRect(contentRect.Left, top + lineH, contentRect.Width, lineH), XStringFormats.CenterLeft);
+        }
 
         y = yBoxesTop;
 

@@ -2,14 +2,14 @@
 
   <PropertyGroup>
      <!-- Version unique de la release -->
-	<Version>3.1.16.0</Version>
+	<Version>3.1.19.0</Version>
 
   <!-- Version binaire Windows -->
-	<AssemblyVersion>3.1.16.0</AssemblyVersion>
-	<FileVersion>3.1.16.0</FileVersion>
+	<AssemblyVersion>3.1.19.0</AssemblyVersion>
+	<FileVersion>3.1.19.0</FileVersion>
 
   <!-- Version “lisible” affichable côté app / logs -->
-	<InformationalVersion>3.1.16.0</InformationalVersion>
+	<InformationalVersion>3.1.19.0</InformationalVersion>
 
   <!-- Empêche le SDK .NET d'ajouter automatiquement "+<hash git>" à la version
        affichée (PDF, appli) : ces infos internes n'ont rien à faire côté client. -->

@@ -3258,12 +3258,16 @@ function pdfStationLibreFull(doc, y, data){
         const zOn  = document.getElementById("tolZOn").checked;
         const tXY = Number(document.getElementById("tolXY").value);
         const tZ  = Number(document.getElementById("tolZ").value);
+        const tXYMinusRaw = Number(document.getElementById("tolXYMinus")?.value);
+        const tZMinusRaw  = Number(document.getElementById("tolZMinus")?.value);
+        const tXYMinus = Number.isFinite(tXYMinusRaw) ? tXYMinusRaw : tXY;
+        const tZMinus  = Number.isFinite(tZMinusRaw)  ? tZMinusRaw  : tZ;
         const dx = Number(String(row[7]).replace(",", "."));
         const dy = Number(String(row[8]).replace(",", "."));
         const dz = Number(String(row[9]).replace(",", "."));
-        const badX = xyOn && Number.isFinite(dx) && Math.abs(dx) > tXY;
-        const badY = xyOn && Number.isFinite(dy) && Math.abs(dy) > tXY;
-        const badZ = zOn  && Number.isFinite(dz) && Math.abs(dz) > tZ;
+        const badX = xyOn && Number.isFinite(dx) && (dx > tXY || dx < -tXYMinus);
+        const badY = xyOn && Number.isFinite(dy) && (dy > tXY || dy < -tXYMinus);
+        const badZ = zOn  && Number.isFinite(dz) && (dz > tZ  || dz < -tZMinus);
 
         const col = dataCell.column.index;
         if((col===7 && badX) || (col===8 && badY) || (col===9 && badZ)){
@@ -3385,10 +3389,12 @@ function pdfFooterLastPageBox(doc, R, stats){
     const zOn  = document.getElementById("tolZOn")?.checked ?? true;
     const tXYv = Number(document.getElementById("tolXY")?.value);
     const tZv  = Number(document.getElementById("tolZ")?.value);
+    const tXYMinusV = Number(document.getElementById("tolXYMinus")?.value);
+    const tZMinusV  = Number(document.getElementById("tolZMinus")?.value);
     const tolOn = document.getElementById("optTol")?.checked ?? false;
 
     const tolLine = tolOn
-      ? `Tol : XY=${xyOn ? (Number.isFinite(tXYv) ? tXYv : "—") : "OFF"} ; Z=${zOn ? (Number.isFinite(tZv) ? tZv : "—") : "OFF"}`
+      ? `Tol : XY=${xyOn ? formatTolRange(tXYv, tXYMinusV) : "OFF"} ; Z=${zOn ? formatTolRange(tZv, tZMinusV) : "OFF"}`
       : "";
 
     doc.text(l1, x+3, y+9.0);
