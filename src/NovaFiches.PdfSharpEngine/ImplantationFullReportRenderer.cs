@@ -1270,7 +1270,7 @@ private static double DrawBar(
                 else
                 {
                     stationLines.Add($"Coordonnées : E={E}  N={N}  H={H}");
-                    stationLines.Add($"Corr. orientat° {corrOrient}     |     Fact. échelle {factScale}     |     Dev.std E/N/H {devE} / {devN} / {devH}     |     Ori. {azOrient}");
+                    stationLines.Add($"Corr. orientat° {corrOrient}     |     Fact. échelle {factScale}     |     Dev.std E/N/H {devE} / {devN} / {devH}     |     Ori. {devOri}");
                     stationLines.Add($"Orientation : CorrOri={corrOrient}  AzOri={azOrient}");
                 }
 

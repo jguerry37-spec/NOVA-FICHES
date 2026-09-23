@@ -1269,7 +1269,7 @@ private static double DrawBar(
                 // Legacy-like line template (best-effort)
                 string azOrient = FmtNum(run, "results", "azOrient");
                 string factScale = FmtNum(run, "results", "factScale");
-                var line1 = $"Corr. orientat° {corrOrient}     |     Fact. échelle {factScale}     |     Dev.std E/N/H {devE} / {devN} / {devH}     |     Ori. {azOrient}";
+                var line1 = $"Corr. orientat° {corrOrient}     |     Fact. échelle {factScale}     |     Dev.std E/N/H {devE} / {devN} / {devH}     |     Ori. {devOri}";
                 var line2 = $"Orientation : CorrOri={corrOrient}  AzOri={azOrient}";
                 g.DrawString(line1, f, XBrushes.Black,
                     new XRect(MarginL + Units.MmToPt(2), yy, w - Units.MmToPt(4), Units.MmToPt(4.8)), XStringFormats.CenterLeft);

@@ -2,6 +2,11 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 3.1.20
+
+- Correction : sur le rapport PDF Implantation / Ligne de référence, la ligne "Corr. orientat° | Fact. échelle | Dev.std E/N/H | Ori." affichait systématiquement "Ori." vide pour une station libre importée depuis un LandXML - alors que l'écart-type d'orientation (σOri, visible dans la fenêtre de visualisation "Station libre" de l'application) était bien calculé et disponible. Erreur de variable dans le renderer PDF : la valeur affichée était celle de l'azimut d'orientation (qui n'existe pas dans un LandXML de station libre/résection, uniquement dans un export AppLog texte) au lieu de l'écart-type déjà lu. "Ori." affiche maintenant correctement σOri.
+- Build : passage de l'application et du moteur PDF en **3.1.20.0**.
+
 ## 3.1.19
 
 - Les tolérances saisies apparaissent désormais dans l'encart "CONTRÔLES" en bas de tous les rapports PDF (Implantation, Mesure sur ligne, Récolement pieux, Récolement MNT, Station), sous la ligne "Points mesurés / Valides / Refusés / Non eval." - jusqu'ici invisibles sur le PDF (seul l'écran les affichait).
