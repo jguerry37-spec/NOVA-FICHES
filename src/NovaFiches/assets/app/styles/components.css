@@ -162,6 +162,13 @@
     font-weight:700;
     line-height:1.25;
   }
+  /* Variante succès (ex. confirmation d'export PDF) : le rouge par défaut ci-dessus convient au
+     statut de mesure en cours, mais est trompeur pour un message qui confirme une réussite. */
+  .kmz-measure-pill.ok{
+    border-color: rgba(46,204,113,.55);
+    background: rgba(46,204,113,.14);
+    color: #1b7a3d;
+  }
 
   .kmz-ngf-status{
     display:inline-flex;

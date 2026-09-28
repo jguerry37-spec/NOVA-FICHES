@@ -17,6 +17,7 @@ using TopoRapportWin.Branding;
 using TopoRapportWin.Licensing;
 using TopoRapportWin.DuplicateControl;
 using TopoRapportWin.ControlePrecision;
+using TopoRapportWin.ControlePolygonale;
 
 namespace TopoRapportWin;
 
@@ -1068,6 +1069,49 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
         {
             AppLog.Error("KMZ: fetch repères NGF failed", ex);
             SendToUi(new { type = "kmz_error", message = "Repères NGF (IGN) : " + ex.Message });
+        }
+    }
+
+    private async Task ExportKmzMeasurePdfForUiAsync(double distanceMeters, IReadOnlyList<(double Lat, double Lon)> points, string basemap)
+    {
+        try
+        {
+            if (distanceMeters <= 0)
+            {
+                SendToUi(new { type = "kmz_measure_pdf_result", ok = false, error = "Aucune mesure de distance en cours." });
+                return;
+            }
+
+            string? mapImageDataUrl = null;
+            if (points.Count >= 2)
+            {
+                var mapResult = await KmzMeasureMapService.BuildMapFromPointsAsync(points, basemap).ConfigureAwait(true);
+                mapImageDataUrl = mapResult?.ImageDataUrl;
+            }
+
+            var payloadJson = InjectBranding(JsonSerializer.Serialize(new { distanceMeters, mapImageDataUrl }));
+
+            string? candidateDir = !string.IsNullOrWhiteSpace(_kmzTxtFilePath) ? Path.GetDirectoryName(_kmzTxtFilePath) : null;
+            string initialDir = !string.IsNullOrWhiteSpace(candidateDir) && Directory.Exists(candidateDir) ? candidateDir! : ExportsDir;
+
+            using var sfd = new SaveFileDialog
+            {
+                Title = "Enregistrer la mesure de distance (PDF)",
+                Filter = "Fichiers PDF (*.pdf)|*.pdf",
+                FileName = $"Mesure_distance_{DateTime.Now:yyyyMMdd_HHmm}.pdf",
+                InitialDirectory = initialDir
+            };
+            if (sfd.ShowDialog(this) != DialogResult.OK) return;
+
+            NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateDistanceMeasurePdf(sfd.FileName, payloadJson, GetPdfFooterVersion());
+            try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+
+            SendToUi(new { type = "kmz_measure_pdf_result", ok = true, filePath = sfd.FileName, fileName = Path.GetFileName(sfd.FileName) });
+        }
+        catch (Exception ex2)
+        {
+            AppLog.Error("Export KMZ : export PDF de mesure échoué", ex2);
+            SendToUi(new { type = "kmz_measure_pdf_result", ok = false, error = ex2.Message });
         }
     }
 
@@ -2527,6 +2571,33 @@ if (string.Equals(type, "nextDownloadName", StringComparison.OrdinalIgnoreCase))
                     return;
                 }
 
+                // Export KMZ : PDF pour l'outil "Mesurer une distance" (distance + carte de la
+                // mesure, mise à l'échelle A4 côté renderer). Le dossier proposé par défaut est
+                // celui du fichier TXT/DXF de points de la polygonale déjà chargé dans ce module,
+                // quand il y en a un (répertoire de travail le plus probable pour ranger ce PDF).
+                // Primitives extraites ici (pas le JsonElement "root" lui-même) avant de passer la
+                // main à la méthode async : "root" devient invalide dès que ce bloc synchrone se
+                // termine et que "doc" (using, plus haut) est disposé - même précaution que
+                // kmz_fetch_ngf/FetchNgfForUiAsync juste en dessous.
+                if (string.Equals(type, "kmz_export_measure_pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    double distanceMeters = root.TryGetProperty("distanceMeters", out var distEl) && distEl.TryGetDouble(out var dv) ? dv : 0;
+                    var measurePoints = new List<(double Lat, double Lon)>();
+                    if (root.TryGetProperty("points", out var ptsEl) && ptsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var p in ptsEl.EnumerateArray())
+                        {
+                            if (p.ValueKind != JsonValueKind.Array || p.GetArrayLength() < 2) continue;
+                            var coords = p.EnumerateArray().ToArray();
+                            if (coords[0].TryGetDouble(out var lat) && coords[1].TryGetDouble(out var lon))
+                                measurePoints.Add((lat, lon));
+                        }
+                    }
+                    string basemap = root.TryGetProperty("basemap", out var bmEl) ? (bmEl.GetString() ?? "plan") : "plan";
+                    _ = ExportKmzMeasurePdfForUiAsync(distanceMeters, measurePoints, basemap);
+                    return;
+                }
+
                 if (string.Equals(type, "kmz_preview_dxf", StringComparison.OrdinalIgnoreCase))
                 {
                     PreviewKmzDxfForUi(root);
@@ -3674,6 +3745,110 @@ if (string.Equals(type, "cp_export", StringComparison.OrdinalIgnoreCase))
     return;
 }
 
+// Module manager "Contrôle de polygonale" (gated par data-nf-feature="controle_polygonale") :
+// import du classeur de comparaison (Excel) + du fichier GeoBase (TXT), export PDF. Contrairement
+// à ControlePrecision (dont l'état importé vit côté C#), ici l'état vit côté JS (même discipline
+// que cp_import_leve/cp_import_controle) : chaque import renvoie les données déjà entièrement
+// parsées au JS, qui les retransmet telles quelles dans le payload d'export.
+if (string.Equals(type, "cpoly_import_xlsx", StringComparison.OrdinalIgnoreCase))
+{
+    try
+    {
+        using var ofd = new OpenFileDialog
+        {
+            Title = "Importer le classeur de comparaison (Excel)",
+            Filter = "Classeurs Excel (*.xlsx)|*.xlsx",
+            RestoreDirectory = true
+        };
+        if (ofd.ShowDialog(this) != DialogResult.OK) return;
+
+        using var stream = File.OpenRead(ofd.FileName);
+        var workbook = ControlePolygonaleService.ReadWorkbook(stream);
+
+        SendToUi(new
+        {
+            type = "cpoly_xlsx_result",
+            ok = true,
+            fileName = Path.GetFileName(ofd.FileName),
+            xySheets = workbook.XySheets.Select(CpolyXySheetToJs),
+            zSheets = workbook.ZSheets.Select(CpolyZSheetToJs)
+        });
+    }
+    catch (Exception ex2)
+    {
+        AppLog.Error("Contrôle de polygonale : import du classeur échoué", ex2);
+        SendToUi(new { type = "cpoly_xlsx_result", ok = false, error = ex2.Message });
+    }
+    return;
+}
+
+if (string.Equals(type, "cpoly_import_geobase", StringComparison.OrdinalIgnoreCase))
+{
+    try
+    {
+        using var ofd = new OpenFileDialog
+        {
+            Title = "Importer le fichier GeoBase (TXT)",
+            Filter = "Fichiers TXT (*.txt)|*.txt|Tous les fichiers (*.*)|*.*",
+            RestoreDirectory = true
+        };
+        if (ofd.ShowDialog(this) != DialogResult.OK) return;
+
+        var text = ReadAllTextWithLimit(ofd.FileName);
+        var rows = ControlePolygonaleService.ReadGeoBase(text);
+
+        SendToUi(new
+        {
+            type = "cpoly_geobase_result",
+            ok = true,
+            fileName = Path.GetFileName(ofd.FileName),
+            rows = rows.Select(r => new { point = r.Point, x = r.X, y = r.Y, z = r.Z })
+        });
+    }
+    catch (Exception ex2)
+    {
+        AppLog.Error("Contrôle de polygonale : import GeoBase échoué", ex2);
+        SendToUi(new { type = "cpoly_geobase_result", ok = false, error = ex2.Message });
+    }
+    return;
+}
+
+if (string.Equals(type, "cpoly_export", StringComparison.OrdinalIgnoreCase))
+{
+    try
+    {
+        var payloadJson = InjectBranding(root.GetRawText());
+
+        var projectEl = root.TryGetProperty("project", out var pEl) ? pEl : default;
+        string siteCode = GetJsonStr(projectEl, "siteCode") ?? "";
+        string siteCodeSafe = new string(siteCode.Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray()).Trim();
+        string defaultFileName = string.IsNullOrWhiteSpace(siteCodeSafe)
+            ? $"controle_polygonale_{DateTime.Now:yyyyMMdd_HHmm}.pdf"
+            : $"NOVATLAS_CONTROLE_POLYGONALE_{siteCodeSafe}.pdf";
+
+        using var sfd = new SaveFileDialog
+        {
+            Title = "Enregistrer le rapport de contrôle de polygonale (PDF)",
+            Filter = "Fichiers PDF (*.pdf)|*.pdf",
+            FileName = defaultFileName,
+            InitialDirectory = ExportsDir
+        };
+        if (sfd.ShowDialog(this) != DialogResult.OK) return;
+
+        var proof = GetPdfFooterVersion();
+        NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateControlePolygonaleFromJson(sfd.FileName, payloadJson, proof);
+        try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
+
+        SendToUi(new { type = "cpoly_export_result", ok = true, filePath = sfd.FileName });
+    }
+    catch (Exception ex2)
+    {
+        AppLog.Error("Contrôle de polygonale : export échoué", ex2);
+        SendToUi(new { type = "cpoly_export_result", ok = false, error = ex2.Message });
+    }
+    return;
+}
+
 if (!string.Equals(type, "saveAs", StringComparison.OrdinalIgnoreCase))
                     return;
 
@@ -4055,6 +4230,33 @@ private static string SanitizeFileName(string fileName)
 	/// (Certains messages WebView2 envoient des valeurs non-string, on uniformise ici.)
 	/// </summary>
 	private static object CpPointToJs(CpPoint p) => new { id = p.Id, x = p.X, y = p.Y, z = p.Z };
+
+	private static object CpolyXySheetToJs(CpolyXySheet s) => new
+	{
+	    name = s.Name,
+	    rows = s.Rows.Select(r => new
+	    {
+	        point = r.Point, xTheo = r.XTheo, yTheo = r.YTheo, xCtrl = r.XCtrl, yCtrl = r.YCtrl,
+	        dx = r.Dx, dy = r.Dy, deltaXy = r.DeltaXy
+	    }),
+	    stats = new
+	    {
+	        count = s.Stats.Count, complete = s.Stats.Complete, missing = s.Stats.Missing,
+	        maxAbsDx = s.Stats.MaxAbsDx, maxAbsDy = s.Stats.MaxAbsDy,
+	        maxDeltaXy = s.Stats.MaxDeltaXy, maxDeltaXyPoint = s.Stats.MaxDeltaXyPoint, meanDeltaXy = s.Stats.MeanDeltaXy
+	    }
+	};
+
+	private static object CpolyZSheetToJs(CpolyZSheet s) => new
+	{
+	    name = s.Name,
+	    rows = s.Rows.Select(r => new { point = r.Point, zTheo = r.ZTheo, zCtrl = r.ZCtrl, dz = r.Dz }),
+	    stats = new
+	    {
+	        count = s.Stats.Count, complete = s.Stats.Complete, missing = s.Stats.Missing,
+	        maxAbsDz = s.Stats.MaxAbsDz, maxAbsDzPoint = s.Stats.MaxAbsDzPoint, meanAbsDz = s.Stats.MeanAbsDz
+	    }
+	};
 
 	// Reconstruit le dictionnaire de points (id -> CpPoint) depuis le tableau brut renvoyé par la
 	// JS (echo de ce que cp_import_leve/cp_import_controle avaient eux-mêmes envoyé) - un même ID

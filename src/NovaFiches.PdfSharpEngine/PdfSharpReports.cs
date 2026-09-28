@@ -316,4 +316,99 @@ private static void SaveBytesWithFallback(byte[] pdfBytes, string outputPath)
         Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
         SaveWithFallback(doc, outputPdfPath);
     }
+
+    public static void GenerateControlePolygonaleFromJson(string outputPdfPath, string payloadJson, string buildProof)
+    {
+        using var doc = new PdfDocument();
+        doc.Info.Title = "Contrôle de polygonale";
+        doc.Info.Creator = "Nova-Fiches (PdfSharp)";
+
+        ControlePolygonaleRenderer.Render(doc, payloadJson, buildProof);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
+        SaveWithFallback(doc, outputPdfPath);
+    }
+
+    // Export KMZ : PDF pour une mesure de distance (outil "Mesurer une distance" sur la carte
+    // Leaflet) - distance + carte de la zone mesurée (KmzMeasureMapService, tracé + points dans
+    // les mêmes couleurs qu'à l'écran), mise à l'échelle pour occuper le reste de la page A4 sans
+    // déborder ni déformer le rapport largeur/hauteur d'origine.
+    public static void GenerateDistanceMeasurePdf(string outputPdfPath, string payloadJson, string buildFooter)
+    {
+        JsonElement root = default;
+        try { using var jd = JsonDocument.Parse(payloadJson); root = jd.RootElement.Clone(); } catch { }
+
+        using var doc = new PdfDocument();
+        doc.Info.Title = "Mesure de distance";
+        doc.Info.Creator = "Nova-Fiches (PdfSharp)";
+
+        var page = doc.AddPage();
+        page.Size = PdfSharp.PageSize.A4;
+        var gfx = PdfSharp.Drawing.XGraphics.FromPdfPage(page);
+        const double marginL = 40, marginR = 40, marginB = 40;
+        double contentW = page.Width.Point - marginL - marginR;
+        double y = 50;
+
+        gfx.DrawString("NOVATLAS GROUPE", NovatlasTheme.FontBold(22), new PdfSharp.Drawing.XSolidBrush(NovatlasTheme.ResolveBlue(root)),
+            new PdfSharp.Drawing.XRect(marginL, y, contentW, 30), PdfSharp.Drawing.XStringFormats.Center);
+        y += 40;
+
+        var logo = NovatlasTheme.ResolveLogo(root);
+        if (logo != null)
+        {
+            double maxW = Units.MmToPt(35), maxH = Units.MmToPt(28);
+            double ar = (double)logo.PixelWidth / Math.Max(1, logo.PixelHeight);
+            double iw = maxW, ih = iw / ar;
+            if (ih > maxH) { ih = maxH; iw = ih * ar; }
+            gfx.DrawImage(logo, marginL + (contentW - iw) / 2.0, y, iw, ih);
+            y += ih + 20;
+        }
+
+        gfx.DrawString("MESURE DE DISTANCE", NovatlasTheme.FontBold(14), PdfSharp.Drawing.XBrushes.Black,
+            new PdfSharp.Drawing.XRect(marginL, y, contentW, 20), PdfSharp.Drawing.XStringFormats.Center);
+        y += 36;
+
+        double distanceMeters = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("distanceMeters", out var dEl) && dEl.TryGetDouble(out var dv) ? dv : 0;
+        string distanceText = distanceMeters >= 1000
+            ? (distanceMeters / 1000.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " km"
+            : distanceMeters.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " m";
+
+        gfx.DrawString($"Distance : {distanceText}", NovatlasTheme.FontBold(20), PdfSharp.Drawing.XBrushes.Black,
+            new PdfSharp.Drawing.XRect(marginL, y, contentW, 30), PdfSharp.Drawing.XStringFormats.Center);
+        y += 32;
+
+        gfx.DrawString(DateTime.Now.ToString("dd/MM/yyyy HH:mm"), NovatlasTheme.FontBody(9), PdfSharp.Drawing.XBrushes.Gray,
+            new PdfSharp.Drawing.XRect(marginL, y, contentW, 16), PdfSharp.Drawing.XStringFormats.Center);
+        y += 24;
+
+        // Carte de la mesure (facultative - absente si le tracé fait moins de 2 points ou si le
+        // fond de carte n'a pas pu être récupéré) : mise à l'échelle dans l'espace restant de la
+        // page A4, ratio d'aspect conservé, jamais agrandie au-delà de sa taille native.
+        string? mapDataUrl = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("mapImageDataUrl", out var mEl) && mEl.ValueKind == JsonValueKind.String
+            ? mEl.GetString() : null;
+        if (!string.IsNullOrWhiteSpace(mapDataUrl))
+        {
+            try
+            {
+                var commaIdx = mapDataUrl.IndexOf(',');
+                var base64 = commaIdx >= 0 ? mapDataUrl[(commaIdx + 1)..] : mapDataUrl;
+                var bytes = Convert.FromBase64String(base64);
+                using var mapImg = PdfSharp.Drawing.XImage.FromStream(new MemoryStream(bytes));
+
+                double availH = page.Height.Point - marginB - y;
+                double scale = Math.Min(contentW / mapImg.PixelWidth, availH / mapImg.PixelHeight);
+                scale = Math.Min(scale, 1.0); // jamais d'agrandissement au-delà de la taille native
+                double mapW = mapImg.PixelWidth * scale;
+                double mapH = mapImg.PixelHeight * scale;
+                double mapX = marginL + (contentW - mapW) / 2.0;
+                gfx.DrawRectangle(new PdfSharp.Drawing.XPen(PdfSharp.Drawing.XColor.FromArgb(200, 200, 200), 0.6), mapX, y, mapW, mapH);
+                gfx.DrawImage(mapImg, mapX, y, mapW, mapH);
+            }
+            catch { /* image corrompue/illisible : PDF quand même généré, juste sans carte */ }
+        }
+
+        gfx.Dispose();
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPdfPath)!);
+        SaveWithFallback(doc, outputPdfPath);
+    }
 }

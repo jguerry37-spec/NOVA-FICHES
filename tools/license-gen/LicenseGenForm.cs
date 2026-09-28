@@ -18,6 +18,7 @@ public sealed class LicenseGenForm : Form
         ("fiches_signaletiques", "Fiches signalétiques (import CSV, export PDF)"),
         ("controle_doublons", "Contrôle de doublons (fusion de fichiers de points)"),
         ("controle_precision", "Contrôle classe de précision (arrêté du 16/09/2003)"),
+        ("controle_polygonale", "Contrôle de polygonale (GNSS/optique, écarts XY/Z)"),
     };
 
     private readonly TextBox _keyPathBox;

@@ -24,7 +24,8 @@
     zoneLayer: null,
     measuring: false,
     measurePoints: [],
-    measureLayer: null
+    measureLayer: null,
+    measureDistanceMeters: 0
   };
 
   function el(id){ return document.getElementById(id); }
@@ -45,19 +46,17 @@
   }
   function setMapStatus(text){ const s = el('kmzMapStatus'); if(s) s.textContent = text; }
   function setNgfStatus(text){ const s = el('kmzNgfStatus'); if(s) s.textContent = text; }
-  function setMeasureStatus(text){ const s = el('kmzMeasureStatus'); if(s) s.textContent = text; }
-  // Avec la souris, un "clic" comporte quasi toujours quelques pixels de mouvement
-  // entre l'appui et le relachement. Leaflet interprete ca comme un mini-glisser et
-  // deplace deja la vue en consequence avant de calculer les coordonnees du clic,
-  // meme quand il classe encore le geste comme un simple clic (pas un vrai
-  // deplacement de carte). Resultat : la carte semble "sauter" pile au moment du
-  // premier clic, et les coordonnees renvoyees correspondent a la vue deja
-  // deplacee. Desactiver le glisser (pas le zoom, deja retire) pendant Mesurer et
-  // Dessiner une zone elimine ce micro-decalage sans toucher au zoom.
+  function setMeasureStatus(text, cls){ const s = el('kmzMeasureStatus'); if(s){ s.textContent = text; s.className = 'kmz-measure-pill' + (cls ? ' ' + cls : ''); } }
+  // Le micro-decalage au clic (carte qui "saute" pile au moment du premier clic en
+  // mode Mesurer/Dessiner une zone) etait corrige en desactivant completement le
+  // glisser dans ces modes - mais ca empechait aussi de deplacer la carte pour
+  // atteindre un point hors champ pendant une mesure. Le vrai correctif est plus
+  // haut, a la creation de la carte (clickTolerance releve sur state.map.dragging) :
+  // cette fonction ne fait plus que s'assurer que le glisser reste actif, au cas ou
+  // il aurait ete desactive ailleurs.
   function updateDragLock(){
     if(!state.map || !state.map.dragging) return;
-    if(state.measuring || state.drawingZone) state.map.dragging.disable();
-    else state.map.dragging.enable();
+    if(!state.map.dragging.enabled()) state.map.dragging.enable();
   }
   function refreshCombined(){
     const txt = state.txtPoints.filter(p => state.selectedTxtKeys.has(String(p.key ?? p.Key)));
@@ -154,6 +153,18 @@
           state.map = L.map(mapDiv, { attributionControl:true });
           state.baseLayer = createTileLayer(state.basemap);
           state.baseLayer.addTo(state.map);
+          // Micro-mouvement inevitable entre l'appui et le relachement d'un "clic"
+          // souris : Leaflet applique un seuil de tolerance interne (3px par defaut,
+          // tres bas) avant de considerer un geste comme un vrai glisser de carte.
+          // Le relever evite qu'un simple clic (Mesurer, Dessiner une zone) ne
+          // deplace deja legerement la vue avant meme d'etre classe comme un clic,
+          // sans empecher un vrai glisser (mouvement nettement plus grand) de
+          // fonctionner. Remplace l'ancienne desactivation totale du glisser pendant
+          // Mesurer/Dessiner une zone (voir updateDragLock), qui bloquait tout
+          // deplacement de la carte dans ces modes.
+          if(state.map.dragging && state.map.dragging._draggable){
+            state.map.dragging._draggable.options.clickTolerance = 8;
+          }
           state.map.on('click', onMapClick);
           state.map.on('mousemove', onZoneMouseMove);
           // Au premier clic sur la carte, Leaflet donne le focus clavier a son
@@ -500,7 +511,9 @@
     for(let i = 1; i < state.measurePoints.length; i++){
       total += state.map.distance(state.measurePoints[i-1], state.measurePoints[i]);
     }
+    state.measureDistanceMeters = total;
     setMeasureStatus(`Distance : ${fmtDistance(total)}`);
+    el('btnKmzMeasureExportPdf')?.classList.remove('nf-space-hidden');
   }
 
   function handleLoaded(msg){
@@ -706,17 +719,33 @@
         state.zoneCorner1 = null;
         if(state.zonePreviewLayer && state.map){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
         state.measurePoints = [];
+        state.measureDistanceMeters = 0;
         redrawMeasureLayer();
         setMeasureStatus('Clique sur la carte pour placer le premier point.');
         el('btnKmzMeasureClear')?.classList.remove('nf-space-hidden');
+        el('btnKmzMeasureExportPdf')?.classList.add('nf-space-hidden');
       }
       updateDragLock();
     });
     el('btnKmzMeasureClear')?.addEventListener('click', () => {
       state.measurePoints = [];
+      state.measureDistanceMeters = 0;
       redrawMeasureLayer();
       setMeasureStatus('');
       el('btnKmzMeasureClear')?.classList.add('nf-space-hidden');
+      el('btnKmzMeasureExportPdf')?.classList.add('nf-space-hidden');
+    });
+    el('btnKmzMeasureExportPdf')?.addEventListener('click', () => {
+      if(!state.measureDistanceMeters || state.measurePoints.length < 2){
+        setMeasureStatus('Mesure au moins 2 points avant d’exporter.');
+        return;
+      }
+      post({
+        type: 'kmz_export_measure_pdf',
+        distanceMeters: state.measureDistanceMeters,
+        points: state.measurePoints,
+        basemap: el('kmzBasemap')?.value || 'plan'
+      });
     });
 
     el('kmzBasemap')?.addEventListener('change', e => {
@@ -744,6 +773,9 @@
           if(msg.type === 'kmz_export_result'){
             if(msg.ok) setStatus(`KMZ exporte : ${msg.fileName || 'OK'}`, 'ok');
             else setStatus('KMZ : erreur export', 'err');
+          }
+          if(msg.type === 'kmz_measure_pdf_result'){
+            setMeasureStatus(msg.ok ? `PDF enregistré : ${msg.fileName || 'OK'}` : String(msg.error || "Échec de l'export PDF."), msg.ok ? 'ok' : '');
           }
         });
       }

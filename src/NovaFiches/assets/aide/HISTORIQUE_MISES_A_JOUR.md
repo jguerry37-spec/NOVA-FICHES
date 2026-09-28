@@ -2,6 +2,33 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 3.1.25
+
+- Export KMZ, "Exporter la mesure (PDF)" : le message de confirmation affichait le chemin complet du fichier enregistré, qui débordait largement de la pastille (illisible, texte tronqué hors de sa case). N'affiche plus que le nom du fichier - le PDF s'ouvre de toute façon automatiquement après l'export, le chemin complet n'apportait rien.
+- Build : passage de l'application et du moteur PDF en **3.1.25.0**.
+
+## 3.1.24
+
+- Export KMZ : correction - impossible de déplacer la carte en mode "Mesurer une distance" ou "Dessiner une zone" (glisser désactivé). Cette désactivation avait été ajoutée pour éviter qu'un simple clic ne fasse légèrement "sauter" la carte avant de poser un point - en réalité causé par la tolérance de clic très basse (3 px) de Leaflet, qui traite le mouvement de souris inévitable entre l'appui et le relâchement comme un mini-glisser. La tolérance est désormais relevée (8 px) directement sur la carte, ce qui supprime ce micro-décalage sans plus jamais désactiver le glisser : la carte reste déplaçable pendant une mesure ou le tracé d'une zone.
+- Build : passage de l'application et du moteur PDF en **3.1.24.0**.
+
+## 3.1.23
+
+- Export KMZ, "Exporter la mesure (PDF)" : ajout de la carte de la zone mesurée (tracé + points, mêmes couleurs qu'à l'écran), mise à l'échelle automatiquement pour tenir sur la page A4 sans déformation. Correction : le message de confirmation "PDF enregistré : ..." s'affichait en rouge (donnait l'impression d'une erreur) - passe désormais en vert.
+- Renommé "Plan (OpenStreetMap)" en "Plan (IGN)" dans les sélecteurs de fond de carte (Export KMZ, Plan station) : le fond de carte "Plan" utilise le service IGN Géoplateforme depuis la 3.1.16, le libellé n'avait pas été mis à jour à l'époque.
+- Build : passage de l'application et du moteur PDF en **3.1.23.0**.
+
+## 3.1.22
+
+- Export KMZ : l'outil "Mesurer une distance" propose désormais un bouton "Exporter la mesure (PDF)" une fois une distance mesurée - génère un PDF minimal (NOVATLAS + la distance mesurée, rien d'autre). Le dossier d'enregistrement proposé par défaut est celui du fichier TXT/DXF de points déjà chargé dans le module.
+- Contrôle de polygonale : première étape de restructuration sur un vrai rapport de référence (page de garde + tableau de révision multi-lignes, titre adapté selon la nature du rapport - Contrôle/Création - et le niveau - primaire/secondaire). Les autres sections (objectifs, déroulé de mission, référentiels, tiroirs GNSS/optique/nivellement, résultat) suivent dans de prochaines versions.
+- Build : passage de l'application et du moteur PDF en **3.1.22.0**.
+
+## 3.1.21
+
+- **Nouveau module complémentaire (licence)** : "Contrôle de polygonale", sous "Contrôle classe de précision" dans le menu. Importe un classeur Excel de comparaison (onglet dont le nom contient "GNSS" pour le contrôle planimétrique XY, onglet dont le nom contient "Niv" pour le contrôle altimétrique Z) et, en option, un fichier GeoBase (TXT), calcule les écarts (ΔX/ΔY/ΔXY et ΔZ) et génère un rapport PDF : infos générales du projet, un tableau + synthèse par onglet de contrôle détecté, tableau des coordonnées GeoBase, conclusion (générée automatiquement à partir des écarts maximaux, ou texte forcé). Portage "essentiel d'abord" d'un outil de contrôle de polygonale interne existant (organigramme d'équipe, fiches techniques matériel et blocs de méthodologie pré-remplis non repris dans cette première version).
+- Build : passage de l'application et du moteur PDF en **3.1.21.0**.
+
 ## 3.1.20
 
 - Correction : sur le rapport PDF Implantation / Ligne de référence, la ligne "Corr. orientat° | Fact. échelle | Dev.std E/N/H | Ori." affichait systématiquement "Ori." vide pour une station libre importée depuis un LandXML - alors que l'écart-type d'orientation (σOri, visible dans la fenêtre de visualisation "Station libre" de l'application) était bien calculé et disponible. Erreur de variable dans le renderer PDF : la valeur affichée était celle de l'azimut d'orientation (qui n'existe pas dans un LandXML de station libre/résection, uniquement dans un export AppLog texte) au lieu de l'écart-type déjà lu. "Ori." affiche maintenant correctement σOri.
