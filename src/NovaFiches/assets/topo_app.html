@@ -893,10 +893,56 @@
             </div>
           </div>
 
+          <div class="field" style="margin-top:12px;">
+            <div class="small">Objectifs de la mission — texte forcé (optionnel — sinon généré automatiquement à partir du type de rapport, du niveau, de la ville et du projet)</div>
+            <textarea id="cpolyMissionObjectiveText" class="box" rows="2"></textarea>
+          </div>
+
           <div class="small" style="font-weight:700; margin:16px 0 8px;">Tableau de révision</div>
           <div id="cpolyRevisionRows"></div>
           <div class="row" style="margin-top:6px;">
             <button id="btnCpolyAddRevisionRow" type="button">Ajouter une ligne</button>
+          </div>
+
+          <div class="small" style="font-weight:700; margin:16px 0 8px;">Déroulé de la mission — Date et durée</div>
+          <div class="small" style="margin-bottom:8px;">Une date (ou plage) par technique activée pour cette mission.</div>
+          <div class="infoGrid3">
+            <div class="field span-1">
+              <label class="dz-toggle">
+                <input id="cpolyGnssEnabled" type="checkbox" data-cpoly-tech-toggle="gnss" />
+                <span class="small">GNSS</span>
+              </label>
+            </div>
+            <div class="field span-2" id="cpolyGnssDateWrap"><input id="cpolyGnssDate" class="box" type="text" placeholder="ex. 10.07.26" /></div>
+            <div class="field span-1">
+              <label class="dz-toggle">
+                <input id="cpolyNivEnabled" type="checkbox" data-cpoly-tech-toggle="niv" />
+                <span class="small">Nivellement</span>
+              </label>
+            </div>
+            <div class="field span-2" id="cpolyNivDateWrap"><input id="cpolyNivDate" class="box" type="text" placeholder="ex. du 13.07.26 au 15.07.26" /></div>
+            <div class="field span-1">
+              <label class="dz-toggle">
+                <input id="cpolyOptiqueEnabled" type="checkbox" data-cpoly-tech-toggle="optique" />
+                <span class="small">Optique</span>
+              </label>
+            </div>
+            <div class="field span-2" id="cpolyOptiqueDateWrap"><input id="cpolyOptiqueDate" class="box" type="text" placeholder="ex. 04.08.26" /></div>
+          </div>
+
+          <div class="small" style="font-weight:700; margin:16px 0 8px;">Déroulé de la mission — Équipe mobilisée</div>
+          <div class="infoGrid3">
+            <div class="field span-3"><div class="small">Responsable — nom</div><input id="cpolyRespName" class="box" type="text" /></div>
+            <div class="field span-3"><div class="small">Responsable — rôle</div><input id="cpolyRespRole" class="box" type="text" placeholder="ex. Responsable Topographique" /></div>
+          </div>
+          <div class="small" style="margin:10px 0 6px;">Encadrement (chef de mission, responsables d'agence…)</div>
+          <div id="cpolyLevel2Rows"></div>
+          <div class="row" style="margin-top:6px;">
+            <button id="btnCpolyAddLevel2Row" type="button">Ajouter une personne</button>
+          </div>
+          <div class="infoGrid3" style="margin-top:10px;">
+            <div class="field span-3"><div class="small">Opérateurs / géomètres — noms (séparés par une virgule)</div><input id="cpolySurveyorsText" class="box" type="text" placeholder="ex. Akin KESMAN, Ludovic DEVIN" /></div>
+            <div class="field span-3"><div class="small">Opérateurs / géomètres — rôle commun</div><input id="cpolySurveyorRole" class="box" type="text" placeholder="ex. Géomètre de l'agence IDF" /></div>
           </div>
 
           <div class="small" style="font-weight:700; margin:16px 0 8px;">Informations générales</div>
@@ -904,16 +950,128 @@
             <div class="field span-3"><div class="small">Projet</div><input id="cpolyProjectName" class="box" type="text" /></div>
             <div class="field span-3"><div class="small">Client</div><input id="cpolyClient" class="box" type="text" /></div>
             <div class="field span-3"><div class="small">Code chantier</div><input id="cpolySiteCode" class="box" type="text" /></div>
-            <div class="field span-3"><div class="small">Date de mission</div><input id="cpolyMissionDate" class="box" type="date" /></div>
-            <div class="field span-3"><div class="small">Référentiel planimétrique</div><input id="cpolyCoordSystem" class="box" type="text" placeholder="ex. RGF93 / CC50" /></div>
-            <div class="field span-3"><div class="small">Référentiel altimétrique</div><input id="cpolyAltSystem" class="box" type="text" placeholder="ex. NGF-IGN69" /></div>
-            <div class="field span-2">
-              <label class="dz-toggle">
-                <input id="cpolyPpmApplied" type="checkbox" />
-                <span class="small">Correction PPM appliquée</span>
-              </label>
+            <div class="field span-3"><div class="small">Ville</div><input id="cpolyVille" class="box" type="text" /></div>
+          </div>
+
+          <div class="small" style="font-weight:700; margin:16px 0 8px;">Référentiels du projet</div>
+          <div class="infoGrid3">
+            <div class="field span-3">
+              <div class="small">Référentiel planimétrique — Datum</div>
+              <select id="cpolyDatum" class="box">
+                <option value="RGF93">RGF93</option>
+                <option value="NTF">NTF</option>
+                <option value="WGS84">WGS84</option>
+                <option value="ED50">ED50</option>
+                <option value="Autre">Autre (préciser)</option>
+              </select>
+              <input id="cpolyDatumAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser le datum" />
             </div>
-            <div class="field span-2"><div class="small">Valeur PPM</div><input id="cpolyPpmValue" class="box" type="text" /></div>
+            <div class="field span-3">
+              <div class="small">Référentiel planimétrique — Projection</div>
+              <select id="cpolyProjection" class="box">
+                <option value="RGF93 / Lambert-93">RGF93 / Lambert-93 (EPSG:2154)</option>
+                <option value="RGF93 CC42">RGF93 CC42 (EPSG:3942)</option>
+                <option value="RGF93 CC43">RGF93 CC43 (EPSG:3943)</option>
+                <option value="RGF93 CC44">RGF93 CC44 (EPSG:3944)</option>
+                <option value="RGF93 CC45">RGF93 CC45 (EPSG:3945)</option>
+                <option value="RGF93 CC46">RGF93 CC46 (EPSG:3946)</option>
+                <option value="RGF93 CC47">RGF93 CC47 (EPSG:3947)</option>
+                <option value="RGF93 CC48">RGF93 CC48 (EPSG:3948)</option>
+                <option value="RGF93 CC49">RGF93 CC49 (EPSG:3949)</option>
+                <option value="RGF93 CC50">RGF93 CC50 (EPSG:3950)</option>
+                <option value="NTF Lambert 1">NTF Lambert 1 (EPSG:27561)</option>
+                <option value="NTF Lambert 2">NTF Lambert 2 (EPSG:27562)</option>
+                <option value="NTF Lambert 2 étendu">NTF Lambert 2 étendu (EPSG:27572)</option>
+                <option value="NTF Lambert 3">NTF Lambert 3 (EPSG:27563)</option>
+                <option value="WGS84">WGS84 (EPSG:4326)</option>
+                <option value="Autre">Autre (préciser)</option>
+              </select>
+              <input id="cpolyProjectionAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser la projection" />
+              <div class="small" style="margin-top:4px;">Sert aussi de référence pour la carte de situation auto-générée.</div>
+            </div>
+            <div class="field span-3">
+              <div class="small">Référentiel altimétrique</div>
+              <select id="cpolyAltSystem" class="box">
+                <option value="NGF-IGN69">NGF-IGN69</option>
+                <option value="NGF-IGN78 (Corse)">NGF-IGN78 (Corse)</option>
+                <option value="IGN 1988 (DOM)">IGN 1988 (DOM)</option>
+                <option value="Altitude ellipsoïdale (WGS84)">Altitude ellipsoïdale (WGS84)</option>
+                <option value="Autre">Autre (préciser)</option>
+              </select>
+              <input id="cpolyAltSystemAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser le référentiel altimétrique" />
+            </div>
+          </div>
+
+          <div class="small" style="font-weight:700; margin:16px 0 8px;">Mise en place de la polygonale — GNSS</div>
+          <div id="cpolyGnssDrawerWrap" class="nf-hidden">
+            <div class="field" style="margin-bottom:10px;">
+              <div class="small">Disposition des couples GNSS — photo (optionnelle)</div>
+              <label class="btn" for="cpolyGnssDispositionFile">Choisir une photo…</label>
+              <input id="cpolyGnssDispositionFile" type="file" accept="image/png,image/jpeg" />
+              <div class="row" style="margin-top:8px; align-items:center; gap:10px;">
+                <img id="cpolyGnssDispositionPreview" class="nf-hidden" alt="Disposition GNSS" style="max-height:80px; max-width:220px; border:1px solid #ccc; background:#fff; padding:2px;" />
+                <span id="cpolyGnssDispositionStatus" class="small">Aucune photo</span>
+                <button id="btnCpolyGnssDispositionClear" type="button" class="nf-hidden">Retirer la photo</button>
+              </div>
+            </div>
+            <div class="field span-3" style="margin-bottom:10px;">
+              <div class="small">Matériel — appareil</div>
+              <select id="cpolyGnssDevice" class="box">
+                <option value="gs14_gs15">Leica GS14/GS15</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="small">Méthodologie (pré-remplie, modifiable)</div>
+              <textarea id="cpolyGnssMethodology" class="box" rows="4"></textarea>
+            </div>
+          </div>
+
+          <div class="small" style="font-weight:700; margin:16px 0 8px;">Mise en place de la polygonale — Optique</div>
+          <div id="cpolyOptiqueDrawerWrap" class="nf-hidden">
+            <div class="field" style="margin-bottom:10px;">
+              <div class="small">Disposition des stations topographiques — photo (optionnelle)</div>
+              <label class="btn" for="cpolyOptiqueDispositionFile">Choisir une photo…</label>
+              <input id="cpolyOptiqueDispositionFile" type="file" accept="image/png,image/jpeg" />
+              <div class="row" style="margin-top:8px; align-items:center; gap:10px;">
+                <img id="cpolyOptiqueDispositionPreview" class="nf-hidden" alt="Disposition stations topographiques" style="max-height:80px; max-width:220px; border:1px solid #ccc; background:#fff; padding:2px;" />
+                <span id="cpolyOptiqueDispositionStatus" class="small">Aucune photo</span>
+                <button id="btnCpolyOptiqueDispositionClear" type="button" class="nf-hidden">Retirer la photo</button>
+              </div>
+            </div>
+            <div class="field span-3" style="margin-bottom:10px;">
+              <div class="small">Matériel — appareil</div>
+              <select id="cpolyOptiqueDevice" class="box">
+                <option value="ts60">Leica TS 60</option>
+              </select>
+            </div>
+            <div class="field" style="margin-bottom:10px;">
+              <div class="small">Méthodologie (pré-remplie, modifiable)</div>
+              <textarea id="cpolyOptiqueMethodology" class="box" rows="6"></textarea>
+            </div>
+            <div class="small" style="font-weight:700; margin:10px 0 8px;">Paramètres de mesure</div>
+            <div class="infoGrid3">
+              <div class="field span-2">
+                <label class="dz-toggle">
+                  <input id="cpolyOptiquePpmApplied" type="checkbox" />
+                  <span class="small">Application des PPM</span>
+                </label>
+              </div>
+              <div class="field span-2"><div class="small">Valeur PPM</div><input id="cpolyOptiquePpmValue" class="box" type="text" placeholder="ex. 12 ppm" /></div>
+            </div>
+          </div>
+
+          <div class="small" style="font-weight:700; margin:16px 0 8px;">Mise en place de la polygonale — Nivellement</div>
+          <div id="cpolyNivDrawerWrap" class="nf-hidden">
+            <div class="field span-3" style="margin-bottom:10px;">
+              <div class="small">Matériel — appareil</div>
+              <select id="cpolyNivDevice" class="box">
+                <option value="ls15">Leica LS15</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="small">Méthodologie (pré-remplie, modifiable)</div>
+              <textarea id="cpolyNivMethodology" class="box" rows="4"></textarea>
+            </div>
           </div>
 
           <div style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">
@@ -922,8 +1080,19 @@
               <div id="cpolyXlsxStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
             </div>
             <div>
-              <button id="btnCpolyImportGeobase" type="button" title="Sélectionne le fichier GeoBase (TXT).">Importer le fichier GeoBase (TXT, optionnel)</button>
+              <button id="btnCpolyImportGeobase" type="button" title="Sélectionne le fichier GeoBase (TXT). Optionnel en Contrôle (annexe) ; requis en Création (source des coordonnées du RESULTAT).">Importer le fichier GeoBase (TXT)</button>
               <div id="cpolyGeobaseStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
+            </div>
+          </div>
+
+          <div id="cpolyResultGroupsWrap" class="nf-hidden" style="margin-top:16px;">
+            <div class="small" style="font-weight:700; margin-bottom:4px;">RESULTAT — Groupes de points (mode Création)</div>
+            <div class="small" style="margin-bottom:8px;">
+              Répartit les points du GeoBase en plusieurs tableaux nommés selon le début de leur nom (ex. préfixe "BO" → "Les stations au sol"). Sans groupe défini, tous les points du GeoBase forment un unique tableau "Coordonnées".
+            </div>
+            <div id="cpolyResultGroupRows"></div>
+            <div class="row" style="margin-top:6px;">
+              <button id="btnCpolyAddResultGroupRow" type="button">Ajouter un groupe</button>
             </div>
           </div>
 

@@ -1231,7 +1231,23 @@ try{
     const chain = num(n.getAttribute('RefLineMeasStkChainage')) ?? num(n.getAttribute('RefLineMeasStkDistStart')) ?? 0;
     const off = num(n.getAttribute('RefLineMeasStkOffset')) ?? 0;
     const hoff = num(n.getAttribute('RefLineMeasStkHtOffset')) ?? 0;
-    const mes = measuredPointId && cg[measuredPointId] ? cg[measuredPointId] : (strippedPointId && cg[strippedPointId] ? cg[strippedPointId] : null);
+    const hasOwnPoint = !!(measuredPointId && cg[measuredPointId]);
+
+    // Certains carnets Leica (mode de suivi continu "syncrotrack") loguent plusieurs
+    // ApplicationReflineMeasure pour UNE seule visée réelle : un ou plusieurs instantanés
+    // intermédiaires du calcul de guidage en direct (chaînage/décalage qui se stabilise pendant
+    // que l'instrument affine son accroche), suffixés "@NN" par le carnet, puis l'instantané final
+    // qui devient le point réellement enregistré (sans suffixe). Un instantané intermédiaire n'a
+    // ni visée brute (RawObservation) ni point (CgPoint) qui lui soit propre - seul le nom
+    // "dénudé" (sans @NN) en a un. Cas réel constaté : RDC.E.2@159 et RDC.E.2 au même horodatage
+    // à la seconde près, chaînage quasi identique mais décalage très différent (4,7 cm vs 0,06 cm)
+    // - clairement le même geste de mesure, pas deux visées distinctes. On distingue ce cas d'un
+    // vrai doublon métier (occurrence @NN qui, elle, A son propre CgPoint - ex. Implantation/
+    // Contrôle de doublons) : on ignore une entrée seulement si son ID exact @NN n'a JAMAIS eu de
+    // point propre, jamais si l'occurrence existe réellement en tant que point mesuré.
+    if(measuredPointId && measuredPointId.indexOf('@') >= 0 && !hasOwnPoint) return;
+
+    const mes = hasOwnPoint ? cg[measuredPointId] : (strippedPointId && cg[strippedPointId] ? cg[strippedPointId] : null);
 
     // Théorique prioritaire : utiliser directement le point de base exporté par Leica quand il existe.
     // C'est la source la plus fiable pour la position théorique de la mesure sur ligne.

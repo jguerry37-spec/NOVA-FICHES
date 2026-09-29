@@ -2,6 +2,17 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 3.1.27
+
+- **Correction importante** : sur le rapport "Mesure sur ligne" (Implantation / Ligne de référence), un point mesuré en mode de suivi continu ("syncrotrack") pouvait apparaître deux fois avec des écarts différents - dans un cas réel constaté, l'une des deux lignes affichait un écart fictif de 60 cm alors que le point était en réalité conforme. Cause : le carnet Leica journalise parfois un instantané intermédiaire du calcul de guidage en direct (identifiant suffixé "@NN", ex. "R3.5.1@255") avant l'instantané final réellement enregistré comme point - cet instantané intermédiaire n'a ni visée brute ni point qui lui soit propre. L'import ne garde désormais que l'instantané réellement mesuré ; les vrais doublons métier (un point réellement revisé depuis une autre station, avec sa propre visée) restent affichés normalement.
+- Build : passage de l'application et du moteur PDF en **3.1.27.0**.
+
+## 3.1.26
+
+- **Contrôle de polygonale : restructuration complète du rapport sur un vrai rapport de référence livré à un client** (remplace l'ordre et le contenu de la version "essentiel d'abord" livrée en 3.1.21-3.1.22). Le rapport suit maintenant : page de garde + tableau de révision multi-lignes, Objectifs de la mission (texte adapté Contrôle/Création et primaire/secondaire), Déroulé de la mission (date par technique activée + organigramme d'équipe à 3 niveaux dessiné), Référentiels du projet (Datum/Projection séparés + système altimétrique), Mise en place de la polygonale (un tiroir par technique activée - GNSS et Optique avec photo de disposition optionnelle + fiche matériel + méthodologie pré-remplie modifiable, Optique avec en plus "Paramètres de mesure" et l'application des PPM ; Nivellement avec fiche matériel + méthodologie, sans photo), RESULTAT en fin de rapport (Contrôle : tableaux d'écarts XY/Z inchangés + GeoBase en annexe ; Création : coordonnées brutes du GeoBase réparties en tableaux nommés par groupe de points, définis par préfixe de nom - ex. "BO" → "Les stations au sol"), Conclusion adaptée au type/niveau avec signature du responsable.
+- Correction au passage : l'organigramme d'équipe laissait un grand vide sur la page quand l'encadrement (niveau 2) était vide - ne réserve plus que la place des niveaux réellement renseignés.
+- Build : passage de l'application et du moteur PDF en **3.1.26.0**.
+
 ## 3.1.25
 
 - Export KMZ, "Exporter la mesure (PDF)" : le message de confirmation affichait le chemin complet du fichier enregistré, qui débordait largement de la pastille (illisible, texte tronqué hors de sa case). N'affiche plus que le nom du fichier - le PDF s'ouvre de toute façon automatiquement après l'export, le chemin complet n'apportait rien.
