@@ -381,6 +381,39 @@ private static void SaveBytesWithFallback(byte[] pdfBytes, string outputPath)
             new PdfSharp.Drawing.XRect(marginL, y, contentW, 16), PdfSharp.Drawing.XStringFormats.Center);
         y += 24;
 
+        // Repère(s) NVP (Ville de Paris) touché(s) pendant le tracé : contrairement aux repères
+        // NGF/IGN, la Ville de Paris ne publie aucune fiche PDF téléchargeable pour ces repères -
+        // l'info déjà affichée dans la popup à l'écran (numéro, dénomination, les deux altitudes,
+        // état) est donc imprimée ici en texte, faute de document officiel à joindre.
+        if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("nvpInfo", out var nvpInfoEl) &&
+            nvpInfoEl.ValueKind == JsonValueKind.Array && nvpInfoEl.GetArrayLength() > 0)
+        {
+            gfx.DrawString("Repère(s) NVP (Ville de Paris) sur le tracé :", NovatlasTheme.FontBold(10), PdfSharp.Drawing.XBrushes.Black,
+                new PdfSharp.Drawing.XRect(marginL, y, contentW, 16), PdfSharp.Drawing.XStringFormats.TopLeft);
+            y += 18;
+            foreach (var item in nvpInfoEl.EnumerateArray())
+            {
+                string numero = item.TryGetProperty("numero", out var numEl) && numEl.ValueKind == JsonValueKind.String ? (numEl.GetString() ?? "") : "";
+                string denomination = item.TryGetProperty("denomination", out var denEl) && denEl.ValueKind == JsonValueKind.String ? (denEl.GetString() ?? "") : "";
+                double? altNvp = item.TryGetProperty("altitudeNvp", out var nvEl) && nvEl.ValueKind == JsonValueKind.Number && nvEl.TryGetDouble(out var nv) ? nv : null;
+                double? altIgn69 = item.TryGetProperty("altitudeIgn69", out var igEl) && igEl.ValueKind == JsonValueKind.Number && igEl.TryGetDouble(out var iv) ? iv : null;
+                string typ = item.TryGetProperty("typ", out var typEl) && typEl.ValueKind == JsonValueKind.String ? (typEl.GetString() ?? "") : "";
+
+                string altNvpTxt = altNvp.HasValue ? altNvp.Value.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) + " m" : "inconnue";
+                string altIgnTxt = altIgn69.HasValue ? altIgn69.Value.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) + " m" : "inconnue";
+                string line = string.IsNullOrWhiteSpace(denomination)
+                    ? numero
+                    : $"{numero} — {denomination}";
+                line += $" : NVP {altNvpTxt} / NGF-IGN69 {altIgnTxt}";
+                if (!string.IsNullOrWhiteSpace(typ)) line += $" ({typ})";
+
+                gfx.DrawString(line, NovatlasTheme.FontBody(9), PdfSharp.Drawing.XBrushes.Black,
+                    new PdfSharp.Drawing.XRect(marginL, y, contentW, 14), PdfSharp.Drawing.XStringFormats.TopLeft);
+                y += 14;
+            }
+            y += 10;
+        }
+
         // Carte de la mesure (facultative - absente si le tracé fait moins de 2 points ou si le
         // fond de carte n'a pas pu être récupéré) : mise à l'échelle dans l'espace restant de la
         // page A4, ratio d'aspect conservé, jamais agrandie au-delà de sa taille native.

@@ -77,7 +77,10 @@ internal static class TextFitHelper
         }
     }
 
-    private static List<string> WrapWords(XGraphics g, string text, XFont font, double maxWidth)
+    // internal (pas private) : réutilisé tel quel par FicheSignaletiqueRenderer.ComputeRowLayout
+    // pour faire passer les valeurs trop longues (ex. une adresse complète) sur plusieurs lignes
+    // dans le cadre "Informations générales" - pure fonction mesure+découpe, aucun état partagé.
+    internal static List<string> WrapWords(XGraphics g, string text, XFont font, double maxWidth)
     {
         // Fast path.
         if (g.MeasureString(text, font).Width <= maxWidth)

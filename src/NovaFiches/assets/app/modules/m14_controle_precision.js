@@ -12,8 +12,10 @@
   const K_3D = 2.11;
 
   const state = {
-    levePoints: {},      // id -> {id,x,y,z}
-    controlePoints: {},  // id -> {id,x,y,z}
+    levePoints: {},      // id -> {id,x,y,z} - copie de travail (après nettoyage de préfixe éventuel)
+    controlePoints: {},  // id -> {id,x,y,z} - copie de travail
+    leveRawPoints: {},     // id -> {id,x,y,z} tel qu'importé, jamais modifié - permet de ré-appliquer
+    controleRawPoints: {}, // un nettoyage de préfixe différent sans ré-importer le fichier
     leveFileName: null,
     controleFileName: null,
     matches: [],          // [{id, leve, controle, dX,dY,dZ, planiDev,altiDev,threeDDev}]
@@ -123,16 +125,91 @@
 
   function handleLeveResult(msg){
     if(!msg.ok){ setStatus('cpLeveStatus', String(msg.error || "Échec de l'import."), 'err'); return; }
-    state.levePoints = buildDict(msg.points);
+    state.leveRawPoints = buildDict(msg.points);
+    state.levePoints = state.leveRawPoints;
     state.leveFileName = msg.fileName;
+    el('cpLevePrefix').value = '';
+    el('cpLevePrefixWrap').classList.remove('nf-hidden');
     setStatus('cpLeveStatus', `${esc(msg.fileName)} : ${msg.count} point(s)`);
+    renderPreviewTable(state.levePoints, 'cpLevePreviewTable', 'cpLevePreviewWrap');
     maybeBuildAssembly();
   }
   function handleControleResult(msg){
     if(!msg.ok){ setStatus('cpControleStatus', String(msg.error || "Échec de l'import."), 'err'); return; }
-    state.controlePoints = buildDict(msg.points);
+    state.controleRawPoints = buildDict(msg.points);
+    state.controlePoints = state.controleRawPoints;
     state.controleFileName = msg.fileName;
+    el('cpControlePrefix').value = '';
+    el('cpControlePrefixWrap').classList.remove('nf-hidden');
     setStatus('cpControleStatus', `${esc(msg.fileName)} : ${msg.count} point(s)`);
+    renderPreviewTable(state.controlePoints, 'cpControlePreviewTable', 'cpControlePreviewWrap');
+    maybeBuildAssembly();
+  }
+
+  // ---------- Aperçu du fichier importé ----------
+
+  // Petite table ID/X/Y/Z des points tels que compris par le parseur C# (ControlePrecisionService.
+  // ParseTxtPoints) - pas le texte brut du fichier, pour rester cohérent avec ce que l'appli va
+  // réellement utiliser (ex. un fichier "brut" théo/mesuré ne montre ici que les Xmes/Ymes/Zmes
+  // retenus, pas les colonnes théoriques ignorées). Se met à jour après chaque nettoyage de
+  // préfixe pour que l'aperçu reflète toujours les ID actuellement utilisés pour l'appariement.
+  function renderPreviewTable(dict, tableId, wrapId){
+    const ids = Object.keys(dict);
+    const rows = ids.map(id => {
+      const p = dict[id];
+      return '<tr>' +
+        `<td class="px-2 py-1">${esc(id)}</td>` +
+        `<td class="px-2 py-1">${fmt(p.x)}</td><td class="px-2 py-1">${fmt(p.y)}</td><td class="px-2 py-1">${fmt(p.z)}</td>` +
+        '</tr>';
+    }).join('');
+    el(tableId).innerHTML =
+      '<table style="width:100%; border-collapse:collapse;">' +
+      '<thead><tr><th class="px-2 py-1 text-left">ID</th><th class="px-2 py-1 text-left">X</th>' +
+      '<th class="px-2 py-1 text-left">Y</th><th class="px-2 py-1 text-left">Z</th></tr></thead>' +
+      `<tbody>${rows}</tbody></table>`;
+    el(wrapId).classList.remove('nf-hidden');
+  }
+
+  // ---------- Nettoyage de préfixe des n° de point ----------
+
+  // Retire `prefix` (littéral, sensible à la casse) du début de chaque ID d'un dictionnaire de
+  // points, en repartant toujours du dictionnaire BRUT importé (jamais du résultat d'un nettoyage
+  // précédent) - permet à l'utilisateur d'essayer un autre préfixe sans avoir à ré-importer le
+  // fichier. Un ID qui ne commence pas par ce préfixe, ou qui lui est strictement égal (rien ne
+  // resterait), est conservé tel quel plutôt que vidé. Si deux ID bruts distincts se retrouvent
+  // identiques après retrait (collision), le dernier rencontré l'emporte - même convention que
+  // ParseTxtPoints côté C# ("ID dupliqué ... dernière occurrence gagne").
+  function stripPrefixFromDict(rawDict, prefix){
+    if(!prefix) return { dict: rawDict, renamed: 0, collisions: 0 };
+    const out = {};
+    let renamed = 0, collisions = 0;
+    Object.keys(rawDict).forEach(id => {
+      const p = rawDict[id];
+      let newId = id;
+      if(id.startsWith(prefix) && id.length > prefix.length) { newId = id.slice(prefix.length); renamed++; }
+      if(Object.prototype.hasOwnProperty.call(out, newId)) collisions++;
+      out[newId] = { ...p, id: newId };
+    });
+    return { dict: out, renamed, collisions };
+  }
+
+  function cleanLevePrefix(){
+    const prefix = el('cpLevePrefix').value.trim();
+    const { dict, renamed, collisions } = stripPrefixFromDict(state.leveRawPoints, prefix);
+    state.levePoints = dict;
+    if(!prefix) setStatus('cpLeveStatus', `${esc(state.leveFileName)} : ${Object.keys(dict).length} point(s) (préfixe réinitialisé).`);
+    else setStatus('cpLeveStatus', `${esc(state.leveFileName)} : ${Object.keys(dict).length} point(s), ${renamed} nettoyé(s)` + (collisions ? ` — attention, ${collisions} collision(s) d'ID après nettoyage` : '') + '.', collisions ? 'err' : undefined);
+    renderPreviewTable(state.levePoints, 'cpLevePreviewTable', 'cpLevePreviewWrap');
+    maybeBuildAssembly();
+  }
+
+  function cleanControlePrefix(){
+    const prefix = el('cpControlePrefix').value.trim();
+    const { dict, renamed, collisions } = stripPrefixFromDict(state.controleRawPoints, prefix);
+    state.controlePoints = dict;
+    if(!prefix) setStatus('cpControleStatus', `${esc(state.controleFileName)} : ${Object.keys(dict).length} point(s) (préfixe réinitialisé).`);
+    else setStatus('cpControleStatus', `${esc(state.controleFileName)} : ${Object.keys(dict).length} point(s), ${renamed} nettoyé(s)` + (collisions ? ` — attention, ${collisions} collision(s) d'ID après nettoyage` : '') + '.', collisions ? 'err' : undefined);
+    renderPreviewTable(state.controlePoints, 'cpControlePreviewTable', 'cpControlePreviewWrap');
     maybeBuildAssembly();
   }
 
@@ -411,6 +488,8 @@
   function init(){
     el('btnCpImportLeve')?.addEventListener('click', importLeve);
     el('btnCpImportControle')?.addEventListener('click', importControle);
+    el('btnCpLeveClean')?.addEventListener('click', cleanLevePrefix);
+    el('btnCpControleClean')?.addEventListener('click', cleanControlePrefix);
     el('btnCpRunAnalysis')?.addEventListener('click', runAnalysis);
     el('btnCpGenerateMap')?.addEventListener('click', generateMap);
     el('btnCpExport')?.addEventListener('click', exportReport);

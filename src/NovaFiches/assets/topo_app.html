@@ -40,7 +40,7 @@
       <button class="nf-nav-item nf-hidden" data-target="module-fiches-signaletiques" data-nf-feature="fiches_signaletiques">Fiches signalétiques</button>
       <button class="nf-nav-item nf-hidden" data-target="module-controle-doublons" data-nf-feature="controle_doublons">Contrôle de doublons</button>
       <button class="nf-nav-item nf-hidden" data-target="module-controle-precision" data-nf-feature="controle_precision">Contrôle classe de précision</button>
-      <button class="nf-nav-item nf-hidden" data-target="module-controle-polygonale" data-nf-feature="controle_polygonale">Contrôle de polygonale</button>
+      <button class="nf-nav-item nf-hidden" data-target="module-controle-polygonale" data-nf-feature="controle_polygonale">Rapport de polygonale</button>
     </nav>
     <div class="nf-sidebar-spacer"></div>
     <nav class="nf-nav nf-nav-bottom">
@@ -572,13 +572,34 @@
             </div>
             <button id="btnKmzExport" class="btn-primary" disabled title="Exporte dans un seul KMZ tous les éléments TXT et DXF cochés.">Exporter KMZ</button>
             <span id="kmzStatus" class="pill">Fichier : aucun</span>
-            <label style="display:flex; align-items:center; gap:6px;">
-              <input type="checkbox" id="kmzNgfToggle">
-              Repères NGF (IGN)
-            </label>
-            <button id="btnKmzNgfRefresh" disabled title="Clique deux coins sur la carte pour dessiner la zone à interroger sur le flux IGN des repères de nivellement.">Dessiner une zone à charger</button>
-            <span id="kmzNgfStatus" class="small kmz-ngf-status"></span>
           </div>
+
+          <div class="kmz-repere-box">
+            <div class="small" style="font-weight:700; margin-bottom:8px;">Repères externes</div>
+            <div class="kmz-repere-row">
+              <label class="kmz-repere-check">
+                <input type="checkbox" id="kmzNgfToggle">
+                Repères NGF (IGN)
+              </label>
+              <button id="btnKmzNgfRefresh" disabled title="Clique deux coins sur la carte pour dessiner la zone à interroger sur le flux IGN des repères de nivellement.">Dessiner une zone à charger</button>
+              <span id="kmzNgfStatus" class="small kmz-ngf-status"></span>
+            </div>
+            <div class="kmz-repere-row">
+              <label class="kmz-repere-check">
+                <input type="checkbox" id="kmzNvpToggle">
+                Repères NVP (Ville de Paris)
+              </label>
+              <button id="btnKmzNvpRefresh" disabled title="Clique deux coins sur la carte pour dessiner la zone à interroger sur les repères de nivellement de la Ville de Paris (système NVP).">Dessiner une zone à charger</button>
+              <span id="kmzNvpStatus" class="small kmz-ngf-status"></span>
+            </div>
+            <div class="kmz-repere-row kmz-address-row">
+              <span class="small">Rechercher une adresse :</span>
+              <input type="text" id="kmzAddressInput" class="box" placeholder="ex. 12 rue de la Paix, Paris" style="flex:1; min-width:220px;" />
+              <button id="btnKmzAddressSearch" type="button" title="Centre la carte sur l'adresse et charge les repères NGF/NVP cochés autour (rayon ~300 m), sans avoir besoin d'importer un fichier de points.">Rechercher</button>
+            </div>
+            <div id="kmzAddressStatus" class="small kmz-address-status"></div>
+          </div>
+
           <div class="row" style="align-items:flex-end; margin-top:8px;">
             <button id="btnKmzMeasureToggle" type="button" title="Trace une ligne (clics successifs) et affiche la distance cumulée.">Mesurer une distance</button>
             <button id="btnKmzMeasureClear" type="button" class="nf-space-hidden">Effacer la mesure</button>
@@ -712,6 +733,26 @@
             </div>
           </div>
 
+          <div class="row" style="margin-top:14px; align-items:center; gap:10px;">
+            <div class="field" style="min-width:160px;">
+              <div class="small">Fond de carte (PDF)</div>
+              <select id="fichesBasemap" class="box">
+                <option value="plan" selected>Plan (IGN)</option>
+                <option value="satellite">Satellite (Esri)</option>
+              </select>
+            </div>
+            <div class="field" style="min-width:170px;">
+              <div class="small">Niveau de zoom</div>
+              <select id="fichesMapZoom" class="box">
+                <option value="19" selected>19 — très rapproché (défaut)</option>
+                <option value="18">18</option>
+                <option value="17">17</option>
+                <option value="16">16</option>
+                <option value="15">15 — vue large</option>
+              </select>
+            </div>
+          </div>
+
           <div class="row" style="margin-top:14px;">
             <button id="btnFichesGeocode" type="button" disabled title="Remplit automatiquement adresse/commune/département des fiches sans adresse, via OpenStreetMap (Nominatim).">Géocoder les adresses manquantes</button>
             <span id="fichesGeocodeStatus" class="small"></span>
@@ -777,10 +818,28 @@
             <div>
               <button id="btnCpImportLeve" type="button" title="Sélectionne le fichier TXT du Levé.">Importer le fichier Levé</button>
               <div id="cpLeveStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
+              <div id="cpLevePrefixWrap" class="nf-hidden" style="margin-top:6px; display:flex; align-items:center; gap:6px;">
+                <span class="small">Préfixe à retirer des n° de point :</span>
+                <input id="cpLevePrefix" class="box" type="text" style="width:120px;" placeholder="ex. Stkd" />
+                <button id="btnCpLeveClean" type="button" title="Retire ce préfixe de chaque n° de point du fichier Levé.">Nettoyer</button>
+              </div>
+              <details id="cpLevePreviewWrap" class="nf-hidden" style="margin-top:6px;">
+                <summary class="small" style="cursor:pointer;">Aperçu du fichier (points importés)</summary>
+                <div id="cpLevePreviewTable" style="max-height:240px; overflow-y:auto; margin-top:6px;"></div>
+              </details>
             </div>
             <div>
               <button id="btnCpImportControle" type="button" title="Sélectionne le fichier TXT de Contrôle.">Importer le fichier Contrôle</button>
               <div id="cpControleStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
+              <div id="cpControlePrefixWrap" class="nf-hidden" style="margin-top:6px; display:flex; align-items:center; gap:6px;">
+                <span class="small">Préfixe à retirer des n° de point :</span>
+                <input id="cpControlePrefix" class="box" type="text" style="width:120px;" placeholder="ex. Stkd" />
+                <button id="btnCpControleClean" type="button" title="Retire ce préfixe de chaque n° de point du fichier Contrôle.">Nettoyer</button>
+              </div>
+              <details id="cpControlePreviewWrap" class="nf-hidden" style="margin-top:6px;">
+                <summary class="small" style="cursor:pointer;">Aperçu du fichier (points importés)</summary>
+                <div id="cpControlePreviewTable" style="max-height:240px; overflow-y:auto; margin-top:6px;"></div>
+              </details>
             </div>
           </div>
 
@@ -870,245 +929,500 @@
       </section>
       <section id="module-controle-polygonale" class="nf-module">
         <div class="card">
-          <h2>Contrôle de polygonale</h2>
+          <h2>Rapport de polygonale</h2>
           <div class="small" style="margin-bottom:10px;">
             Importe un classeur de comparaison (Excel : un onglet dont le nom contient "GNSS" pour le contrôle XY, un onglet dont le nom contient "Niv" pour le contrôle Z) et, si besoin, un fichier GeoBase (TXT), puis génère le rapport PDF (tableaux d'écarts + synthèse, tableau GeoBase, conclusion).
           </div>
 
-          <div class="small" style="font-weight:700; margin-bottom:8px;">Type de rapport</div>
-          <div class="infoGrid3">
-            <div class="field span-3">
-              <div class="small">Nature</div>
-              <select id="cpolyReportType" class="box">
-                <option value="controle">Contrôle (écarts théo/mesuré)</option>
-                <option value="creation">Création (mise en place, coordonnées brutes)</option>
-              </select>
+          <!-- Assistant par étape : un panneau par étape (data-cpoly-step-panel), affiché/masqué en
+               JS (nf-hidden) plutôt que physiquement retiré - aucun champ n'est déplacé hors de ce
+               module, seulement regroupé dans l'ordre du rapport (page de garde -> objectifs ->
+               déroulé -> référentiels -> tiroirs par technique -> RESULTAT -> conclusion). Navigation
+               libre (pas de verrouillage séquentiel) : un projet rechargé (thème 3) reste éditable à
+               n'importe quelle étape. -->
+          <div class="cpoly-wizard" style="display:flex; gap:20px; align-items:flex-start;">
+            <div class="cpoly-wizard-nav" style="width:230px; flex:0 0 230px; display:flex; flex-direction:column; gap:1px; position:sticky; top:10px;">
+              <button type="button" class="nf-nav-item cpoly-step-nav active" data-cpoly-step="garde">1. Page de garde</button>
+              <button type="button" class="nf-nav-item cpoly-step-nav" data-cpoly-step="objectifs">2. Objectifs</button>
+              <button type="button" class="nf-nav-item cpoly-step-nav" data-cpoly-step="deroule">3. Déroulé de la mission</button>
+              <button type="button" class="nf-nav-item cpoly-step-nav" data-cpoly-step="referentiels">4. Référentiels</button>
+              <button type="button" class="nf-nav-item cpoly-step-nav" data-cpoly-step="gnss">5. Mise en place — GNSS</button>
+              <button type="button" class="nf-nav-item cpoly-step-nav" data-cpoly-step="optique">6. Mise en place — Optique</button>
+              <button type="button" class="nf-nav-item cpoly-step-nav" data-cpoly-step="nivellement">7. Mise en place — Nivellement</button>
+              <button type="button" class="nf-nav-item cpoly-step-nav" data-cpoly-step="resultat">8. RESULTAT</button>
+              <button type="button" class="nf-nav-item cpoly-step-nav" data-cpoly-step="conclusion">9. Conclusion</button>
+              <button type="button" class="nf-nav-item cpoly-step-nav" data-cpoly-step="annexes">10. Annexes</button>
             </div>
-            <div class="field span-3">
-              <div class="small">Niveau</div>
-              <select id="cpolyLevel" class="box">
-                <option value="primaire">Primaire</option>
-                <option value="secondaire">Secondaire</option>
-              </select>
-            </div>
-          </div>
 
-          <div class="field" style="margin-top:12px;">
-            <div class="small">Objectifs de la mission — texte forcé (optionnel — sinon généré automatiquement à partir du type de rapport, du niveau, de la ville et du projet)</div>
-            <textarea id="cpolyMissionObjectiveText" class="box" rows="2"></textarea>
-          </div>
+            <div class="cpoly-wizard-content" style="flex:1; min-width:0;">
 
-          <div class="small" style="font-weight:700; margin:16px 0 8px;">Tableau de révision</div>
-          <div id="cpolyRevisionRows"></div>
-          <div class="row" style="margin-top:6px;">
-            <button id="btnCpolyAddRevisionRow" type="button">Ajouter une ligne</button>
-          </div>
+              <div class="cpoly-step" data-cpoly-step-panel="garde">
+                <div class="small" style="font-weight:700; margin-bottom:8px;">Informations générales</div>
+                <div class="infoGrid3">
+                  <div class="field span-3"><div class="small">Projet</div><input id="cpolyProjectName" class="box" type="text" /></div>
+                  <div class="field span-3"><div class="small">Client</div><input id="cpolyClient" class="box" type="text" /></div>
+                  <div class="field span-3"><div class="small">Code chantier</div><input id="cpolySiteCode" class="box" type="text" /></div>
+                  <div class="field span-3"><div class="small">Ville</div><input id="cpolyVille" class="box" type="text" /></div>
+                </div>
 
-          <div class="small" style="font-weight:700; margin:16px 0 8px;">Déroulé de la mission — Date et durée</div>
-          <div class="small" style="margin-bottom:8px;">Une date (ou plage) par technique activée pour cette mission.</div>
-          <div class="infoGrid3">
-            <div class="field span-1">
-              <label class="dz-toggle">
-                <input id="cpolyGnssEnabled" type="checkbox" data-cpoly-tech-toggle="gnss" />
-                <span class="small">GNSS</span>
-              </label>
-            </div>
-            <div class="field span-2" id="cpolyGnssDateWrap"><input id="cpolyGnssDate" class="box" type="text" placeholder="ex. 10.07.26" /></div>
-            <div class="field span-1">
-              <label class="dz-toggle">
-                <input id="cpolyNivEnabled" type="checkbox" data-cpoly-tech-toggle="niv" />
-                <span class="small">Nivellement</span>
-              </label>
-            </div>
-            <div class="field span-2" id="cpolyNivDateWrap"><input id="cpolyNivDate" class="box" type="text" placeholder="ex. du 13.07.26 au 15.07.26" /></div>
-            <div class="field span-1">
-              <label class="dz-toggle">
-                <input id="cpolyOptiqueEnabled" type="checkbox" data-cpoly-tech-toggle="optique" />
-                <span class="small">Optique</span>
-              </label>
-            </div>
-            <div class="field span-2" id="cpolyOptiqueDateWrap"><input id="cpolyOptiqueDate" class="box" type="text" placeholder="ex. 04.08.26" /></div>
-          </div>
+                <div class="small" style="font-weight:700; margin:16px 0 8px;">Type de rapport</div>
+                <div class="infoGrid3">
+                  <div class="field span-3">
+                    <div class="small">Nature</div>
+                    <select id="cpolyReportType" class="box">
+                      <option value="controle">Contrôle (écarts théo/mesuré)</option>
+                      <option value="creation">Création (mise en place, coordonnées brutes)</option>
+                    </select>
+                  </div>
+                  <div class="field span-3">
+                    <div class="small">Niveau</div>
+                    <select id="cpolyLevel" class="box">
+                      <option value="primaire">Primaire</option>
+                      <option value="secondaire">Secondaire</option>
+                      <option value="primaire_secondaire">Primaire et secondaire</option>
+                    </select>
+                  </div>
+                </div>
 
-          <div class="small" style="font-weight:700; margin:16px 0 8px;">Déroulé de la mission — Équipe mobilisée</div>
-          <div class="infoGrid3">
-            <div class="field span-3"><div class="small">Responsable — nom</div><input id="cpolyRespName" class="box" type="text" /></div>
-            <div class="field span-3"><div class="small">Responsable — rôle</div><input id="cpolyRespRole" class="box" type="text" placeholder="ex. Responsable Topographique" /></div>
-          </div>
-          <div class="small" style="margin:10px 0 6px;">Encadrement (chef de mission, responsables d'agence…)</div>
-          <div id="cpolyLevel2Rows"></div>
-          <div class="row" style="margin-top:6px;">
-            <button id="btnCpolyAddLevel2Row" type="button">Ajouter une personne</button>
-          </div>
-          <div class="infoGrid3" style="margin-top:10px;">
-            <div class="field span-3"><div class="small">Opérateurs / géomètres — noms (séparés par une virgule)</div><input id="cpolySurveyorsText" class="box" type="text" placeholder="ex. Akin KESMAN, Ludovic DEVIN" /></div>
-            <div class="field span-3"><div class="small">Opérateurs / géomètres — rôle commun</div><input id="cpolySurveyorRole" class="box" type="text" placeholder="ex. Géomètre de l'agence IDF" /></div>
-          </div>
-
-          <div class="small" style="font-weight:700; margin:16px 0 8px;">Informations générales</div>
-          <div class="infoGrid3">
-            <div class="field span-3"><div class="small">Projet</div><input id="cpolyProjectName" class="box" type="text" /></div>
-            <div class="field span-3"><div class="small">Client</div><input id="cpolyClient" class="box" type="text" /></div>
-            <div class="field span-3"><div class="small">Code chantier</div><input id="cpolySiteCode" class="box" type="text" /></div>
-            <div class="field span-3"><div class="small">Ville</div><input id="cpolyVille" class="box" type="text" /></div>
-          </div>
-
-          <div class="small" style="font-weight:700; margin:16px 0 8px;">Référentiels du projet</div>
-          <div class="infoGrid3">
-            <div class="field span-3">
-              <div class="small">Référentiel planimétrique — Datum</div>
-              <select id="cpolyDatum" class="box">
-                <option value="RGF93">RGF93</option>
-                <option value="NTF">NTF</option>
-                <option value="WGS84">WGS84</option>
-                <option value="ED50">ED50</option>
-                <option value="Autre">Autre (préciser)</option>
-              </select>
-              <input id="cpolyDatumAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser le datum" />
-            </div>
-            <div class="field span-3">
-              <div class="small">Référentiel planimétrique — Projection</div>
-              <select id="cpolyProjection" class="box">
-                <option value="RGF93 / Lambert-93">RGF93 / Lambert-93 (EPSG:2154)</option>
-                <option value="RGF93 CC42">RGF93 CC42 (EPSG:3942)</option>
-                <option value="RGF93 CC43">RGF93 CC43 (EPSG:3943)</option>
-                <option value="RGF93 CC44">RGF93 CC44 (EPSG:3944)</option>
-                <option value="RGF93 CC45">RGF93 CC45 (EPSG:3945)</option>
-                <option value="RGF93 CC46">RGF93 CC46 (EPSG:3946)</option>
-                <option value="RGF93 CC47">RGF93 CC47 (EPSG:3947)</option>
-                <option value="RGF93 CC48">RGF93 CC48 (EPSG:3948)</option>
-                <option value="RGF93 CC49">RGF93 CC49 (EPSG:3949)</option>
-                <option value="RGF93 CC50">RGF93 CC50 (EPSG:3950)</option>
-                <option value="NTF Lambert 1">NTF Lambert 1 (EPSG:27561)</option>
-                <option value="NTF Lambert 2">NTF Lambert 2 (EPSG:27562)</option>
-                <option value="NTF Lambert 2 étendu">NTF Lambert 2 étendu (EPSG:27572)</option>
-                <option value="NTF Lambert 3">NTF Lambert 3 (EPSG:27563)</option>
-                <option value="WGS84">WGS84 (EPSG:4326)</option>
-                <option value="Autre">Autre (préciser)</option>
-              </select>
-              <input id="cpolyProjectionAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser la projection" />
-              <div class="small" style="margin-top:4px;">Sert aussi de référence pour la carte de situation auto-générée.</div>
-            </div>
-            <div class="field span-3">
-              <div class="small">Référentiel altimétrique</div>
-              <select id="cpolyAltSystem" class="box">
-                <option value="NGF-IGN69">NGF-IGN69</option>
-                <option value="NGF-IGN78 (Corse)">NGF-IGN78 (Corse)</option>
-                <option value="IGN 1988 (DOM)">IGN 1988 (DOM)</option>
-                <option value="Altitude ellipsoïdale (WGS84)">Altitude ellipsoïdale (WGS84)</option>
-                <option value="Autre">Autre (préciser)</option>
-              </select>
-              <input id="cpolyAltSystemAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser le référentiel altimétrique" />
-            </div>
-          </div>
-
-          <div class="small" style="font-weight:700; margin:16px 0 8px;">Mise en place de la polygonale — GNSS</div>
-          <div id="cpolyGnssDrawerWrap" class="nf-hidden">
-            <div class="field" style="margin-bottom:10px;">
-              <div class="small">Disposition des couples GNSS — photo (optionnelle)</div>
-              <label class="btn" for="cpolyGnssDispositionFile">Choisir une photo…</label>
-              <input id="cpolyGnssDispositionFile" type="file" accept="image/png,image/jpeg" />
-              <div class="row" style="margin-top:8px; align-items:center; gap:10px;">
-                <img id="cpolyGnssDispositionPreview" class="nf-hidden" alt="Disposition GNSS" style="max-height:80px; max-width:220px; border:1px solid #ccc; background:#fff; padding:2px;" />
-                <span id="cpolyGnssDispositionStatus" class="small">Aucune photo</span>
-                <button id="btnCpolyGnssDispositionClear" type="button" class="nf-hidden">Retirer la photo</button>
+                <div class="small" style="font-weight:700; margin:16px 0 8px;">Tableau de révision</div>
+                <div id="cpolyRevisionRows"></div>
+                <div class="row" style="margin-top:6px;">
+                  <button id="btnCpolyAddRevisionRow" type="button">Ajouter une ligne</button>
+                </div>
               </div>
-            </div>
-            <div class="field span-3" style="margin-bottom:10px;">
-              <div class="small">Matériel — appareil</div>
-              <select id="cpolyGnssDevice" class="box">
-                <option value="gs14_gs15">Leica GS14/GS15</option>
-              </select>
-            </div>
-            <div class="field">
-              <div class="small">Méthodologie (pré-remplie, modifiable)</div>
-              <textarea id="cpolyGnssMethodology" class="box" rows="4"></textarea>
-            </div>
-          </div>
 
-          <div class="small" style="font-weight:700; margin:16px 0 8px;">Mise en place de la polygonale — Optique</div>
-          <div id="cpolyOptiqueDrawerWrap" class="nf-hidden">
-            <div class="field" style="margin-bottom:10px;">
-              <div class="small">Disposition des stations topographiques — photo (optionnelle)</div>
-              <label class="btn" for="cpolyOptiqueDispositionFile">Choisir une photo…</label>
-              <input id="cpolyOptiqueDispositionFile" type="file" accept="image/png,image/jpeg" />
-              <div class="row" style="margin-top:8px; align-items:center; gap:10px;">
-                <img id="cpolyOptiqueDispositionPreview" class="nf-hidden" alt="Disposition stations topographiques" style="max-height:80px; max-width:220px; border:1px solid #ccc; background:#fff; padding:2px;" />
-                <span id="cpolyOptiqueDispositionStatus" class="small">Aucune photo</span>
-                <button id="btnCpolyOptiqueDispositionClear" type="button" class="nf-hidden">Retirer la photo</button>
+              <div class="cpoly-step nf-hidden" data-cpoly-step-panel="objectifs">
+                <div class="field">
+                  <div class="small">Objectifs de la mission — texte forcé (optionnel — sinon généré automatiquement à partir du type de rapport, du niveau, de la ville et du projet)</div>
+                  <textarea id="cpolyMissionObjectiveText" class="box" rows="2"></textarea>
+                </div>
               </div>
-            </div>
-            <div class="field span-3" style="margin-bottom:10px;">
-              <div class="small">Matériel — appareil</div>
-              <select id="cpolyOptiqueDevice" class="box">
-                <option value="ts60">Leica TS 60</option>
-              </select>
-            </div>
-            <div class="field" style="margin-bottom:10px;">
-              <div class="small">Méthodologie (pré-remplie, modifiable)</div>
-              <textarea id="cpolyOptiqueMethodology" class="box" rows="6"></textarea>
-            </div>
-            <div class="small" style="font-weight:700; margin:10px 0 8px;">Paramètres de mesure</div>
-            <div class="infoGrid3">
-              <div class="field span-2">
-                <label class="dz-toggle">
-                  <input id="cpolyOptiquePpmApplied" type="checkbox" />
-                  <span class="small">Application des PPM</span>
-                </label>
+
+              <div class="cpoly-step nf-hidden" data-cpoly-step-panel="deroule">
+                <div class="small" style="font-weight:700; margin-bottom:8px;">Date et durée</div>
+                <div class="small" style="margin-bottom:8px;">Une date (ou plage) par technique activée pour cette mission.</div>
+                <div class="cpoly-tech-row">
+                  <div class="cpoly-tech-card">
+                    <label class="dz-toggle">
+                      <input id="cpolyGnssEnabled" type="checkbox" data-cpoly-tech-toggle="gnss" />
+                      <span class="small">GNSS</span>
+                    </label>
+                    <div class="field" id="cpolyGnssDateWrap">
+                      <input id="cpolyGnssDateStart" class="box" type="date" />
+                      <label class="small" style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                        <input id="cpolyGnssDateRange" type="checkbox" /> Plage de dates
+                      </label>
+                      <input id="cpolyGnssDateEnd" class="box nf-hidden" type="date" style="margin-top:4px;" />
+                    </div>
+                  </div>
+                  <div class="cpoly-tech-card">
+                    <label class="dz-toggle">
+                      <input id="cpolyNivEnabled" type="checkbox" data-cpoly-tech-toggle="niv" />
+                      <span class="small">Nivellement</span>
+                    </label>
+                    <div class="field" id="cpolyNivDateWrap">
+                      <input id="cpolyNivDateStart" class="box" type="date" />
+                      <label class="small" style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                        <input id="cpolyNivDateRange" type="checkbox" /> Plage de dates
+                      </label>
+                      <input id="cpolyNivDateEnd" class="box nf-hidden" type="date" style="margin-top:4px;" />
+                    </div>
+                  </div>
+                  <div class="cpoly-tech-card">
+                    <label class="dz-toggle">
+                      <input id="cpolyOptiqueEnabled" type="checkbox" data-cpoly-tech-toggle="optique" />
+                      <span class="small">Optique</span>
+                    </label>
+                    <div class="field" id="cpolyOptiqueDateWrap">
+                      <input id="cpolyOptiqueDateStart" class="box" type="date" />
+                      <label class="small" style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                        <input id="cpolyOptiqueDateRange" type="checkbox" /> Plage de dates
+                      </label>
+                      <input id="cpolyOptiqueDateEnd" class="box nf-hidden" type="date" style="margin-top:4px;" />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="small" style="font-weight:700; margin:16px 0 8px;">Équipe mobilisée</div>
+                <div class="infoGrid3">
+                  <div class="field span-3"><div class="small">Responsable — nom</div><input id="cpolyRespName" class="box" type="text" /></div>
+                  <div class="field span-3"><div class="small">Responsable — rôle</div><input id="cpolyRespRole" class="box" type="text" placeholder="ex. Responsable Topographique" /></div>
+                </div>
+                <div class="small" style="margin:10px 0 6px;">Encadrement (chef de mission, responsables d'agence…)</div>
+                <div id="cpolyLevel2Rows"></div>
+                <div class="row" style="margin-top:6px;">
+                  <button id="btnCpolyAddLevel2Row" type="button">Ajouter une personne</button>
+                </div>
+                <div class="infoGrid3" style="margin-top:10px;">
+                  <div class="field span-3"><div class="small">Opérateurs / géomètres — noms (séparés par une virgule)</div><input id="cpolySurveyorsText" class="box" type="text" placeholder="ex. Akin KESMAN, Ludovic DEVIN" /></div>
+                  <div class="field span-3"><div class="small">Opérateurs / géomètres — rôle commun</div><input id="cpolySurveyorRole" class="box" type="text" placeholder="ex. Géomètre de l'agence IDF" /></div>
+                </div>
               </div>
-              <div class="field span-2"><div class="small">Valeur PPM</div><input id="cpolyOptiquePpmValue" class="box" type="text" placeholder="ex. 12 ppm" /></div>
-            </div>
-          </div>
 
-          <div class="small" style="font-weight:700; margin:16px 0 8px;">Mise en place de la polygonale — Nivellement</div>
-          <div id="cpolyNivDrawerWrap" class="nf-hidden">
-            <div class="field span-3" style="margin-bottom:10px;">
-              <div class="small">Matériel — appareil</div>
-              <select id="cpolyNivDevice" class="box">
-                <option value="ls15">Leica LS15</option>
-              </select>
-            </div>
-            <div class="field">
-              <div class="small">Méthodologie (pré-remplie, modifiable)</div>
-              <textarea id="cpolyNivMethodology" class="box" rows="4"></textarea>
-            </div>
-          </div>
+              <div class="cpoly-step nf-hidden" data-cpoly-step-panel="referentiels">
+                <div class="small" style="font-weight:700; margin-bottom:8px;">Référentiels du projet</div>
+                <div class="infoGrid3">
+                  <div class="field span-3">
+                    <div class="small">Référentiel planimétrique — Datum</div>
+                    <select id="cpolyDatum" class="box">
+                      <option value="RGF93">RGF93</option>
+                      <option value="NTF">NTF</option>
+                      <option value="WGS84">WGS84</option>
+                      <option value="ED50">ED50</option>
+                      <option value="Autre">Autre (préciser)</option>
+                    </select>
+                    <input id="cpolyDatumAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser le datum" />
+                  </div>
+                  <div class="field span-3">
+                    <div class="small">Référentiel planimétrique — Projection</div>
+                    <select id="cpolyProjection" class="box">
+                      <option value="RGF93 / Lambert-93">RGF93 / Lambert-93 (EPSG:2154)</option>
+                      <option value="RGF93 CC42">RGF93 CC42 (EPSG:3942)</option>
+                      <option value="RGF93 CC43">RGF93 CC43 (EPSG:3943)</option>
+                      <option value="RGF93 CC44">RGF93 CC44 (EPSG:3944)</option>
+                      <option value="RGF93 CC45">RGF93 CC45 (EPSG:3945)</option>
+                      <option value="RGF93 CC46">RGF93 CC46 (EPSG:3946)</option>
+                      <option value="RGF93 CC47">RGF93 CC47 (EPSG:3947)</option>
+                      <option value="RGF93 CC48">RGF93 CC48 (EPSG:3948)</option>
+                      <option value="RGF93 CC49">RGF93 CC49 (EPSG:3949)</option>
+                      <option value="RGF93 CC50">RGF93 CC50 (EPSG:3950)</option>
+                      <option value="NTF Lambert 1">NTF Lambert 1 (EPSG:27561)</option>
+                      <option value="NTF Lambert 2">NTF Lambert 2 (EPSG:27562)</option>
+                      <option value="NTF Lambert 2 étendu">NTF Lambert 2 étendu (EPSG:27572)</option>
+                      <option value="NTF Lambert 3">NTF Lambert 3 (EPSG:27563)</option>
+                      <option value="WGS84">WGS84 (EPSG:4326)</option>
+                      <option value="Autre">Autre (préciser)</option>
+                    </select>
+                    <input id="cpolyProjectionAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser la projection" />
+                    <div class="small" style="margin-top:4px;">Sert aussi de référence pour la carte de situation auto-générée.</div>
+                  </div>
+                  <div class="field span-3">
+                    <div class="small">Référentiel altimétrique</div>
+                    <select id="cpolyAltSystem" class="box">
+                      <option value="NGF-IGN69">NGF-IGN69</option>
+                      <option value="NGF-IGN78 (Corse)">NGF-IGN78 (Corse)</option>
+                      <option value="IGN 1988 (DOM)">IGN 1988 (DOM)</option>
+                      <option value="Altitude ellipsoïdale (WGS84)">Altitude ellipsoïdale (WGS84)</option>
+                      <option value="NVP">NVP</option>
+                      <option value="Locale">Locale</option>
+                      <option value="Autre">Autre (préciser)</option>
+                    </select>
+                    <input id="cpolyAltSystemAutre" class="box nf-hidden" type="text" style="margin-top:6px;" placeholder="Préciser le référentiel altimétrique" />
+                  </div>
+                </div>
 
-          <div style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">
-            <div>
-              <button id="btnCpolyImportXlsx" type="button" title="Sélectionne le classeur de comparaison (Excel).">Importer le classeur de comparaison (Excel)</button>
-              <div id="cpolyXlsxStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
-            </div>
-            <div>
-              <button id="btnCpolyImportGeobase" type="button" title="Sélectionne le fichier GeoBase (TXT). Optionnel en Contrôle (annexe) ; requis en Création (source des coordonnées du RESULTAT).">Importer le fichier GeoBase (TXT)</button>
-              <div id="cpolyGeobaseStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
-            </div>
-          </div>
+                <div class="small" style="font-weight:700; margin:16px 0 8px;">Correction PPM</div>
+                <div class="infoGrid3">
+                  <div class="field span-2">
+                    <label class="dz-toggle">
+                      <input id="cpolyOptiquePpmApplied" type="checkbox" />
+                      <span class="small">Application des PPM</span>
+                    </label>
+                  </div>
+                  <div class="field span-2">
+                    <div class="small">Valeur PPM</div>
+                    <div class="row" style="align-items:center; gap:8px;">
+                      <input id="cpolyOptiquePpmValue" class="box" type="text" placeholder="ex. 12" style="flex:1;" />
+                      <span class="small">mm/km</span>
+                    </div>
+                  </div>
+                </div>
 
-          <div id="cpolyResultGroupsWrap" class="nf-hidden" style="margin-top:16px;">
-            <div class="small" style="font-weight:700; margin-bottom:4px;">RESULTAT — Groupes de points (mode Création)</div>
-            <div class="small" style="margin-bottom:8px;">
-              Répartit les points du GeoBase en plusieurs tableaux nommés selon le début de leur nom (ex. préfixe "BO" → "Les stations au sol"). Sans groupe défini, tous les points du GeoBase forment un unique tableau "Coordonnées".
+                <div class="small" style="font-weight:700; margin:16px 0 8px;">Points (GeoBase)</div>
+                <div class="small" style="margin-bottom:8px;">Le fichier GeoBase (TXT) donne les points nommés nécessaires à la carte de situation ci-dessous.</div>
+                <div>
+                  <button id="btnCpolyImportGeobase" type="button" title="Sélectionne le fichier TXT de points.">Importer le fichier TXT</button>
+                  <div id="cpolyGeobaseStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
+                </div>
+
+                <div class="row" style="margin-top:16px; align-items:center; gap:10px;">
+                  <div class="field" style="min-width:170px;">
+                    <div class="small">Niveau de zoom</div>
+                    <select id="cpolyMapZoom" class="box">
+                      <option value="">Le plus détaillé (auto)</option>
+                      <option value="19">19 — très rapproché</option>
+                      <option value="18">18</option>
+                      <option value="17">17</option>
+                      <option value="16">16</option>
+                      <option value="15">15 — vue large</option>
+                    </select>
+                  </div>
+                  <button id="btnCpolyGenerateMap" type="button" title="Génère une carte de situation à partir des points du GeoBase importé. Utilisée en repli dans les tiroirs GNSS/Optique quand leur photo de disposition n'est pas fournie.">Générer la carte de situation (points GeoBase)</button>
+                  <span id="cpolyMapStatus" class="small"></span>
+                </div>
+                <img id="cpolyMapPreview" class="nf-hidden" alt="Carte de situation" style="max-width:100%; max-height:200px; border:1px solid #ccc; margin-top:6px;" />
+              </div>
+
+              <div class="cpoly-step nf-hidden" data-cpoly-step-panel="gnss">
+                <div id="cpolyGnssDrawerWrap" class="nf-hidden">
+                  <div class="field" style="margin-bottom:10px;">
+                    <div class="small">Disposition des couples GNSS — photo (optionnelle)</div>
+                    <label class="btn" for="cpolyGnssDispositionFile">Choisir une photo…</label>
+                    <input id="cpolyGnssDispositionFile" type="file" accept="image/png,image/jpeg" />
+                    <div class="row" style="margin-top:8px; align-items:center; gap:10px;">
+                      <img id="cpolyGnssDispositionPreview" class="nf-hidden" alt="Disposition GNSS" style="max-height:80px; max-width:220px; border:1px solid #ccc; background:#fff; padding:2px;" />
+                      <span id="cpolyGnssDispositionStatus" class="small">Aucune photo</span>
+                      <button id="btnCpolyGnssDispositionClear" type="button" class="nf-hidden">Retirer la photo</button>
+                    </div>
+                  </div>
+                  <div class="field span-3" style="margin-bottom:10px;">
+                    <div class="small">Matériel — appareil</div>
+                    <select id="cpolyGnssDevice" class="box">
+                      <option value="gs14">Leica GS 14</option>
+                      <option value="gs15">Leica GS 15</option>
+                      <option value="gs16">Leica GS 16</option>
+                      <option value="gs18">Leica GS 18</option>
+                    </select>
+                  </div>
+                  <div class="field span-3" style="margin-bottom:10px;">
+                    <div class="small">Méthode GNSS</div>
+                    <select id="cpolyGnssMethode" class="box">
+                      <option value="">— Choisir —</option>
+                      <option value="statique_pp">Statique Post-traitement</option>
+                      <option value="statique_pp_pivot">Post-traitement avec pivot</option>
+                      <option value="statique_rtk">Statique RTK</option>
+                      <option value="temps_reel_rtk">Temps réel RTK</option>
+                      <option value="autre">Autre (préciser)</option>
+                    </select>
+                  </div>
+                  <!-- Tiroirs par méthode GNSS : un seul visible selon le choix ci-dessus. Options
+                       propres à chaque méthode pas encore définies - juste le cadre pour l'instant. -->
+                  <div id="cpolyGnssMethodeStatiquePpWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Statique Post-traitement</div>
+                    <div class="field span-2" style="margin-bottom:10px; max-width:220px;">
+                      <div class="small">Nombre d'antennes</div>
+                      <input id="cpolyGnssPpAntennesCount" class="box" type="number" min="0" step="1" placeholder="ex. 3" />
+                    </div>
+                    <div class="small" style="margin-bottom:6px;">Antennes ayant servi aux calculs</div>
+                    <div id="cpolyGnssPpAntenneRows"></div>
+                    <div class="row" style="margin-top:6px;">
+                      <button id="btnCpolyAddGnssPpAntenneRow" type="button">Ajouter une antenne</button>
+                    </div>
+                  </div>
+                  <div id="cpolyGnssMethodeStatiquePpPivotWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Post-traitement avec pivot</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyGnssMethodeStatiqueRtkWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Statique RTK</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyGnssMethodeTempsReelRtkWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Temps réel RTK</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyGnssMethodeAutreWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small">Préciser la méthode</div>
+                    <textarea id="cpolyGnssMethodeAutreText" class="box" rows="2"></textarea>
+                  </div>
+                  <div class="field">
+                    <div class="small">Méthodologie (pré-remplie, modifiable)</div>
+                    <textarea id="cpolyGnssMethodology" class="box" rows="4"></textarea>
+                  </div>
+                </div>
+                <div class="small" id="cpolyGnssDisabledHint">Technique GNSS non activée — coche "GNSS" à l'étape "Déroulé de la mission" pour renseigner ce tiroir.</div>
+              </div>
+
+              <div class="cpoly-step nf-hidden" data-cpoly-step-panel="optique">
+                <div id="cpolyOptiqueDrawerWrap" class="nf-hidden">
+                  <div class="field" style="margin-bottom:10px;">
+                    <div class="small">Disposition des stations topographiques — photo (optionnelle)</div>
+                    <label class="btn" for="cpolyOptiqueDispositionFile">Choisir une photo…</label>
+                    <input id="cpolyOptiqueDispositionFile" type="file" accept="image/png,image/jpeg" />
+                    <div class="row" style="margin-top:8px; align-items:center; gap:10px;">
+                      <img id="cpolyOptiqueDispositionPreview" class="nf-hidden" alt="Disposition stations topographiques" style="max-height:80px; max-width:220px; border:1px solid #ccc; background:#fff; padding:2px;" />
+                      <span id="cpolyOptiqueDispositionStatus" class="small">Aucune photo</span>
+                      <button id="btnCpolyOptiqueDispositionClear" type="button" class="nf-hidden">Retirer la photo</button>
+                    </div>
+                  </div>
+                  <div class="field span-3" style="margin-bottom:10px;">
+                    <div class="small">Matériel — appareil</div>
+                    <select id="cpolyOptiqueDevice" class="box">
+                      <option value="ts60">Leica TS 60</option>
+                      <option value="ts50">Leica TS 50</option>
+                      <option value="ts30">Leica TS 30</option>
+                      <option value="ts16">Leica TS 16</option>
+                      <option value="ts15">Leica TS 15</option>
+                    </select>
+                  </div>
+                  <div class="field span-3" style="margin-bottom:10px;">
+                    <div class="small">Méthode optique</div>
+                    <select id="cpolyOptiqueMethode" class="box">
+                      <option value="">— Choisir —</option>
+                      <option value="trois_trepieds">3 trépieds</option>
+                      <option value="station_libre">Station libre</option>
+                      <option value="autre">Autre (préciser)</option>
+                    </select>
+                  </div>
+                  <!-- Tiroirs par méthode optique : un seul visible selon le choix ci-dessus.
+                       Options propres à chaque méthode pas encore définies - juste le cadre pour
+                       l'instant (même principe que "Méthode GNSS"). -->
+                  <div id="cpolyOptiqueMethodeTroisTrepiedsWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">3 trépieds</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyOptiqueMethodeStationLibreWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Station libre</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyOptiqueMethodeAutreWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small">Préciser la méthode</div>
+                    <textarea id="cpolyOptiqueMethodeAutreText" class="box" rows="2"></textarea>
+                  </div>
+                  <div class="field" style="margin-bottom:10px;">
+                    <div class="small">Méthodologie (pré-remplie, modifiable)</div>
+                    <textarea id="cpolyOptiqueMethodology" class="box" rows="6"></textarea>
+                  </div>
+                  <div class="small" style="font-weight:700; margin:10px 0 8px;">Paramètres de mesure</div>
+                  <div class="small" style="margin-bottom:8px;">Application des PPM : voir étape "4. Référentiels".</div>
+                  <div class="small" style="font-weight:700; margin:10px 0 8px;">Méthode de calcul</div>
+                  <div class="field span-3" style="margin-bottom:10px;">
+                    <select id="cpolyOptiqueMethodeCalcul" class="box">
+                      <option value="">— Choisir —</option>
+                      <option value="bloc">En bloc (transformation de Helmert)</option>
+                      <option value="polygonale">Polygonale</option>
+                      <option value="ajustement">Ajustement (moindres carrés)</option>
+                    </select>
+                  </div>
+                  <div id="cpolyOptiqueCalculBlocWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">En bloc (transformation de Helmert)</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyOptiqueCalculPolygonaleWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Polygonale</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyOptiqueCalculAjustementWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Ajustement (moindres carrés)</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div class="field">
+                    <div class="small">Méthode de calcul — texte (pré-rempli, modifiable)</div>
+                    <textarea id="cpolyOptiqueCalculText" class="box" rows="4"></textarea>
+                  </div>
+                </div>
+                <div class="small" id="cpolyOptiqueDisabledHint">Technique Optique non activée — coche "Optique" à l'étape "Déroulé de la mission" pour renseigner ce tiroir.</div>
+              </div>
+
+              <div class="cpoly-step nf-hidden" data-cpoly-step-panel="nivellement">
+                <div id="cpolyNivDrawerWrap" class="nf-hidden">
+                  <div class="field span-3" style="margin-bottom:10px;">
+                    <div class="small">Matériel — appareil</div>
+                    <select id="cpolyNivDevice" class="box">
+                      <option value="ls15">Leica LS15</option>
+                      <option value="ts60">Leica TS 60</option>
+                      <option value="ts50">Leica TS 50</option>
+                      <option value="ts30">Leica TS 30</option>
+                      <option value="ts16">Leica TS 16</option>
+                      <option value="ts15">Leica TS 15</option>
+                    </select>
+                  </div>
+                  <div class="field span-3" style="margin-bottom:10px;">
+                    <div class="small">Méthode</div>
+                    <select id="cpolyNivMethode" class="box">
+                      <option value="">— Choisir —</option>
+                      <option value="nivellement_simple">Nivellement simple</option>
+                      <option value="cholesky">Cholesky (doubles points de mire, ABBA)</option>
+                      <option value="nivellement_indirect">Nivellement indirect (trigonométrique)</option>
+                      <option value="autre">Autre (préciser)</option>
+                    </select>
+                  </div>
+                  <!-- Tiroirs par méthode : un seul visible selon le choix ci-dessus. Options propres
+                       à chaque méthode pas encore définies - juste le cadre pour l'instant (même
+                       principe que "Méthode GNSS"/"Méthode optique"). -->
+                  <div id="cpolyNivMethodeSimpleWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Nivellement simple</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyNivMethodeCholeskyWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Cholesky (doubles points de mire, ABBA)</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyNivMethodeIndirectWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="font-weight:700; margin-bottom:4px;">Nivellement indirect (trigonométrique)</div>
+                    <div class="small">Options à définir.</div>
+                  </div>
+                  <div id="cpolyNivMethodeAutreWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small">Préciser la méthode</div>
+                    <textarea id="cpolyNivMethodeAutreText" class="box" rows="2"></textarea>
+                  </div>
+                  <div class="field">
+                    <div class="small">Méthodologie (pré-remplie, modifiable)</div>
+                    <textarea id="cpolyNivMethodology" class="box" rows="4"></textarea>
+                  </div>
+                  <div class="field span-3" style="margin-top:10px;">
+                    <label class="small"><input id="cpolyNivNgfEnabled" type="checkbox" /> Intégration de repère(s) NGF</label>
+                  </div>
+                  <div id="cpolyNivNgfWrap" class="nf-hidden" style="margin-bottom:10px;">
+                    <div class="small" style="margin-bottom:6px;">Identifiant(s) des repères NGF de rattachement (saisie manuelle) — la fiche signalétique officielle IGN de chaque repère trouvé sera jointe en annexe du rapport.</div>
+                    <div id="cpolyNivNgfRows"></div>
+                    <div class="row" style="margin-top:6px;">
+                      <button id="btnCpolyAddNivNgfRow" type="button">Ajouter un repère</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="small" id="cpolyNivDisabledHint">Technique Nivellement non activée — coche "Nivellement" à l'étape "Déroulé de la mission" pour renseigner ce tiroir.</div>
+              </div>
+
+              <div class="cpoly-step nf-hidden" data-cpoly-step-panel="resultat">
+                <div class="small" style="font-weight:700; margin-bottom:8px;">Classeur de comparaison (mode Contrôle)</div>
+                <div class="small" style="margin-bottom:8px;">Écarts théo/mesuré XY et Z. Sans effet sur la carte de situation (étape "4. Référentiels", générée à partir du GeoBase).</div>
+                <div>
+                  <button id="btnCpolyImportXlsx" type="button" title="Sélectionne le classeur de comparaison (Excel).">Importer le classeur de comparaison (Excel)</button>
+                  <div id="cpolyXlsxStatus" class="small" style="margin-top:4px;">Aucun fichier chargé.</div>
+                </div>
+                <div class="small" style="margin-top:8px;">GeoBase importé à l'étape "4. Référentiels".</div>
+
+                <div id="cpolyResultGroupsWrap" class="nf-hidden" style="margin-top:16px;">
+                  <div class="small" style="font-weight:700; margin-bottom:4px;">RESULTAT — Groupes de points (mode Création)</div>
+                  <div class="small" style="margin-bottom:8px;">
+                    Répartit les points du GeoBase en plusieurs tableaux nommés selon le début de leur nom (ex. préfixe "BO" → "Les stations au sol"). Sans groupe défini, tous les points du GeoBase forment un unique tableau "Coordonnées".
+                  </div>
+                  <div id="cpolyResultGroupRows"></div>
+                  <div class="row" style="margin-top:6px;">
+                    <button id="btnCpolyAddResultGroupRow" type="button">Ajouter un groupe</button>
+                  </div>
+                </div>
+
+                <div id="cpolyPreview" class="nf-hidden" style="margin-top:16px;">
+                  <div class="small" style="font-weight:700; margin-bottom:8px;">Aperçu des données importées</div>
+                  <div id="cpolyPreviewContent" class="small"></div>
+                </div>
+              </div>
+
+              <div class="cpoly-step nf-hidden" data-cpoly-step-panel="conclusion">
+                <div class="field">
+                  <div class="small">Conclusion forcée (optionnel — sinon générée automatiquement à partir des écarts max)</div>
+                  <textarea id="cpolyConclusionText" class="box" rows="3"></textarea>
+                </div>
+
+                <div class="row" style="margin-top:14px;">
+                  <button id="btnCpolyExport" type="button" class="btn-primary" disabled title="Exporte le rapport PDF de contrôle de polygonale.">Exporter le rapport (PDF)</button>
+                  <span id="cpolyExportStatus" class="small"></span>
+                </div>
+              </div>
+
+              <div class="cpoly-step nf-hidden" data-cpoly-step-panel="annexes">
+                <div class="small" style="font-weight:700; margin-bottom:8px;">Annexes (PDF)</div>
+                <div class="small" style="margin-bottom:8px;">Chaque fichier PDF ajouté ici est joint tel quel (pages fusionnées) à la fin du rapport exporté — plusieurs annexes possibles.</div>
+                <div id="cpolyAnnexeRows"></div>
+                <div class="row" style="margin-top:6px; align-items:center; gap:10px;">
+                  <label class="btn" for="cpolyAnnexeFile">Ajouter une annexe (PDF)…</label>
+                  <input id="cpolyAnnexeFile" type="file" accept="application/pdf" multiple />
+                </div>
+              </div>
+
+              <div class="row cpoly-wizard-footer" style="align-items:center; gap:10px;">
+                <button id="btnCpolyStepPrev" type="button">◀ Précédent</button>
+                <button id="btnCpolyStepNext" type="button">Suivant ▶</button>
+                <span style="flex:1 1 auto;"></span>
+                <button id="btnCpolyOpenProject" type="button" title="Ouvre un projet Nova-Fiches (.nova) précédemment enregistré - recharge tous les modules, pas seulement ce rapport.">Ouvrir un projet…</button>
+                <button id="btnCpolySaveProject" type="button" title="Enregistre l'état complet du projet (.nova) - tous les modules, pas seulement ce rapport - pour le rouvrir plus tard (ex. produire un nouvel indice).">Enregistrer le projet</button>
+                <button id="btnCpolyPreviewPdf" type="button" title="Génère un aperçu PDF du rapport dans son état actuel et l'affiche dans une fenêtre à part, réutilisée à chaque clic.">Aperçu PDF</button>
+                <span id="cpolyPreviewPdfStatus" class="small"></span>
+              </div>
+
             </div>
-            <div id="cpolyResultGroupRows"></div>
-            <div class="row" style="margin-top:6px;">
-              <button id="btnCpolyAddResultGroupRow" type="button">Ajouter un groupe</button>
-            </div>
-          </div>
-
-          <div id="cpolyPreview" class="nf-hidden" style="margin-top:16px;">
-            <div class="small" style="font-weight:700; margin-bottom:8px;">Aperçu</div>
-            <div id="cpolyPreviewContent" class="small"></div>
-          </div>
-
-          <div class="field" style="margin-top:16px;">
-            <div class="small">Conclusion forcée (optionnel — sinon générée automatiquement à partir des écarts max)</div>
-            <textarea id="cpolyConclusionText" class="box" rows="3"></textarea>
-          </div>
-
-          <div class="row" style="margin-top:14px;">
-            <button id="btnCpolyExport" type="button" class="btn-primary" disabled title="Exporte le rapport PDF de contrôle de polygonale.">Exporter le rapport (PDF)</button>
-            <span id="cpolyExportStatus" class="small"></span>
           </div>
         </div>
       </section>

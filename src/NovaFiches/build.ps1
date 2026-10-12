@@ -52,8 +52,14 @@ Write-Host "== Clean publish dir =="
 if (Test-Path $outDir) { Remove-Item $outDir -Recurse -Force }
 New-Item -ItemType Directory -Path $outDir | Out-Null
 
-Write-Host "== Publish ($Configuration, win-x64) =="
-dotnet publish $project -c $Configuration -r win-x64 --self-contained false -o $outDir @msbuildProps
+Write-Host "== Publish ($Configuration, win-x64, self-contained) =="
+# Self-contained (runtime .NET 8 embarque dans la publication) plutot que framework-dependent :
+# ni l'installeur Inno Setup ni le MSI entreprise ne verifient/installent le runtime .NET (seul
+# WebView2 l'est, voir Installer\msi\NovaFiches.wxs) - un poste sans le runtime .NET installait
+# donc Nova-Fiches avec succes puis echouait silencieusement au premier lancement. Self-contained
+# elimine ce risque completement (plus rien a detecter ni a deployer separement), au prix d'un
+# publish plus volumineux (runtime .NET embarque, ~60-150 Mo au lieu de quelques Mo).
+dotnet publish $project -c $Configuration -r win-x64 --self-contained true -o $outDir @msbuildProps
 if ($LASTEXITCODE -ne 0) {
   throw "dotnet publish a échoué (code=$LASTEXITCODE)."
 }
@@ -79,7 +85,7 @@ Nova-Fiches publish OK
 Date: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 Configuration: $Configuration
 Runtime: win-x64
-SelfContained: false
+SelfContained: true
 CSProj: $project
 Version: $verLine
 Output: $outDir

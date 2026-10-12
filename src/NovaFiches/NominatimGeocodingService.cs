@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace TopoRapportWin;
 
@@ -24,6 +25,8 @@ public static class NominatimGeocodingService
 
     public sealed record GeocodeResult(string? Adresse, string? Commune, string? Departement);
 
+    public sealed record ForwardGeocodeResult(double Lat, double Lon, string DisplayName);
+
     public static async Task<GeocodeResult?> ReverseGeocodeAsync(double lat, double lon)
     {
         try
@@ -33,6 +36,91 @@ public static class NominatimGeocodingService
                      + "&lon=" + lon.ToString(CultureInfo.InvariantCulture);
             var json = await Http.GetStringAsync(url).ConfigureAwait(false);
             return ParseGeocodeResponse(json);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // Géocodage direct (adresse texte -> coordonnées), pour le bouton "Rechercher une adresse"
+    // de l'export KMZ : permet de localiser une zone à interroger (repères NGF/NVP) sans avoir
+    // besoin d'importer un fichier de points au préalable. "countrycodes=fr" biaise les résultats
+    // vers la France (usage quasi-exclusif de l'appli) sans empêcher une recherche hors France si
+    // vraiment aucun résultat français ne correspond (Nominatim ignore alors ce filtre que si on
+    // ne le passe pas du tout - donc pas de repli automatique ici, l'utilisateur peut préciser un
+    // pays dans sa saisie si besoin).
+    public static async Task<ForwardGeocodeResult?> ForwardGeocodeAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return null;
+
+        var result = await ForwardGeocodeRawAsync(query).ConfigureAwait(false);
+        if (result is not null) return result;
+
+        // Repli : Nominatim ne comprend pas le raccourci francais "Paris 01"/"Lyon 3"/"Marseille
+        // 8e" (son parseur attend soit un nom de quartier reel, soit un code postal) - une saisie
+        // frequente sur ces 3 villes a arrondissements. On la retraduit en "<code postal> <ville>"
+        // (ex. "75001 Paris"), format que Nominatim resout de maniere fiable, et on retente une
+        // seule fois. Ne declenche jamais de requete reseau supplementaire si la saisie ne
+        // correspond pas a ce pattern precis (TryNormalizeArrondissementQuery renvoie null).
+        var normalized = TryNormalizeArrondissementQuery(query);
+        if (normalized is null) return null;
+        return await ForwardGeocodeRawAsync(normalized).ConfigureAwait(false);
+    }
+
+    // "countrycodes=fr" biaise les résultats vers la France (usage quasi-exclusif de l'appli)
+    // sans empêcher une recherche hors France si vraiment aucun résultat français ne correspond
+    // (Nominatim ignore alors ce filtre que si on ne le passe pas du tout - donc pas de repli
+    // automatique ici, l'utilisateur peut préciser un pays dans sa saisie si besoin).
+    private static async Task<ForwardGeocodeResult?> ForwardGeocodeRawAsync(string query)
+    {
+        try
+        {
+            var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=fr"
+                     + "&q=" + Uri.EscapeDataString(query);
+            var json = await Http.GetStringAsync(url).ConfigureAwait(false);
+            return ParseForwardGeocodeResponse(json);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static readonly Regex ArrondissementPattern = new(
+        @"^(Paris|Lyon|Marseille)\s*0*(\d{1,2})\s*(?:e|er|ère|ème|eme|ieme|ième)?\s*(?:arrondissement)?$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // Interne pour être testable sans appel réseau (même discipline que ParseForwardGeocodeResponse).
+    internal static string? TryNormalizeArrondissementQuery(string query)
+    {
+        var match = ArrondissementPattern.Match(query.Trim());
+        if (!match.Success) return null;
+        string city = match.Groups[1].Value;
+        if (!int.TryParse(match.Groups[2].Value, out var arr) || arr < 1 || arr > 20) return null;
+
+        string prefix = city.Equals("Paris", StringComparison.OrdinalIgnoreCase) ? "750"
+                      : city.Equals("Lyon", StringComparison.OrdinalIgnoreCase) ? "690"
+                      : "130"; // Marseille
+        return $"{prefix}{arr:00} {city}";
+    }
+
+    internal static ForwardGeocodeResult? ParseForwardGeocodeResponse(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array || doc.RootElement.GetArrayLength() == 0)
+                return null;
+            var first = doc.RootElement[0];
+            string? latStr = Str(first, "lat");
+            string? lonStr = Str(first, "lon");
+            if (latStr is null || lonStr is null) return null;
+            if (!double.TryParse(latStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var lat)) return null;
+            if (!double.TryParse(lonStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var lon)) return null;
+            string displayName = Str(first, "display_name")
+                ?? $"{lat.ToString(CultureInfo.InvariantCulture)}, {lon.ToString(CultureInfo.InvariantCulture)}";
+            return new ForwardGeocodeResult(lat, lon, displayName);
         }
         catch
         {

@@ -261,8 +261,8 @@
       previewFieldRow('Adresse', row.adresse),
       previewFieldRow('Site / opération', row.site),
       previewFieldRow('Nature', row.nature),
-      previewFieldRow('Système plani', row.systemePlani),
-      previewFieldRow('Système alti', row.systemeAlti),
+      previewFieldRow('Système planimétrique', row.systemePlani),
+      previewFieldRow('Système altimétrique', row.systemeAlti),
       previewFieldRow('EPSG source', row.epsgSource),
       previewFieldRow('Coord. WGS84', coordText),
       previewFieldRow('X / Y / Z', xyzText)
@@ -277,8 +277,8 @@
       mode,
       fileName: 'NOVA_Fiches_Signaletiques.pdf',
       fichesSignaletiques: {
-        defaultZoom: state.defaultZoom,
-        mapProvider: state.mapProvider,
+        defaultZoom: parseInt(el('fichesMapZoom')?.value, 10) || state.defaultZoom,
+        mapProvider: el('fichesBasemap')?.value || state.mapProvider,
         rows: state.rows.map(row => Object.assign({}, row, { photoImageData: resolvePhotoForRow(row) || null }))
       }
     };

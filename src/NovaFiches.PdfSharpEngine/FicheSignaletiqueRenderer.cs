@@ -24,6 +24,10 @@ internal static class FicheSignaletiqueRenderer
     private const double MarginR = 34;
     private static readonly XColor LineGray = XColor.FromArgb(200, 200, 200);
     private static readonly XColor LightFill = XColor.FromArgb(238, 244, 248);
+    // Partagées entre DrawGeoreferencingBlock et le pré-calcul d'alignement dans RenderRow (voir
+    // desiredGeoKvH) - un seul endroit à modifier si la taille des cases X/Y/Z change un jour.
+    private static readonly double CoordBoxH = Units.MmToPt(11);
+    private static readonly double CoordBoxGap = Units.MmToPt(2);
 
     // Voir PhotoAppendixRenderer._currentRoot / ImplantationFullReportRenderer._currentRoot :
     // RenderRow n'a pas "root" dans toute sa chaîne d'appel interne (DrawBlock, DrawRevisions,
@@ -119,10 +123,6 @@ internal static class FicheSignaletiqueRenderer
         double leftW = (contentW - blockGap) / 2.0;
         double rightW = leftW;
         double blockTop = y;
-        // Dessiné en premier : le cadre "Informations générales" est ensuite étiré pour
-        // s'aligner sur sa hauteur (voir forcedTotalHeight plus bas), quel que soit le nombre
-        // de champs renseignés de chaque côté.
-        double geoBottom = DrawGeoreferencingBlock(g, MarginL + leftW + blockGap, blockTop, rightW, row);
 
         // "Type de fiche" est le seul champ conditionnel du modèle d'origine (masqué si vide) :
         // tous les autres s'affichent toujours, valeur vide ou non (voir DrawInfoBlock). Dossier
@@ -144,8 +144,21 @@ internal static class FicheSignaletiqueRenderer
         var typeFiche = GetStr(row, "typeFiche");
         if (!string.IsNullOrWhiteSpace(typeFiche))
             infoRows.Insert(0, ("Type de fiche", typeFiche));
+        var infoRowsArr = infoRows.ToArray();
 
-        double leftBottom = DrawInfoBlock(g, MarginL, blockTop, leftW, "INFORMATIONS GÉNÉRALES", infoRows.ToArray(), geoBottom - blockTop);
+        // Les deux cadres doivent se terminer à la même hauteur. Avant toute chose, on mesure la
+        // hauteur naturelle de chacun (une valeur trop longue, ex. une adresse complète, passe sur
+        // plusieurs lignes et peut rendre "Informations générales" plus haut que
+        // "Géoréférencement" - qui doit alors s'étirer en retour, pas l'inverse comme auparavant où
+        // seul le cadre de gauche pouvait s'adapter).
+        var geoRows = BuildGeoRows(row);
+        double geoKvNaturalH = MeasureInfoBlockHeight(g, rightW, geoRows);
+        double geoBelowKvFixedH = Units.MmToPt(2) + CoordBoxH * 3 + CoordBoxGap * 2;
+        double infoNaturalH = MeasureInfoBlockHeight(g, leftW, infoRowsArr);
+        double desiredGeoKvH = Math.Max(geoKvNaturalH, infoNaturalH - geoBelowKvFixedH);
+
+        double geoBottom = DrawGeoreferencingBlock(g, MarginL + leftW + blockGap, blockTop, rightW, row, desiredGeoKvH);
+        double leftBottom = DrawInfoBlock(g, MarginL, blockTop, leftW, "INFORMATIONS GÉNÉRALES", infoRowsArr, geoBottom - blockTop);
         y = Math.Max(leftBottom, geoBottom) + Units.MmToPt(5);
 
         // ===== Médias : carte de situation + photo =====
@@ -179,11 +192,43 @@ internal static class FicheSignaletiqueRenderer
     // (ex. "Informations générales" aligné sur "Géoréférencement"). Ne réduit jamais en
     // dessous de la hauteur naturelle du contenu (Math.Max) - l'espace en trop reste blanc
     // en bas du cadre plutôt que de tronquer une ligne.
+    // Largeur de la colonne "label" fixe (les libellés sont des chaînes courtes et contrôlées,
+    // ex. "Adresse" - seules les VALEURS, qui viennent des données importées, peuvent être trop
+    // longues pour leur colonne (ex. une adresse complète) et doivent passer sur plusieurs lignes.
+    private static readonly double InfoLabelW = Units.MmToPt(38);
+    private static readonly double InfoRowH = Units.MmToPt(4.6);
+
+    // Découpe chaque valeur en lignes (TextFitHelper.WrapWords, réutilisé tel quel) et calcule la
+    // hauteur de ligne de grille qui en résulte - fonction pure, appelée à la fois pour mesurer la
+    // hauteur naturelle du cadre (avant de dessiner quoi que ce soit, voir RenderRow) et pour le
+    // dessiner réellement (DrawInfoBlock), afin que les deux calculs ne puissent jamais diverger.
+    private static (List<string> Lines, double Height)[] ComputeRowLayout(XGraphics g, double w, (string Label, string? Value)[] rows)
+    {
+        double valueColW = w - InfoLabelW - Units.MmToPt(4);
+        var valueFont = NovatlasTheme.FontBody(8);
+        var layout = new (List<string>, double)[rows.Length];
+        for (int i = 0; i < rows.Length; i++)
+        {
+            var lines = TextFitHelper.WrapWords(g, rows[i].Value ?? "", valueFont, valueColW);
+            layout[i] = (lines, Math.Max(1, lines.Count) * InfoRowH);
+        }
+        return layout;
+    }
+
+    private static double MeasureInfoBlockHeight(XGraphics g, double w, (string Label, string? Value)[] rows)
+    {
+        double sum = 0;
+        foreach (var (_, h) in ComputeRowLayout(g, w, rows)) sum += h;
+        return Units.MmToPt(6) + sum + Units.MmToPt(2);
+    }
+
     private static double DrawInfoBlock(XGraphics g, double x, double y, double w, string title, (string Label, string? Value)[] rows, double? forcedTotalHeight = null)
     {
         double titleH = Units.MmToPt(6);
-        double rowH = Units.MmToPt(4.6);
-        double naturalTotalH = titleH + rowH * rows.Length + Units.MmToPt(2);
+        var layout = ComputeRowLayout(g, w, rows);
+        double naturalSum = 0;
+        foreach (var (_, h) in layout) naturalSum += h;
+        double naturalTotalH = titleH + naturalSum + Units.MmToPt(2);
         double totalH = forcedTotalHeight.HasValue ? Math.Max(forcedTotalHeight.Value, naturalTotalH) : naturalTotalH;
 
         // Bandeau orange (couleur secondaire NOVATLAS), comme les en-têtes de section des
@@ -196,45 +241,57 @@ internal static class FicheSignaletiqueRenderer
             new XRect(x + Units.MmToPt(2), y, w - Units.MmToPt(4), titleH), XStringFormats.CenterLeft);
 
         double ry = y + titleH + Units.MmToPt(1);
-        double labelW = Units.MmToPt(38);
-        foreach (var (label, value) in rows)
+        var valueFont = NovatlasTheme.FontBody(8);
+        for (int i = 0; i < rows.Length; i++)
         {
             // Contrairement à une première version de ce renderer, une valeur vide n'efface
             // plus la ligne : le modèle d'origine (kv-grid) affiche toujours le label, y
             // compris pour un champ non renseigné (ex. Département vide avant géocodage).
-            g.DrawString(label, NovatlasTheme.FontBold(8), XBrushes.Black,
-                new XRect(x + Units.MmToPt(2), ry, labelW, rowH), XStringFormats.CenterLeft);
-            g.DrawString(value ?? "", NovatlasTheme.FontBody(8), XBrushes.Black,
-                new XRect(x + labelW + Units.MmToPt(2), ry, w - labelW - Units.MmToPt(4), rowH), XStringFormats.CenterLeft);
-            ry += rowH;
+            g.DrawString(rows[i].Label, NovatlasTheme.FontBold(8), XBrushes.Black,
+                new XRect(x + Units.MmToPt(2), ry, InfoLabelW, InfoRowH), XStringFormats.CenterLeft);
+            double lineY = ry;
+            foreach (var line in layout[i].Lines)
+            {
+                g.DrawString(line, valueFont, XBrushes.Black,
+                    new XRect(x + InfoLabelW + Units.MmToPt(2), lineY, w - InfoLabelW - Units.MmToPt(4), InfoRowH), XStringFormats.CenterLeft);
+                lineY += InfoRowH;
+            }
+            ry += layout[i].Height;
         }
 
         return y + totalH;
     }
 
-    private static double DrawGeoreferencingBlock(XGraphics g, double x, double y, double w, JsonElement row)
+    private static (string Label, string? Value)[] BuildGeoRows(JsonElement row) => new (string, string?)[]
     {
-        var geoRows = new (string, string?)[]
-        {
-            ("Système plani", GetStr(row, "systemePlani")),
-            ("Système alti", GetStr(row, "systemeAlti")),
-            ("EPSG source", GetStr(row, "epsgSource")),
-            ("PPM", First(GetStr(row, "ppm"), "Non renseigné")),
-            ("Coord. WGS84", FormatLonLat(row)),
-        };
-        double afterKv = DrawInfoBlock(g, x, y, w, "GÉORÉFÉRENCEMENT", geoRows);
+        ("Système planimétrique", GetStr(row, "systemePlani")),
+        ("Système altimétrique", GetStr(row, "systemeAlti")),
+        ("EPSG source", GetStr(row, "epsgSource")),
+        ("PPM", FormatPpm(GetStr(row, "ppm"))),
+        ("Coord. WGS84", FormatLonLat(row)),
+    };
+
+    private static string FormatPpm(string? ppm)
+    {
+        var trimmed = ppm?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed)) return "Non renseigné";
+        return trimmed.Contains("mm/km", StringComparison.OrdinalIgnoreCase) ? trimmed : $"{trimmed} mm/km";
+    }
+
+    private static double DrawGeoreferencingBlock(XGraphics g, double x, double y, double w, JsonElement row, double? forcedKvHeight = null)
+    {
+        var geoRows = BuildGeoRows(row);
+        double afterKv = DrawInfoBlock(g, x, y, w, "GÉORÉFÉRENCEMENT", geoRows, forcedKvHeight);
 
         // Empilées verticalement (une par ligne, pleine largeur) comme le modèle d'origine
         // (.coords : grid-template-columns 1fr) - trois colonnes côte à côte laissaient trop peu
         // de largeur à chaque valeur et la tronquaient.
         double boxTop = afterKv + Units.MmToPt(2);
-        double boxH = Units.MmToPt(11);
-        double gap = Units.MmToPt(2);
-        DrawCoordBox(g, x, boxTop, w, boxH, "X", GetNum(row, "x"));
-        DrawCoordBox(g, x, boxTop + boxH + gap, w, boxH, "Y", GetNum(row, "y"));
-        DrawCoordBox(g, x, boxTop + (boxH + gap) * 2, w, boxH, "Z", GetNum(row, "z"));
+        DrawCoordBox(g, x, boxTop, w, CoordBoxH, "X", GetNum(row, "x"));
+        DrawCoordBox(g, x, boxTop + CoordBoxH + CoordBoxGap, w, CoordBoxH, "Y", GetNum(row, "y"));
+        DrawCoordBox(g, x, boxTop + (CoordBoxH + CoordBoxGap) * 2, w, CoordBoxH, "Z", GetNum(row, "z"));
 
-        return boxTop + boxH * 3 + gap * 2;
+        return boxTop + CoordBoxH * 3 + CoordBoxGap * 2;
     }
 
     // Valeur en gros/gras/bleu, comme le modèle d'origine (.coord-box .value : 15px, bleu,

@@ -3,6 +3,42 @@
     .card{ background: var(--card); border: var(--border-card); border-radius: var(--radius-md); padding:14px; }
     .card h2{ margin:0 0 10px; font-size:13px; color:var(--mut); font-weight:800; letter-spacing:.2px; text-transform:uppercase; }
 
+    /* Encadrés "par technique" (ex. Contrôle de polygonale - une carte par technique GNSS/
+       Nivellement/Optique) : chaque unité est autonome et empilée verticalement dans sa propre
+       carte, plutôt que ses champs entrelacés dans une grille à colonnes partagée avec les autres
+       unités - une grille à colonnes fixes se décale dès que le contenu d'une seule cellule change
+       de hauteur (ex. une case "Plage de dates" cochée qui ajoute un champ de fin). */
+    .cpoly-tech-row{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+    .cpoly-tech-card{
+      flex:1 1 220px; min-width:220px;
+      background:#f8f9fb; border:var(--border-card); border-radius:var(--radius-md);
+      padding:12px;
+    }
+    .cpoly-tech-card .dz-toggle{ margin-left:0; }
+    .cpoly-tech-card .field{ margin-top:10px; }
+
+    /* Barre d'actions de l'assistant (Précédent/Suivant/Ouvrir/Enregistrer/Aperçu PDF) : ancrée en
+       position fixe juste au-dessus du pied de page NOVATLAS (footer#pageFooter), quelle que soit
+       l'étape active. `position: sticky` seul ne suffit pas ici : sur une étape courte (ex.
+       "Nivellement" non activée), le contenu de la carte ne remplit pas toute la hauteur de
+       main.nf-content, donc rien ne pousse l'élément sticky jusqu'en bas - il restait juste après
+       le contenu, largement au-dessus du bas de la fenêtre. left/right/bottom sont calculés en JS
+       (m15_controle_polygonale.js, positionWizardFooter()) à partir de la position réelle de
+       main.nf-content et de #pageFooter, pas de valeurs fixes ici (largeur de la barre latérale
+       variable selon la largeur de fenêtre, hauteur du pied de page non garantie constante). */
+    .cpoly-wizard-footer{
+      position: fixed;
+      box-sizing: border-box;
+      padding: 12px var(--nf-card-pad, 14px);
+      background: var(--card);
+      border-top: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 -6px 10px -8px rgba(11,16,32,.18);
+      z-index: 20;
+    }
+    /* Réserve la place occupée par la barre fixe (sortie du flux normal) pour que la fin du
+       contenu de chaque étape reste atteignable en défilant, au lieu de rester cachée dessous. */
+    .cpoly-wizard-content{ padding-bottom: 64px; }
+
     /* Style de bouton par defaut = secondaire (sobre). Avant, TOUS les boutons
        (import, export, tout inclure/exclure, PDF, fermer...) etaient identiques :
        fond bleu plein, texte blanc, tres gras - aucune hierarchie, "generique IA".
@@ -132,6 +168,59 @@
     border-right:7px solid transparent;
     border-bottom:12px solid #1c3fdc;
   }
+  /* Repère détecté dans un état autre que "BON ETAT" (mauvais état, non retrouvé, imprenable,
+     présumé déplacé...) : même triangle, rouge au lieu de bleu - voir m07_export_kmz.js. */
+  .kmz-ngf-triangle-inner--bad{
+    border-bottom-color:#e03131;
+  }
+
+  /* Repères NVP (Ville de Paris) : losange violet, volontairement distinct du triangle NGF pour
+     ne pas confondre les deux sources sur la carte quand les deux couches sont actives. */
+  .kmz-nvp-icon{ background:transparent; border:0; }
+  .kmz-nvp-diamond{
+    width:12px; height:12px;
+    margin:4px;
+    background:#9c36b5;
+    border:2px solid #ffffff;
+    box-shadow:0 0 0 1px rgba(0,0,0,.25);
+    transform:rotate(45deg);
+  }
+
+  /* Épingle de l'adresse recherchée (Export KMZ, "Rechercher une adresse") : forme de pin
+     classique (cercle + pointe), verte, pour rester bien distincte du triangle NGF et du
+     losange NVP posés au même endroit sur la carte. */
+  .kmz-search-icon{ background:transparent; border:0; }
+  .kmz-search-pin{
+    width:18px; height:18px;
+    background:#2f9e44;
+    border:2px solid #ffffff;
+    border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);
+    box-shadow:0 0 0 1px rgba(0,0,0,.25);
+    margin:0 0 0 6px;
+  }
+
+  /* Encadré "Repères externes" (NGF/NVP, Export KMZ) : les deux lignes (case à cocher, bouton de
+     zone, statut) s'alignent en colonnes de largeur fixe plutôt que de suivre le flux naturel du
+     texte - sans ça, la longueur différente des deux libellés ("Repères NGF (IGN)" vs "Repères
+     NVP (Ville de Paris)") décale le bouton et le statut d'une ligne à l'autre. Même fond/bordure
+     que .cpoly-tech-card (Rapport de polygonale) pour rester visuellement cohérent avec le reste
+     de l'application. */
+  .kmz-repere-box{
+    background:#f8f9fb; border:var(--border-card); border-radius:var(--radius-md);
+    padding:12px; margin-top:12px;
+  }
+  .kmz-repere-row{
+    display:grid;
+    grid-template-columns: 220px 200px 1fr;
+    gap:10px;
+    align-items:center;
+  }
+  .kmz-repere-row + .kmz-repere-row{ margin-top:8px; }
+  .kmz-repere-check{ display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  /* Recherche par adresse : contenu libre (champ texte extensible), pas la grille
+     checkbox/bouton/statut a 3 colonnes fixes des 2 rangees NGF/NVP au-dessus. */
+  .kmz-address-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 
   .kmz-measure-pill{
     display:inline-flex;
@@ -191,6 +280,20 @@
     box-sizing:border-box;
     font-size:12px;
     line-height:1.25;
+  }
+
+  /* Statut de la recherche d'adresse : contrairement a .kmz-ngf-status (case fixe 220x32,
+     pensee pour les 2 rangees NGF/NVP a cote d'un bouton court), ce message peut etre long
+     (adresse complete retournee par Nominatim, ou rappel d'activer NGF/NVP) - largeur pleine
+     et hauteur libre pour qu'il s'affiche entierement au lieu de deborder visuellement du
+     cadre "Reperes externes". Couleur neutre (pas de rouge), meme en cas d'adresse introuvable :
+     ce n'est pas une erreur bloquante, juste une invite a reformuler. */
+  .kmz-address-status{
+    display:block;
+    width:100%;
+    margin-top:4px;
+    white-space:normal;
+    line-height:1.3;
   }
 
   /* Comme .nf-hidden mais reserve l'espace au lieu de le retirer du flux : utilise

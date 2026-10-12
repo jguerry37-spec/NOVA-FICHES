@@ -26,15 +26,68 @@ internal static class ControlePolygonaleRenderer
     // Fiches techniques par appareil (valeurs fixes issues du document de référence) - pas des
     // champs de formulaire, juste sélectionnées par clé depuis le tiroir matériel de chaque
     // technique.
+    // Précisions NRTK/post-traitement identiques et vérifiées (datasheets Leica) pour toute la
+    // génération GS14/15/16/18 - seules les constellations/bandes suivies et le nombre de canaux
+    // progressent d'un modèle à l'autre (GS16/18 : ajout Galileo E6, BeiDou B1C/B2a/B3I, QZSS,
+    // NavIC ; 555 canaux contre une capacité "60 satellites" communiquée pour GS14/15). GS18 ajoute
+    // le positionnement visuel (inclinaison compensée par caméra + IMU, pas de mise à niveau de la
+    // canne) - unique différenciateur non chiffré ajouté en ligne dédiée.
+    private static readonly (string Field, string Value)[] GnssPrecisionRows =
+    {
+        ("Précision NRTK horizontale/verticale", "8 mm + 0.5 ppm / 15 mm + 0.5 ppm"),
+        ("Précision post-traitement horizontale/verticale", "3 mm + 0.1 ppm / 3.5 mm + 0.4 ppm"),
+    };
+
+    // Méthode GNSS (choix ajouté côté formulaire, options par méthode encore à définir) - simple
+    // libellé pour l'instant, la méthodologie détaillée par méthode viendra dans un thème séparé.
+    private static string GnssMethodeLabel(string methode) => methode switch
+    {
+        "statique_pp" => "Statique Post-traitement",
+        "statique_pp_pivot" => "Post-traitement avec pivot",
+        "statique_rtk" => "Statique RTK",
+        "temps_reel_rtk" => "Temps réel RTK",
+        _ => methode
+    };
+
     private static readonly Dictionary<string, (string Label, (string Field, string Value)[] Rows)> GnssDeviceSheets = new()
     {
-        ["gs14_gs15"] = ("Leica GS14/GS15", new (string, string)[]
+        ["gs14"] = ("Leica GS 14", new[]
         {
             ("Constellations", "GPS (3 bandes), GLONASS (2 bandes), Galileo, BeiDou, SBAS"),
             ("Nombre satellites max", "60"),
-            ("Précision NRTK horizontale/verticale", "8 mm + 0.5 ppm / 15 mm + 0.5 ppm"),
-            ("Précision post-traitement horizontale/verticale", "3 mm + 0.1 ppm / 3.5 mm + 0.4 ppm"),
-        }),
+        }.Concat(GnssPrecisionRows).ToArray()),
+        ["gs15"] = ("Leica GS 15", new[]
+        {
+            ("Constellations", "GPS (3 bandes), GLONASS (2 bandes), Galileo, BeiDou, SBAS"),
+            ("Nombre satellites max", "60"),
+        }.Concat(GnssPrecisionRows).ToArray()),
+        ["gs16"] = ("Leica GS 16", new[]
+        {
+            ("Constellations", "GPS (L1/L2/L2C/L5), GLONASS (L1/L2/L2C/L3), Galileo (E1/E5a/E5b/AltBOC/E6), BeiDou (B1I/B1C/B2I/B2a/B3I), SBAS"),
+            ("Canaux", "555"),
+        }.Concat(GnssPrecisionRows).ToArray()),
+        ["gs18"] = ("Leica GS 18", new[]
+        {
+            ("Constellations", "GPS (L1/L2/L2C/L5), GLONASS (L1/L2/L2C/L3), Galileo (E1/E5a/E5b/AltBOC/E6), BeiDou (B1I/B1C/B2I/B2a/B3I), SBAS"),
+            ("Canaux", "555"),
+        }.Concat(GnssPrecisionRows).Append(("Fonction", "Positionnement visuel (inclinaison compensée par caméra + IMU)")).ToArray()),
+    };
+
+    // Méthode d'implantation (3 trépieds / Station libre) et méthode de calcul (En bloc / Polygonale
+    // / Ajustement) Optique - deux choix indépendants ajoutés côté formulaire, options par méthode
+    // encore à définir. Simples libellés pour l'instant, comme GnssMethodeLabel.
+    private static string OptiqueMethodeLabel(string methode) => methode switch
+    {
+        "trois_trepieds" => "3 trépieds",
+        "station_libre" => "Station libre",
+        _ => methode
+    };
+    private static string OptiqueCalculLabel(string calcul) => calcul switch
+    {
+        "bloc" => "En bloc (transformation de Helmert)",
+        "polygonale" => "Polygonale",
+        "ajustement" => "Ajustement (moindres carrés)",
+        _ => calcul
     };
 
     private static readonly Dictionary<string, (string Label, (string Field, string Value)[] Rows)> OptiqueDeviceSheets = new()
@@ -43,7 +96,46 @@ internal static class ControlePolygonaleRenderer
         {
             ("Précision angulaire", "0.5″"),
         }),
+        ["ts50"] = ("Leica TS 50", new (string, string)[]
+        {
+            ("Précision angulaire", "0.5″"),
+        }),
+        ["ts30"] = ("Leica TS 30", new (string, string)[]
+        {
+            ("Précision angulaire", "0.5″"),
+        }),
+        ["ts16"] = ("Leica TS 16", new (string, string)[]
+        {
+            ("Précision angulaire", "1″ à 5″ selon version"),
+        }),
+        ["ts15"] = ("Leica TS 15", new (string, string)[]
+        {
+            ("Précision angulaire", "1″ à 5″ selon version"),
+        }),
     };
+
+    // Méthode Nivellement (Cholesky/ABBA / Nivellement indirect) - simple libellé, comme
+    // GnssMethodeLabel/OptiqueMethodeLabel.
+    private static string NivellementMethodeLabel(string methode) => methode switch
+    {
+        "nivellement_simple" => "Nivellement simple",
+        "cholesky" => "Cholesky (doubles points de mire, ABBA)",
+        "nivellement_indirect" => "Nivellement indirect (trigonométrique)",
+        _ => methode
+    };
+
+    // Chacune des 3 méthodes (GNSS/Optique/Nivellement) propose un choix "Autre (préciser)" : dans
+    // ce cas le libellé fixe habituel (GnssMethodeLabel et consorts) n'a pas de sens, on imprime
+    // directement le texte libre saisi par l'utilisateur (methodeAutreText) à la place.
+    private static string MethodeLabelOrAutre(JsonElement tech, string methode, Func<string, string> labelFn)
+    {
+        if (string.Equals(methode, "autre", StringComparison.OrdinalIgnoreCase))
+        {
+            string autre = Str(tech, "methodeAutreText") ?? "";
+            return string.IsNullOrWhiteSpace(autre) ? "Autre" : autre;
+        }
+        return labelFn(methode);
+    }
 
     private static readonly Dictionary<string, (string Label, (string Field, string Value)[] Rows)> NivellementDeviceSheets = new()
     {
@@ -335,21 +427,34 @@ internal static class ControlePolygonaleRenderer
         void DrawGnssDrawer(JsonElement gnss)
         {
             string dispositionImg = Str(gnss, "dispositionImageDataUrl") ?? "";
-            if (!string.IsNullOrWhiteSpace(dispositionImg))
+            // Photo manuelle prioritaire ; à défaut, repli sur la carte de situation
+            // auto-générée (ControlePolygonaleMapService) si elle a été produite côté JS.
+            string mapImg = Str(gnss, "mapImageDataUrl") ?? "";
+            bool useMap = string.IsNullOrWhiteSpace(dispositionImg) && !string.IsNullOrWhiteSpace(mapImg);
+            string img = !string.IsNullOrWhiteSpace(dispositionImg) ? dispositionImg : mapImg;
+            if (!string.IsNullOrWhiteSpace(img))
             {
                 EnsureSpace(18);
-                gfx.DrawString("Disposition des couples GNSS", NovatlasTheme.FontBold(11), XBrushes.Black,
+                gfx.DrawString(useMap ? "Carte de situation — couples GNSS" : "Disposition des couples GNSS", NovatlasTheme.FontBold(11), XBrushes.Black,
                     new XRect(MarginL, y, contentW, 16), XStringFormats.TopLeft);
                 y += 20;
                 string projectNameForCaption = Str(project, "projectName") ?? "";
-                string caption = string.IsNullOrWhiteSpace(projectNameForCaption)
-                    ? "La photo ci-dessous montre l'ensemble des couples GNSS mis en place."
-                    : $"La photo ci-dessous montre l'ensemble des couples GNSS sur le tracé du projet {projectNameForCaption}.";
+                string caption;
+                if (useMap)
+                {
+                    caption = "Carte de situation générée automatiquement à partir des points importés.";
+                }
+                else
+                {
+                    caption = string.IsNullOrWhiteSpace(projectNameForCaption)
+                        ? "La photo ci-dessous montre l'ensemble des couples GNSS mis en place."
+                        : $"La photo ci-dessous montre l'ensemble des couples GNSS sur le tracé du projet {projectNameForCaption}.";
+                }
                 DrawWrapped(caption, NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 6);
 
                 const double imgH = 220;
                 EnsureSpace(imgH + 10);
-                PdfImageHelper.DrawDataUrlImage(gfx, dispositionImg, new XRect(MarginL, y, contentW, imgH));
+                PdfImageHelper.DrawDataUrlImage(gfx, img, new XRect(MarginL, y, contentW, imgH));
                 y += imgH + 10;
             }
 
@@ -357,9 +462,9 @@ internal static class ControlePolygonaleRenderer
             gfx.DrawString("GNSS : matériel utilisé", NovatlasTheme.FontBold(11), XBrushes.Black,
                 new XRect(MarginL, y, contentW, 16), XStringFormats.TopLeft);
             y += 20;
-            string deviceKey = Str(gnss, "deviceKey") ?? "gs14_gs15";
+            string deviceKey = Str(gnss, "deviceKey") ?? "gs14";
             if (!GnssDeviceSheets.TryGetValue(deviceKey, out var sheet))
-                sheet = GnssDeviceSheets["gs14_gs15"];
+                sheet = GnssDeviceSheets["gs14"];
             DrawWrapped($"L'ensemble de ces points a été stationné à l'aide de récepteurs GNSS {sheet.Label} dont les caractéristiques sont détaillées ci-dessous :",
                 NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 8);
             DrawDeviceSheet(sheet.Label, sheet.Rows);
@@ -368,6 +473,33 @@ internal static class ControlePolygonaleRenderer
             gfx.DrawString("GNSS : méthodologie", NovatlasTheme.FontBold(11), XBrushes.Black,
                 new XRect(MarginL, y, contentW, 16), XStringFormats.TopLeft);
             y += 20;
+            // Méthode GNSS (Statique Post-traitement / Statique RTK / Temps réel RTK) : juste
+            // annoncée ici pour l'instant (options par méthode à définir), avant le texte de
+            // méthodologie libre.
+            string methode = Str(gnss, "methode") ?? "";
+            if (!string.IsNullOrWhiteSpace(methode))
+                DrawWrapped($"Méthode : {MethodeLabelOrAutre(gnss, methode, GnssMethodeLabel)}.", NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
+            // Statique Post-traitement uniquement : nombre d'antennes + liste de celles utilisées
+            // pour le calcul, saisies dans le tiroir de méthode dédié côté formulaire.
+            if (string.Equals(methode, "statique_pp", StringComparison.OrdinalIgnoreCase))
+            {
+                string ppAntennesCount = Str(gnss, "ppAntennesCount") ?? "";
+                var antenneNames = new List<string>();
+                if (GetProp(gnss, "ppAntennes") is JsonElement ppAntennes && ppAntennes.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var a in ppAntennes.EnumerateArray())
+                    {
+                        string nom = Str(a, "nom") ?? "";
+                        if (!string.IsNullOrWhiteSpace(nom)) antenneNames.Add(nom);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(ppAntennesCount) || antenneNames.Count > 0)
+                {
+                    string countPart = string.IsNullOrWhiteSpace(ppAntennesCount) ? "" : $"Nombre d'antennes : {ppAntennesCount}.";
+                    string listPart = antenneNames.Count > 0 ? $" Antennes utilisées pour le calcul : {string.Join(", ", antenneNames)}." : "";
+                    DrawWrapped((countPart + listPart).Trim(), NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
+                }
+            }
             string methodology = Str(gnss, "methodologyText") ?? "";
             if (!string.IsNullOrWhiteSpace(methodology))
                 DrawWrapped(methodology, NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
@@ -375,26 +507,39 @@ internal static class ControlePolygonaleRenderer
 
         // Tiroir Optique : disposition (photo optionnelle) + matériel (fiche appareil) +
         // méthodologie (texte pré-rempli côté JS, modifiable) + "Paramètres de mesure" (bullets
-        // fixes + puce PPM dynamique - c'est ici, et non dans les référentiels, que le PPM
-        // apparaît dans le document réel).
+        // fixes ; le PPM, lui, est annoncé dans "Référentiels du projet" - voir plus haut - pas ici,
+        // déplacé sur demande utilisateur).
         void DrawOptiqueDrawer(JsonElement optique)
         {
             string dispositionImg = Str(optique, "dispositionImageDataUrl") ?? "";
-            if (!string.IsNullOrWhiteSpace(dispositionImg))
+            // Photo manuelle prioritaire ; à défaut, repli sur la carte de situation
+            // auto-générée (ControlePolygonaleMapService) si elle a été produite côté JS.
+            string mapImg = Str(optique, "mapImageDataUrl") ?? "";
+            bool useMap = string.IsNullOrWhiteSpace(dispositionImg) && !string.IsNullOrWhiteSpace(mapImg);
+            string img = !string.IsNullOrWhiteSpace(dispositionImg) ? dispositionImg : mapImg;
+            if (!string.IsNullOrWhiteSpace(img))
             {
                 EnsureSpace(18);
-                gfx.DrawString("Disposition des stations topographiques", NovatlasTheme.FontBold(11), XBrushes.Black,
+                gfx.DrawString(useMap ? "Carte de situation — stations topographiques" : "Disposition des stations topographiques", NovatlasTheme.FontBold(11), XBrushes.Black,
                     new XRect(MarginL, y, contentW, 16), XStringFormats.TopLeft);
                 y += 20;
                 string projectNameForCaption = Str(project, "projectName") ?? "";
-                string caption = string.IsNullOrWhiteSpace(projectNameForCaption)
-                    ? "La photo ci-dessous montre l'ensemble des stations topographiques mises en place."
-                    : $"La photo ci-dessous montre l'ensemble des stations topographiques sur le tracé du projet {projectNameForCaption}.";
+                string caption;
+                if (useMap)
+                {
+                    caption = "Carte de situation générée automatiquement à partir des points importés.";
+                }
+                else
+                {
+                    caption = string.IsNullOrWhiteSpace(projectNameForCaption)
+                        ? "La photo ci-dessous montre l'ensemble des stations topographiques mises en place."
+                        : $"La photo ci-dessous montre l'ensemble des stations topographiques sur le tracé du projet {projectNameForCaption}.";
+                }
                 DrawWrapped(caption, NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 6);
 
                 const double imgH = 220;
                 EnsureSpace(imgH + 10);
-                PdfImageHelper.DrawDataUrlImage(gfx, dispositionImg, new XRect(MarginL, y, contentW, imgH));
+                PdfImageHelper.DrawDataUrlImage(gfx, img, new XRect(MarginL, y, contentW, imgH));
                 y += imgH + 10;
             }
 
@@ -413,6 +558,9 @@ internal static class ControlePolygonaleRenderer
             gfx.DrawString("Optique : méthodologie", NovatlasTheme.FontBold(11), XBrushes.Black,
                 new XRect(MarginL, y, contentW, 16), XStringFormats.TopLeft);
             y += 20;
+            string optiqueMethode = Str(optique, "methode") ?? "";
+            if (!string.IsNullOrWhiteSpace(optiqueMethode))
+                DrawWrapped($"Méthode optique : {MethodeLabelOrAutre(optique, optiqueMethode, OptiqueMethodeLabel)}.", NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
             string methodology = Str(optique, "methodologyText") ?? "";
             if (!string.IsNullOrWhiteSpace(methodology))
                 DrawWrapped(methodology, NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
@@ -427,12 +575,22 @@ internal static class ControlePolygonaleRenderer
             DrawWrapped("•  Double retournement sur chaque point mesuré.", NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 2);
             DrawWrapped("•  Application des informations météorologiques (température, humidité et pression atmosphérique).",
                 NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 2);
-            bool ppmApplied = GetBool(optique, "ppmApplied") ?? false;
-            string ppmValue = Str(optique, "ppmValue") ?? "";
-            string ppmBullet = ppmApplied
-                ? (string.IsNullOrWhiteSpace(ppmValue) ? "•  Application des PPM." : $"•  Application des PPM (valeur : {ppmValue}).")
-                : "•  Pas de correction PPM appliquée.";
-            DrawWrapped(ppmBullet, NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 2);
+            // Le PPM (correction d'échelle) est désormais annoncé dans "Référentiels du projet" >
+            // "Référentiel planimétrique" (déplacé sur demande utilisateur), plus ici.
+
+            string optiqueCalcul = Str(optique, "methodeCalcul") ?? "";
+            string calculText = Str(optique, "calculText") ?? "";
+            if (!string.IsNullOrWhiteSpace(optiqueCalcul) || !string.IsNullOrWhiteSpace(calculText))
+            {
+                EnsureSpace(18);
+                gfx.DrawString("Méthode de calcul", NovatlasTheme.FontBold(11), XBrushes.Black,
+                    new XRect(MarginL, y, contentW, 16), XStringFormats.TopLeft);
+                y += 20;
+                if (!string.IsNullOrWhiteSpace(optiqueCalcul))
+                    DrawWrapped($"Méthode : {OptiqueCalculLabel(optiqueCalcul)}.", NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
+                if (!string.IsNullOrWhiteSpace(calculText))
+                    DrawWrapped(calculText, NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
+            }
         }
 
         // Tiroir Nivellement : matériel (fiche appareil) + méthodologie (texte pré-rempli côté JS,
@@ -444,20 +602,56 @@ internal static class ControlePolygonaleRenderer
             gfx.DrawString("Nivellement : matériel utilisé", NovatlasTheme.FontBold(11), XBrushes.Black,
                 new XRect(MarginL, y, contentW, 16), XStringFormats.TopLeft);
             y += 20;
+            // Catalogue élargi aux stations totales (mêmes modèles que le tiroir Optique) : le
+            // nivellement indirect (trigonométrique) s'observe avec une station totale, pas un
+            // niveau numérique - fiche technique réutilisée telle quelle depuis OptiqueDeviceSheets
+            // (même appareil, pas de duplication des specs), avec une phrase d'intro adaptée.
             string deviceKey = Str(niv, "deviceKey") ?? "ls15";
-            if (!NivellementDeviceSheets.TryGetValue(deviceKey, out var sheet))
+            bool isTotalStation = deviceKey.StartsWith("ts", StringComparison.OrdinalIgnoreCase);
+            (string Label, (string Field, string Value)[] Rows) sheet;
+            if (isTotalStation)
+            {
+                if (!OptiqueDeviceSheets.TryGetValue(deviceKey, out sheet))
+                    sheet = OptiqueDeviceSheets["ts60"];
+            }
+            else if (!NivellementDeviceSheets.TryGetValue(deviceKey, out sheet))
+            {
                 sheet = NivellementDeviceSheets["ls15"];
-            DrawWrapped($"L'ensemble de ces points a été stationné à l'aide d'un niveau numérique {sheet.Label} avec des mires invar dont les caractéristiques sont détaillées ci-dessous :",
-                NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 8);
+            }
+            string deviceIntro = isTotalStation
+                ? $"L'ensemble de ces points a été observé en nivellement indirect à l'aide d'une station {sheet.Label} dont les caractéristiques sont détaillées ci-dessous :"
+                : $"L'ensemble de ces points a été stationné à l'aide d'un niveau numérique {sheet.Label} avec des mires invar dont les caractéristiques sont détaillées ci-dessous :";
+            DrawWrapped(deviceIntro, NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 8);
             DrawDeviceSheet(sheet.Label, sheet.Rows);
 
             EnsureSpace(18);
             gfx.DrawString("Nivellement : méthodologie", NovatlasTheme.FontBold(11), XBrushes.Black,
                 new XRect(MarginL, y, contentW, 16), XStringFormats.TopLeft);
             y += 20;
+            string nivMethode = Str(niv, "methode") ?? "";
+            if (!string.IsNullOrWhiteSpace(nivMethode))
+                DrawWrapped($"Méthode : {MethodeLabelOrAutre(niv, nivMethode, NivellementMethodeLabel)}.", NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
             string methodology = Str(niv, "methodologyText") ?? "";
             if (!string.IsNullOrWhiteSpace(methodology))
                 DrawWrapped(methodology, NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
+
+            // Repère(s) NGF de rattachement : simple mention des identifiants saisis ici (juste
+            // le texte) - la fusion effective des fiches signalétiques officielles IGN en annexe
+            // du rapport est un post-traitement fait côté C# sur le fichier PDF déjà généré
+            // (NgfFicheMergeService, appelé depuis MainForm.cs), pas un dessin du renderer.
+            bool ngfEnabled = GetBool(niv, "ngfEnabled") ?? false;
+            if (ngfEnabled && GetProp(niv, "ngfRepereIds") is JsonElement ngfRepereIds && ngfRepereIds.ValueKind == JsonValueKind.Array)
+            {
+                var repereIds = new List<string>();
+                foreach (var r in ngfRepereIds.EnumerateArray())
+                {
+                    string rid = Str(r, "id") ?? "";
+                    if (!string.IsNullOrWhiteSpace(rid)) repereIds.Add(rid);
+                }
+                if (repereIds.Count > 0)
+                    DrawWrapped($"Repère(s) NGF de rattachement : {string.Join(", ", repereIds)}. Fiche(s) signalétique(s) officielle(s) IGN jointe(s) en annexe du présent rapport.",
+                        NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 4);
+            }
         }
 
         // ===== Page de garde =====
@@ -466,7 +660,12 @@ internal static class ControlePolygonaleRenderer
         // de texte, aucun impact de structure (confirmé avec l'utilisateur).
         string reportType = (Str(project, "reportType") ?? "controle").ToLowerInvariant();
         string level = (Str(project, "level") ?? "primaire").ToLowerInvariant();
-        string levelLabel = level == "secondaire" ? "SECONDAIRE" : "PRIMAIRE";
+        string levelLabel = level switch
+        {
+            "secondaire" => "SECONDAIRE",
+            "primaire_secondaire" => "PRIMAIRE ET SECONDAIRE",
+            _ => "PRIMAIRE"
+        };
         string reportTitle = reportType == "creation"
             ? $"MISE EN PLACE DE LA POLYGONALE {levelLabel}"
             : $"CONTRÔLE DE LA POLYGONALE {levelLabel}";
@@ -555,9 +754,15 @@ internal static class ControlePolygonaleRenderer
 
         // ===== Référentiels du projet =====
         // Planimétrique = Datum + Projection (2 champs séparés, comme le document de référence -
-        // remplace l'ancien champ libre unique `coordSystem`). Le PPM n'est volontairement pas ici :
-        // dans le document réel, c'est une puce de "Paramètres de mesure" côté méthodologie Optique
-        // (tiroir Optique, thème suivant), pas un référentiel.
+        // remplace l'ancien champ libre unique `coordSystem`). Le PPM (correction d'échelle liée à
+        // la projection) a été déplacé ici depuis "Paramètres de mesure" du tiroir Optique, sur
+        // demande explicite de l'utilisateur - c'est bien un paramètre de référentiel/projection,
+        // pas une méthodologie propre à une technique. Le payload le porte toujours sous
+        // techniques.optique.ppmApplied/ppmValue côté JS (champ inchangé, seul son emplacement
+        // visuel dans le formulaire et dans le rapport a changé) - d'où la lecture anticipée
+        // d'optiqueTech ici, réutilisée plus bas pour le tiroir Optique lui-même.
+        var optiqueTech = GetProp(techniques, "optique") ?? default;
+
         y += 10;
         EnsureSpace(24);
         gfx.DrawString("Référentiels du projet", NovatlasTheme.FontBold(13), XBrushes.Black,
@@ -572,6 +777,12 @@ internal static class ControlePolygonaleRenderer
         string projection = Str(project, "projection") ?? "";
         if (!string.IsNullOrWhiteSpace(datum)) DrawWrapped($"Datum : {datum}", NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 2);
         if (!string.IsNullOrWhiteSpace(projection)) DrawWrapped($"Projection : {projection}", NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 2);
+        bool ppmApplied = GetBool(optiqueTech, "ppmApplied") ?? false;
+        string ppmValue = Str(optiqueTech, "ppmValue") ?? "";
+        string ppmLine = ppmApplied
+            ? (string.IsNullOrWhiteSpace(ppmValue) ? "Application des PPM." : $"Application des PPM (valeur : {ppmValue} mm/km).")
+            : "Pas de correction PPM appliquée.";
+        DrawWrapped(ppmLine, NovatlasTheme.FontBody(10), XBrushes.Black, XStringFormats.TopLeft, 2);
         y += 8;
 
         EnsureSpace(18);
@@ -587,7 +798,6 @@ internal static class ControlePolygonaleRenderer
         // avant le premier tiroir présent.
         var gnssTech = GetProp(techniques, "gnss") ?? default;
         bool gnssEnabled = GetBool(gnssTech, "enabled") ?? false;
-        var optiqueTech = GetProp(techniques, "optique") ?? default;
         bool optiqueEnabled = GetBool(optiqueTech, "enabled") ?? false;
         var nivTech = GetProp(techniques, "nivellement") ?? default;
         bool nivEnabled = GetBool(nivTech, "enabled") ?? false;
@@ -829,8 +1039,17 @@ internal static class ControlePolygonaleRenderer
         string projectName = Str(project, "projectName") ?? "";
         string lieu = string.IsNullOrWhiteSpace(ville) ? "" : $" sur la ville de {ville}";
         string trace = string.IsNullOrWhiteSpace(projectName) ? "" : $", sur le tracé du projet {projectName}";
-        return $"{verbPhrase} la polygonale {level}{lieu}{trace}.";
+        return $"{verbPhrase} la polygonale {LevelPhrase(level)}{lieu}{trace}.";
     }
+
+    // "primaire_secondaire" (les deux niveaux traités ensemble dans le même rapport) se lit "primaire
+    // et secondaire" en texte libre, plutôt qu'une simple substitution de la valeur brute du champ.
+    private static string LevelPhrase(string level) => level switch
+    {
+        "secondaire" => "secondaire",
+        "primaire_secondaire" => "primaire et secondaire",
+        _ => "primaire"
+    };
 
     // Conclusion générée quand l'utilisateur n'a pas forcé de texte - adaptée au type de rapport
     // (Contrôle/Création) et au niveau (primaire/secondaire), comme la page de garde et les
@@ -849,7 +1068,7 @@ internal static class ControlePolygonaleRenderer
         string ville = Str(project, "ville") ?? "";
         string trace = string.IsNullOrWhiteSpace(projectName) ? "" : $" du chantier du projet {projectName}";
         string lieu = string.IsNullOrWhiteSpace(ville) ? "" : $" sur la ville de {ville}";
-        parts.Add($"Ce rapport rend compte {verbNounPhrase} la polygonale {level}{trace}{lieu}.");
+        parts.Add($"Ce rapport rend compte {verbNounPhrase} la polygonale {LevelPhrase(level)}{trace}{lieu}.");
 
         if (reportType == "creation")
         {

@@ -2,6 +2,113 @@
 
 Ce fichier sert de journal de suivi. Chaque version doit expliquer ce qui change et pourquoi, afin de garder une trace claire des corrections, evolutions et decisions metier.
 
+## 3.1.44
+
+- Export KMZ, recherche par adresse : le message de statut ne s'affiche plus en rouge et ne déborde plus du cadre "Repères externes" (pleine largeur, retour à la ligne naturel au lieu d'une case de taille fixe).
+- Export KMZ, recherche par adresse : les raccourcis d'arrondissement ("Paris 01", "Lyon 3", "Marseille 08"...) que Nominatim ne comprend pas directement sont désormais retraduits automatiquement en code postal ("75001 Paris") avant une nouvelle tentative.
+- Build : passage de l'application et du moteur PDF en **3.1.44.0**.
+
+## 3.1.43
+
+- Export KMZ : nouvelle recherche par adresse dans l'encadré "Repères externes" — un champ texte + bouton "Rechercher" géocode l'adresse (Nominatim/OpenStreetMap), centre la carte dessus (épingle verte) et charge automatiquement les repères NGF et/ou NVP cochés dans un rayon de 300 m, sans avoir besoin d'importer un fichier de points au préalable.
+- Build : passage de l'application et du moteur PDF en **3.1.43.0**.
+
+## 3.1.42
+
+- Contrôle classe de précision : nouvelle fonction de nettoyage des n° de point — un champ "Préfixe à retirer des n° de point" + bouton "Nettoyer" apparaît sous chaque import (Levé et Contrôle, indépendamment) pour retirer un préfixe terrain (ex. "Stkd28" → "28"), afin de permettre l'appariement avec l'autre fichier. Le nettoyage repart toujours du fichier brut importé (jamais d'un nettoyage précédent) et avertit en cas de collision d'ID.
+- Contrôle classe de précision : aperçu dépliable du fichier importé (tableau ID/X/Y/Z) sous chaque import, mis à jour automatiquement après un nettoyage de préfixe.
+- Build : passage de l'application et du moteur PDF en **3.1.42.0**.
+
+## 3.1.41
+
+- Fiches signalétiques : corrections de libellés dans le bloc "Géoréférencement" — "Système plani"/"Système alti" deviennent "Système planimétrique"/"Système altimétrique" (aperçu à l'écran et PDF), et la valeur PPM affiche désormais son unité ("12.5 mm/km" au lieu de "12.5").
+- Build : passage de l'application et du moteur PDF en **3.1.41.0**.
+
+## 3.1.40
+
+- Export KMZ, outil "Mesurer une distance" : cliquer un repère NVP (Ville de Paris) pendant une mesure joint maintenant son info (numéro, dénomination, altitude NVP, altitude NGF-IGN69, état) en texte dans le PDF exporté — la Ville de Paris ne publiant pas de fiche PDF téléchargeable pour ces repères, contrairement à l'IGN (qui, lui, reste fusionné en pages PDF).
+- Build : passage de l'application et du moteur PDF en **3.1.40.0**.
+
+## 3.1.39
+
+- Export KMZ : les repères NGF (IGN) et NVP (Ville de Paris) sont regroupés dans un encadré "Repères externes" où les deux lignes s'alignent proprement en colonnes (case à cocher, bouton, statut), au lieu d'être décalées selon la longueur du libellé.
+- Export KMZ, repères NVP : parité complète avec les repères NGF — cliquer un repère NVP pendant "Mesurer une distance" l'ajoute au tracé ; la carte de l'export "Mesure (PDF)" affiche les repères NVP visibles (losange violet) comme elle le fait déjà pour les repères NGF et points topo ; l'export "Exporter KMZ" (Google Earth) inclut désormais aussi les repères NVP chargés, dans leur propre dossier.
+- Build : passage de l'application et du moteur PDF en **3.1.39.0**.
+
+## 3.1.38
+
+- Export KMZ : nouveau bouton indépendant "Repères NVP (Ville de Paris)" (en plus des repères NGF) — charge les repères de nivellement du Plan de voirie de Paris sur une zone dessinée à la carte, avec les deux altitudes (NVP et NGF-IGN69) et le statut, affichés avec un marqueur losange violet pour ne pas les confondre avec les repères NGF.
+- Fiches signalétiques : correction d'un défaut d'affichage où une adresse longue débordait du cadre "Informations générales" et chevauchait le cadre "Géoréférencement". L'adresse (et tout autre champ long) passe maintenant à la ligne proprement ; le cadre "Géoréférencement" s'étire en retour si besoin pour que les deux cadres restent alignés.
+- Fiches signalétiques : ajout de deux réglages pour la carte de situation du PDF — "Fond de carte" (Plan IGN, déjà utilisé par défaut, ou Satellite Esri) et "Niveau de zoom" (19 à 15) — jusqu'ici fixés dans le code sans aucun contrôle.
+- Build : passage de l'application et du moteur PDF en **3.1.38.0**.
+
+## 3.1.37
+
+- Rapport de polygonale : les informations générales (Projet/Client/Code chantier/Ville) sont déplacées de l'étape "Référentiels" vers la page de garde. Référentiel altimétrique : ajout de "NVP" et "Locale". Le bouton d'import est renommé "Importer le fichier TXT".
+- Rapport de polygonale, tiroir GNSS : nouvelle méthode "Post-traitement avec pivot".
+- Rapport de polygonale, tiroir Optique : le champ "Méthode d'implantation" est renommé "Méthode optique" (formulaire et rapport).
+- Rapport de polygonale, tiroir Nivellement : les champs "Matériel" et "Méthode" sont inversés (Matériel en premier, dans l'ordre où ils apparaissent déjà dans le rapport) ; nouvelle méthode "Nivellement simple".
+- Rapport de polygonale, méthodes GNSS/Optique/Nivellement : chacune propose désormais un choix "Autre (préciser)" avec un champ de texte libre, repris tel quel dans le rapport.
+- Rapport de polygonale : nouvelle étape "10. Annexes" permettant de joindre un ou plusieurs fichiers PDF, dont les pages sont réellement fusionnées à la fin du rapport exporté.
+- Installeurs (Inno Setup et MSI entreprise) : l'application est désormais publiée en mode autonome ("self-contained") — le runtime .NET 8 est embarqué directement dans l'installeur. Un poste sans ce runtime pouvait auparavant installer Nova-Fiches avec succès puis échouer silencieusement au premier lancement ; ce n'est plus possible, aucune installation séparée du runtime .NET n'est nécessaire.
+- Build : passage de l'application et du moteur PDF en **3.1.37.0**.
+
+## 3.1.36
+
+- Export KMZ, outil "Mesurer une distance" (correctif suite retour de test de la v3.1.35) : les repères NGF et points topo affichés sur la carte exportée rendaient l'image illisible dès qu'une zone NGF large avait été chargée (le cadrage s'élargissait pour tout inclure, écrasant le tracé mesuré à quelques pixels). Le cadrage reste maintenant centré sur le tracé de mesure lui-même ; seuls les repères et points qui tombent naturellement dans ce cadrage sont affichés, chacun avec son nom/numéro en étiquette pour rester identifiable.
+- Build : passage de l'application et du moteur PDF en **3.1.36.0**.
+
+## 3.1.35
+
+- Rapport de polygonale, tiroir Nivellement : liste "Matériel — appareil" élargie aux mêmes stations totales que le tiroir Optique (nivellement indirect/trigonométrique). Nouveau choix "Intégration de repère(s) NGF" : saisie manuelle du ou des identifiants de repère(s) de rattachement, dont la fiche signalétique officielle IGN est jointe (pages réellement fusionnées, pas un simple lien) à la fin du rapport exporté.
+- Rapport de polygonale, tiroir Optique : le champ "Application des PPM" est déplacé de "Paramètres de mesure" vers l'étape "4. Référentiels" (sous Référentiel planimétrique) - la valeur imprimée dans le rapport suit ce déplacement.
+- Rapport de polygonale, tiroir GNSS (méthode Statique Post-traitement) : nouveaux champs "Nombre d'antennes" et liste des antennes ayant servi aux calculs, imprimés dans le rapport.
+- Export KMZ, repères NGF : un repère détecté dans un état autre que "BON ETAT" (mauvais état, non retrouvé, imprenable, présumé déplacé) s'affiche maintenant en rouge au lieu de bleu, à l'écran comme sur la carte exportée.
+- Export KMZ, outil "Mesurer une distance" : le PDF exporté affiche maintenant les repères NGF chargés et les points topo importés en contexte autour du tracé, en plus de la mesure elle-même. Cliquer sur un repère NGF pendant une mesure (au lieu d'ouvrir sa fiche) l'ajoute au tracé depuis ses coordonnées exactes - une mesure peut toucher plusieurs repères, et leur(s) fiche(s) PDF officielle(s) sont fusionnées à la fin du PDF de mesure exporté.
+- Build : passage de l'application et du moteur PDF en **3.1.35.0**.
+
+## 3.1.34
+
+- Rapport de polygonale, tiroir Optique : nouveau champ "Méthode d'implantation" (3 trépieds / Station libre) et "Méthode de calcul" (En bloc - transformation de Helmert / Polygonale / Ajustement), chacun ouvrant un tiroir dédié. Un texte de méthodologie adapté est proposé automatiquement selon le choix (toujours modifiable, jamais écrasé par un changement de méthode si le texte a été personnalisé).
+- Rapport de polygonale, tiroir Nivellement : nouveau champ "Méthode" (Cholesky/ABBA — méthode déjà en place — ou Nivellement indirect/trigonométrique), avec le même principe de texte pré-rempli adapté. Le choix d'appareil (un seul modèle pour l'instant) passe après le choix de méthode.
+- Build : passage de l'application et du moteur PDF en **3.1.34.0**.
+
+## 3.1.33
+
+- Rapport de polygonale, carte de situation : ajout d'un sélecteur de niveau de zoom (19 à 15, "Le plus détaillé (auto)" par défaut) - le statut affiche le zoom réellement obtenu, qui peut redescendre si l'emprise des points ne tient pas dans le budget de tuiles au niveau demandé.
+- Rapport de polygonale, tiroir Optique : matériel élargi (Leica TS 60, TS 50, TS 30, TS 16, TS 15).
+- Rapport de polygonale, tiroir GNSS : matériel élargi (Leica GS 14, GS 15, GS 16, GS 18, au lieu d'un seul choix combiné GS14/GS15). Nouveau champ "Méthode GNSS" (Statique Post-traitement / Statique RTK / Temps réel RTK) qui ouvre un tiroir dédié selon le choix - contenu de chaque tiroir à définir dans une prochaine version.
+- Build : passage de l'application et du moteur PDF en **3.1.33.0**.
+
+## 3.1.32
+
+- Rapport de polygonale : la barre d'actions de l'assistant (Précédent/Suivant/Ouvrir un projet/Enregistrer le projet/Aperçu PDF) reste maintenant réellement fixée juste au-dessus du pied de page NOVATLAS, quelle que soit l'étape affichée - le correctif précédent (3.1.31) ne fonctionnait que sur une étape avec assez de contenu pour être défilée.
+- Rapport de polygonale, carte de situation : le système de coordonnées est maintenant détecté automatiquement à partir des points GeoBase importés (même méthode déjà utilisée par "Contrôle classe de précision"), au lieu de dépendre du champ "Projection" des Référentiels - qui est un texte déclaratif pour le rapport, pas toujours reconnu tel quel pour reprojeter les points, ce qui pouvait faire échouer la génération de la carte sans rapport avec un vrai problème de coordonnées.
+- Build : passage de l'application et du moteur PDF en **3.1.32.0**.
+
+## 3.1.31
+
+- Rapport de polygonale, étape "Référentiels" : l'import du classeur de comparaison (Excel) n'y avait pas sa place pour générer la carte de situation - il est reparti dans l'étape "RESULTAT" où il sert réellement (écarts théo/mesuré). Seul reste dans "Référentiels" l'import du fichier GeoBase (TXT), qui alimente maintenant seul la carte de situation, quel que soit le mode Contrôle/Création.
+- Rapport de polygonale : la barre d'actions de l'assistant (Précédent/Suivant/Ouvrir un projet/Enregistrer le projet/Aperçu PDF) reste maintenant collée en bas de la fenêtre, à position fixe quelle que soit l'étape affichée - elle ne suit plus la hauteur variable du contenu de chaque étape.
+- MSI de déploiement entreprise : corrige un faux négatif de détection du runtime Microsoft Edge WebView2 qui pouvait bloquer l'installation à tort sur des postes où il était pourtant bien présent (la vérification ne regardait que la vue registre 64 bits, alors que le service qui l'enregistre est lui-même en 32 bits et écrit dans la vue 32 bits sur la plupart des postes).
+- Build : passage de l'application et du moteur PDF en **3.1.31.0**.
+
+## 3.1.30
+
+- Rapport de polygonale (retours d'usage après test de la v3.1.29) : l'onglet est renommé "Rapport de polygonale" (ex. "Contrôle de polygonale"). Le niveau accepte maintenant "Primaire et secondaire" en plus de "Primaire"/"Secondaire" seuls. Les boutons d'import du classeur de comparaison et du fichier GeoBase (TXT) sont déplacés de l'étape "RESULTAT" vers l'étape "Référentiels", juste avant le bouton de génération de la carte de situation - qui en a besoin pour fonctionner. Deux boutons "Enregistrer le projet"/"Ouvrir un projet" ajoutés dans l'assistant (raccourci vers le menu Fichier existant, pour plus de visibilité). Dans le tiroir Optique, le champ "Valeur PPM" affiche maintenant l'unité "mm/km" par défaut, reprise telle quelle dans le PDF généré.
+- Build : passage de l'application et du moteur PDF en **3.1.30.0**.
+
+## 3.1.29
+
+- Contrôle de polygonale, étape "Déroulé de la mission" : quand plusieurs techniques (GNSS/Nivellement/Optique) sont activées en même temps, leurs champs de date se décalaient les uns par rapport aux autres (grille à colonnes partagée, cassée dès qu'une case "Plage de dates" changeait la hauteur d'une seule technique). Chaque technique a maintenant son propre encadré autonome - plus de décalage, quel que soit le nombre de techniques activées ou de plages de dates cochées.
+- Build : passage de l'application et du moteur PDF en **3.1.29.0**.
+
+## 3.1.28
+
+- **Contrôle de polygonale : évolutions d'usage suite aux premiers retours terrain sur la version 3.1.26.** Datum, Projection et référentiel altimétrique sont maintenant des listes déroulantes (avec "Autre" pour préciser un cas non prévu) plutôt que du texte libre - la Projection sert aussi de référence pour la carte de situation auto-générée. Les dates par technique (GNSS/Nivellement/Optique) se saisissent maintenant via un vrai calendrier (1 jour ou une plage, avec case "Plage de dates"). Le projet peut être sauvegardé et rechargé dans son intégralité (menu Fichier existant) pour produire un nouvel indice de révision sans tout ressaisir - classeur importé, GeoBase, photos de disposition et carte comprises. Une carte de situation peut être générée automatiquement à partir des points importés (bouton dédié dans les Référentiels du projet) et s'affiche en repli dans les tiroirs GNSS/Optique quand aucune photo de disposition manuelle n'a été fournie (la photo manuelle reste toujours prioritaire). Enfin, le formulaire est réorganisé en assistant par étape suivant l'ordre du rapport (navigation libre par la barre latérale ou Suivant/Précédent), avec un bouton "Aperçu PDF" qui ouvre le rapport dans son état actuel dans une fenêtre dédiée, réutilisée à chaque clic.
+- Export Word (.docx) du rapport : évalué mais reporté à une prochaine version.
+- Build : passage de l'application et du moteur PDF en **3.1.28.0**.
+
 ## 3.1.27
 
 - **Correction importante** : sur le rapport "Mesure sur ligne" (Implantation / Ligne de référence), un point mesuré en mode de suivi continu ("syncrotrack") pouvait apparaître deux fois avec des écarts différents - dans un cas réel constaté, l'une des deux lignes affichait un écart fictif de 60 cm alors que le point était en réalité conforme. Cause : le carnet Leica journalise parfois un instantané intermédiaire du calcul de guidage en direct (identifiant suffixé "@NN", ex. "R3.5.1@255") avant l'instantané final réellement enregistré comme point - cet instantané intermédiaire n'a ni visée brute ni point qui lui soit propre. L'import ne garde désormais que l'instantané réellement mesuré ; les vrais doublons métier (un point réellement revisé depuis une autre station, avec sa propre visée) restent affichés normalement.

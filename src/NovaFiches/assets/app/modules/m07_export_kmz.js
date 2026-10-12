@@ -18,14 +18,22 @@
     leafletLoading: false,
     ngfEnabled: false,
     ngfPoints: [],
+    nvpEnabled: false,
+    nvpPoints: [],
     drawingZone: false,
+    zoneTarget: 'ngf', // 'ngf' | 'nvp' - quelle couche la zone en cours de dessin doit alimenter
     zoneCorner1: null,
     zonePreviewLayer: null,
     zoneLayer: null,
+    searchPoint: null, // {lat, lon, displayName} - dernière adresse recherchée, affichée en épingle
+    searchMarkerLayer: null,
+    searchNeedsFit: false, // true juste après une recherche : force le recentrage sur searchPoint
     measuring: false,
     measurePoints: [],
     measureLayer: null,
-    measureDistanceMeters: 0
+    measureDistanceMeters: 0,
+    measureTouchedReperes: [],
+    measureTouchedNvp: []
   };
 
   function el(id){ return document.getElementById(id); }
@@ -46,6 +54,11 @@
   }
   function setMapStatus(text){ const s = el('kmzMapStatus'); if(s) s.textContent = text; }
   function setNgfStatus(text){ const s = el('kmzNgfStatus'); if(s) s.textContent = text; }
+  function setNvpStatus(text){ const s = el('kmzNvpStatus'); if(s) s.textContent = text; }
+  // Pas de variante "erreur" (rouge) ici : une adresse introuvable ou un rappel d'activer
+  // NGF/NVP ne sont pas des échecs bloquants, juste une invite à reformuler - voir
+  // .kmz-address-status (couleur neutre, pleine largeur, hauteur libre).
+  function setAddressStatus(text){ const s = el('kmzAddressStatus'); if(s) s.textContent = text; }
   function setMeasureStatus(text, cls){ const s = el('kmzMeasureStatus'); if(s){ s.textContent = text; s.className = 'kmz-measure-pill' + (cls ? ' ' + cls : ''); } }
   // Le micro-decalage au clic (carte qui "saute" pile au moment du premier clic en
   // mode Mesurer/Dessiner une zone) etait corrige en desactivant completement le
@@ -131,10 +144,12 @@
     const mapDiv = el('kmzMap');
     const canvas = el('kmzCanvas');
     const hasNgf = state.ngfEnabled && state.ngfPoints.length > 0;
-    if(!pts.length && !lines.length && !texts.length && !hasNgf){
+    const hasNvp = state.nvpEnabled && state.nvpPoints.length > 0;
+    const hasSearch = !!state.searchPoint;
+    if(!pts.length && !lines.length && !texts.length && !hasNgf && !hasNvp && !hasSearch){
       if(mapDiv) mapDiv.style.display = 'block';
       if(canvas) canvas.style.display = 'none';
-      setMapStatus('Charge un TXT pour afficher les points sur fond de plan en ligne.');
+      setMapStatus('Charge un TXT, ou recherche une adresse, pour afficher la carte.');
       return;
     }
 
@@ -235,15 +250,20 @@
           state.layer.addLayer(marker);
         });
         if(hasNgf){
-          const ngfIcon = L.divIcon({
-            className: 'kmz-ngf-icon',
-            html: '<div class="kmz-ngf-triangle-outer"><div class="kmz-ngf-triangle-inner"></div></div>',
-            iconSize: [20, 17],
-            iconAnchor: [10, 9]
-          });
           state.ngfPoints.forEach(p => {
             const lat = Number(p.lat), lon = Number(p.lon);
             if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+            // "BON ETAT" (ou etat absent/inconnu) -> triangle bleu ; tout le reste (MAUVAIS ETAT,
+            // NON RETROUVE, IMPRENABLE, PRESUME DEPLACE...) -> rouge, valeurs reelles confirmees
+            // via le flux WFS IGN (IGNF_GEODESIE:rn).
+            const etatUpper = String(p.etat || '').toUpperCase();
+            const isBad = etatUpper !== '' && etatUpper !== 'BON ETAT';
+            const ngfIcon = L.divIcon({
+              className: 'kmz-ngf-icon',
+              html: `<div class="kmz-ngf-triangle-outer"><div class="kmz-ngf-triangle-inner${isBad ? ' kmz-ngf-triangle-inner--bad' : ''}"></div></div>`,
+              iconSize: [20, 17],
+              iconAnchor: [10, 9]
+            });
             const marker = L.marker([lat, lon], { icon: ngfIcon });
             const label = String(p.nom || p.id || '');
             marker.bindTooltip(label, { permanent:false, direction:'top' });
@@ -253,23 +273,88 @@
               ? `<br><a href="${esc(p.ficheUrl)}" target="_blank" rel="noopener">Télécharger la fiche (PDF)</a>`
               : '';
             marker.bindPopup(`<b>${esc(label)}</b><br>Altitude NGF ${esc(alt)}<br>${esc(p.etat || '')}${ficheLink}`);
+            // En mode Mesurer, un clic sur un repère demarre/poursuit la mesure exactement depuis
+            // ses coordonnees (au lieu d'ouvrir sa fiche) - voir onMeasureRepereClick. closePopup()
+            // annule l'ouverture automatique liee a bindPopup() (meme tick, avant tout rendu visible).
+            marker.on('click', () => {
+              if(state.measuring){
+                marker.closePopup();
+                onMeasureRepereClick(p);
+              }
+            });
+            state.layer.addLayer(marker);
+          });
+        }
+        if(hasNvp){
+          const nvpIcon = L.divIcon({
+            className: 'kmz-nvp-icon',
+            html: '<div class="kmz-nvp-diamond"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          });
+          state.nvpPoints.forEach(p => {
+            const lat = Number(p.lat), lon = Number(p.lon);
+            if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+            const marker = L.marker([lat, lon], { icon: nvpIcon });
+            const label = String(p.numero || '');
+            marker.bindTooltip(label, { permanent:false, direction:'top' });
+            const nvpVal = Number(p.altitudeNvp);
+            const ignVal = Number(p.altitudeIgn69);
+            const altNvpTxt = Number.isFinite(nvpVal) ? nvpVal.toFixed(3) + ' m' : 'inconnue';
+            const altIgnTxt = Number.isFinite(ignVal) ? ignVal.toFixed(3) + ' m' : 'inconnue';
+            marker.bindPopup(
+              `<b>${esc(label)}</b> — ${esc(p.denomination || '')}<br>` +
+              `Altitude NVP ${esc(altNvpTxt)}<br>` +
+              `Altitude NGF-IGN69 ${esc(altIgnTxt)}<br>` +
+              `${esc(p.typ || '')}`
+            );
+            // Même principe que les repères NGF : en mode Mesurer, un clic sur le repère
+            // démarre/poursuit la mesure depuis ses coordonnées exactes au lieu d'ouvrir sa
+            // popup - voir onMeasureNvpClick. Pas de fiche PDF à joindre ici (la Ville de Paris
+            // n'en publie pas pour ces repères, contrairement à l'IGN).
+            marker.on('click', () => {
+              if(state.measuring){
+                marker.closePopup();
+                onMeasureNvpClick(p);
+              }
+            });
             state.layer.addLayer(marker);
           });
         }
         state.layer.addTo(state.map);
+        if(hasSearch){
+          const sp = state.searchPoint;
+          if(state.searchMarkerLayer){ state.map.removeLayer(state.searchMarkerLayer); state.searchMarkerLayer = null; }
+          const searchIcon = L.divIcon({
+            className: 'kmz-search-icon',
+            html: '<div class="kmz-search-pin"></div>',
+            iconSize: [22, 30],
+            iconAnchor: [11, 30]
+          });
+          state.searchMarkerLayer = L.marker([sp.lat, sp.lon], { icon: searchIcon, zIndexOffset: 1000 });
+          state.searchMarkerLayer.bindTooltip(sp.displayName || 'Adresse recherchée', { permanent:false, direction:'top' });
+          state.searchMarkerLayer.addTo(state.map);
+        }
         const bounds = state.layer.getBounds();
+        const needsSearchFit = hasSearch && state.searchNeedsFit;
         const fitImportedData = () => {
           try{
             state.map.invalidateSize();
-            if(bounds && bounds.isValid()) state.map.fitBounds(bounds.pad(0.20), { maxZoom: 20 });
+            // Une recherche d'adresse fraîche recentre toujours la vue sur le point trouvé,
+            // même si d'autres données (points importés, repères déjà chargés) ont par
+            // ailleurs une emprise valide - sinon l'utilisateur chercherait une adresse sans
+            // jamais voir la carte s'y déplacer.
+            if(needsSearchFit) state.map.setView([state.searchPoint.lat, state.searchPoint.lon], 18);
+            else if(bounds && bounds.isValid()) state.map.fitBounds(bounds.pad(0.20), { maxZoom: 20 });
           }catch(_){}
         };
-        if(isNewMap || forceFit){
+        if(isNewMap || forceFit || needsSearchFit){
           fitImportedData();
           setTimeout(fitImportedData, 120);
         }else{
           try{ state.map.invalidateSize(); }catch(_){}
         }
+        state.searchNeedsFit = false;
         setMapStatus('Fond de carte chargé via Internet. Contrôle visuel des points actif.');
         return;
       }catch(e){
@@ -426,10 +511,16 @@
     if(state.measuring){ onMeasureMapClick(ev); return; }
   }
 
-  function drawNgfZoneLayer(bounds){
+  // state.zoneTarget distingue quelle couche la zone en cours de dessin doit alimenter (NGF ou
+  // NVP) - le dessin de zone lui-même (drawingZone/zoneCorner1/zonePreviewLayer/zoneLayer) reste un
+  // mécanisme unique et partagé, un seul outil de zone pouvant être actif à la fois.
+  function zoneColor(){ return state.zoneTarget === 'nvp' ? '#9c36b5' : '#1c3fdc'; }
+  function zoneStatusSetter(){ return state.zoneTarget === 'nvp' ? setNvpStatus : setNgfStatus; }
+
+  function drawZoneLayer(bounds){
     if(!state.map) return;
     if(state.zoneLayer){ state.map.removeLayer(state.zoneLayer); state.zoneLayer = null; }
-    state.zoneLayer = L.rectangle(bounds, { color:'#1c3fdc', weight:2, fillOpacity:0.03, dashArray:'4,4' }).addTo(state.map);
+    state.zoneLayer = L.rectangle(bounds, { color:zoneColor(), weight:2, fillOpacity:0.03, dashArray:'4,4' }).addTo(state.map);
   }
 
   function fetchNgfForBounds(bounds){
@@ -443,17 +534,82 @@
     });
   }
 
+  function fetchNvpForBounds(bounds){
+    setNvpStatus('Chargement des repères NVP…');
+    post({
+      type: 'kmz_fetch_nvp',
+      minLon: bounds.getWest(),
+      minLat: bounds.getSouth(),
+      maxLon: bounds.getEast(),
+      maxLat: bounds.getNorth()
+    });
+  }
+
+  // Rayon de recherche fixe (pas de réglage utilisateur, pour rester simple) autour d'une adresse
+  // géocodée - suffisant pour retrouver les repères NGF/NVP les plus proches sans avoir à dessiner
+  // une zone à la main. Convertit un rayon en mètres en une boîte englobante lat/lon (approximation
+  // sphérique standard, largement suffisante à cette échelle - pas de reprojection nécessaire
+  // puisqu'on part déjà de coordonnées WGS84 lon/lat).
+  const ADDRESS_SEARCH_RADIUS_M = 300;
+  function bboxFromPoint(lat, lon, radiusMeters){
+    const latDelta = radiusMeters / 111320;
+    const lonDelta = radiusMeters / ((111320 * Math.cos(lat * Math.PI / 180)) || 1);
+    return L.latLngBounds([lat - latDelta, lon - lonDelta], [lat + latDelta, lon + lonDelta]);
+  }
+
+  function geocodeAddress(){
+    const input = el('kmzAddressInput');
+    const address = input ? input.value.trim() : '';
+    if(!address){
+      setAddressStatus('Saisis une adresse.');
+      return;
+    }
+    setAddressStatus('Recherche en cours…');
+    post({ type: 'kmz_geocode_address', address });
+  }
+
+  async function handleGeocodeResult(msg){
+    if(!msg || !msg.ok){
+      setAddressStatus(String((msg && msg.error) || 'Adresse introuvable, essaie une formulation plus complète (ex. "75001 Paris" plutôt que "Paris 01").'));
+      return;
+    }
+    const lat = Number(msg.lat), lon = Number(msg.lon);
+    if(!Number.isFinite(lat) || !Number.isFinite(lon)){
+      setAddressStatus('Adresse introuvable, essaie une formulation plus complète.');
+      return;
+    }
+    state.searchPoint = { lat, lon, displayName: msg.displayName || '' };
+    state.searchNeedsFit = true;
+    const ok = await loadLeaflet();
+    if(!ok){
+      setAddressStatus("Adresse trouvée, mais la carte (Leaflet) n'a pas pu se charger.");
+      return;
+    }
+    await renderMap();
+    const wantNgf = state.ngfEnabled, wantNvp = state.nvpEnabled;
+    if(!wantNgf && !wantNvp){
+      setAddressStatus((msg.displayName ? `Trouvé : ${msg.displayName}. ` : 'Adresse trouvée. ') +
+        'Coche "NGF" ou "NVP" pour charger les repères autour.');
+      return;
+    }
+    const bounds = bboxFromPoint(lat, lon, ADDRESS_SEARCH_RADIUS_M);
+    drawZoneLayer(bounds);
+    if(wantNgf) fetchNgfForBounds(bounds);
+    if(wantNvp) fetchNvpForBounds(bounds);
+    setAddressStatus(msg.displayName ? `Trouvé : ${msg.displayName}` : 'Adresse trouvée.');
+  }
+
   function onZoneMouseMove(ev){
     if(!state.drawingZone || !state.zoneCorner1 || !state.map) return;
     const bounds = L.latLngBounds(state.zoneCorner1, ev.latlng);
     if(state.zonePreviewLayer) state.map.removeLayer(state.zonePreviewLayer);
-    state.zonePreviewLayer = L.rectangle(bounds, { color:'#1c3fdc', weight:2, dashArray:'4,4', fillOpacity:0.05 }).addTo(state.map);
+    state.zonePreviewLayer = L.rectangle(bounds, { color:zoneColor(), weight:2, dashArray:'4,4', fillOpacity:0.05 }).addTo(state.map);
   }
 
   function onZoneMapClick(ev){
     if(!state.zoneCorner1){
       state.zoneCorner1 = ev.latlng;
-      setNgfStatus('Clique le second coin de la zone à charger.');
+      zoneStatusSetter()('Clique le second coin de la zone à charger.');
       return;
     }
     const bounds = L.latLngBounds(state.zoneCorner1, ev.latlng);
@@ -462,8 +618,9 @@
     if(state.map) state.map.getContainer().style.cursor = '';
     if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
     updateDragLock();
-    drawNgfZoneLayer(bounds);
-    fetchNgfForBounds(bounds);
+    drawZoneLayer(bounds);
+    if(state.zoneTarget === 'nvp') fetchNvpForBounds(bounds);
+    else fetchNgfForBounds(bounds);
   }
 
   function handleNgfLoaded(msg){
@@ -477,6 +634,21 @@
       ficheUrl: p.ficheUrl ?? p.FicheUrl ?? null
     })) : [];
     setNgfStatus(`${state.ngfPoints.length} repère(s) NGF chargé(s) sur la zone visible.`);
+    renderMap();
+    renderTable();
+  }
+
+  function handleNvpLoaded(msg){
+    state.nvpPoints = Array.isArray(msg.points) ? msg.points.map(p => ({
+      numero: p.numero ?? p.Numero ?? '',
+      denomination: p.denomination ?? p.Denomination ?? '',
+      typ: p.typ ?? p.Typ ?? null,
+      altitudeNvp: p.altitudeNvp ?? p.AltitudeNvp ?? null,
+      altitudeIgn69: p.altitudeIgn69 ?? p.AltitudeIgn69 ?? null,
+      lon: p.lon ?? p.Lon,
+      lat: p.lat ?? p.Lat
+    })) : [];
+    setNvpStatus(`${state.nvpPoints.length} repère(s) NVP chargé(s) sur la zone visible.`);
     renderMap();
     renderTable();
   }
@@ -499,21 +671,69 @@
     state.measureLayer.addTo(state.map);
   }
 
+  // suffixMsg optionnel : ajoute une confirmation ("repere touche") au message de statut sans
+  // ecraser l'affichage de la distance - utilise par onMeasureRepereClick ci-dessous.
+  function addMeasurePoint(lat, lon, suffixMsg){
+    state.measurePoints.push([lat, lon]);
+    redrawMeasureLayer();
+    let statusMsg;
+    if(state.measurePoints.length < 2){
+      statusMsg = 'Clique un second point pour mesurer.';
+    }else{
+      let total = 0;
+      for(let i = 1; i < state.measurePoints.length; i++){
+        total += state.map.distance(state.measurePoints[i-1], state.measurePoints[i]);
+      }
+      state.measureDistanceMeters = total;
+      statusMsg = `Distance : ${fmtDistance(total)}`;
+      el('btnKmzMeasureExportPdf')?.classList.remove('nf-space-hidden');
+    }
+    setMeasureStatus(suffixMsg ? `${statusMsg} — ${suffixMsg}` : statusMsg);
+  }
+
   function onMeasureMapClick(ev){
     if(!state.measuring) return;
-    state.measurePoints.push([ev.latlng.lat, ev.latlng.lng]);
-    redrawMeasureLayer();
-    if(state.measurePoints.length < 2){
-      setMeasureStatus('Clique un second point pour mesurer.');
-      return;
+    addMeasurePoint(ev.latlng.lat, ev.latlng.lng);
+  }
+
+  // Clic sur un repere NGF pendant une mesure : demarre/poursuit le tracé depuis ses coordonnees
+  // exactes (pas le pixel cliqué sur le triangle) et retient sa fiche PDF pour la joindre à
+  // l'export - une même mesure peut toucher plusieurs repères (début, fin, ou point
+  // intermédiaire), tous sont conservés (dédoublonnés par ficheUrl).
+  function onMeasureRepereClick(p){
+    if(!state.measuring) return;
+    const lat = Number(p.lat), lon = Number(p.lon);
+    if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const label = String(p.nom || p.id || 'repère');
+    let suffix = `repère NGF "${label}" sur le tracé`;
+    if(p.ficheUrl){
+      if(!state.measureTouchedReperes.some(r => r.ficheUrl === p.ficheUrl)){
+        state.measureTouchedReperes.push({ nom: label, ficheUrl: p.ficheUrl });
+      }
+      suffix += ' (fiche jointe à l\'export)';
     }
-    let total = 0;
-    for(let i = 1; i < state.measurePoints.length; i++){
-      total += state.map.distance(state.measurePoints[i-1], state.measurePoints[i]);
+    addMeasurePoint(lat, lon, suffix);
+  }
+
+  // Même principe que onMeasureRepereClick (NGF), sans la partie fiche PDF : la Ville de Paris ne
+  // publie pas de fiche téléchargeable pour ces repères. À la place, l'info de la popup (numéro,
+  // dénomination, les deux altitudes, état) est retenue pour être imprimée en texte dans l'export
+  // PDF de la mesure (voir measureTouchedNvp / buildExportPayload ci-dessous).
+  function onMeasureNvpClick(p){
+    if(!state.measuring) return;
+    const lat = Number(p.lat), lon = Number(p.lon);
+    if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const label = String(p.numero || 'repère NVP');
+    if(!state.measureTouchedNvp.some(r => r.numero === p.numero)){
+      state.measureTouchedNvp.push({
+        numero: p.numero || '',
+        denomination: p.denomination || '',
+        altitudeNvp: p.altitudeNvp ?? null,
+        altitudeIgn69: p.altitudeIgn69 ?? null,
+        typ: p.typ || ''
+      });
     }
-    state.measureDistanceMeters = total;
-    setMeasureStatus(`Distance : ${fmtDistance(total)}`);
-    el('btnKmzMeasureExportPdf')?.classList.remove('nf-space-hidden');
+    addMeasurePoint(lat, lon, `repère NVP "${label}" sur le tracé (info jointe à l'export)`);
   }
 
   function handleLoaded(msg){
@@ -594,7 +814,8 @@
       txtPointKeys:Array.from(state.selectedTxtKeys),
       dxfPointKeys:Array.from(state.selectedPointKeys),
       layers:Array.from(state.selectedLayers),
-      ngfPoints: state.ngfEnabled ? state.ngfPoints : []
+      ngfPoints: state.ngfEnabled ? state.ngfPoints : [],
+      nvpPoints: state.nvpEnabled ? state.nvpPoints : []
     };
   }
 
@@ -700,11 +921,54 @@
         const measureBtn = el('btnKmzMeasureToggle');
         if(measureBtn) measureBtn.textContent = 'Mesurer une distance';
       }
+      state.zoneTarget = 'ngf';
       state.drawingZone = true;
       state.zoneCorner1 = null;
       state.map.getContainer().style.cursor = 'crosshair';
       updateDragLock();
       setNgfStatus('Clique un premier coin de la zone à charger.');
+    });
+
+    el('kmzNvpToggle')?.addEventListener('change', e => {
+      state.nvpEnabled = !!e.target.checked;
+      const refreshBtn = el('btnKmzNvpRefresh');
+      if(refreshBtn) refreshBtn.disabled = !state.nvpEnabled;
+      if(!state.nvpEnabled){
+        state.nvpPoints = [];
+        setNvpStatus('');
+        state.drawingZone = false;
+        state.zoneCorner1 = null;
+        if(state.map){
+          state.map.getContainer().style.cursor = '';
+          if(state.zoneLayer){ state.map.removeLayer(state.zoneLayer); state.zoneLayer = null; }
+          if(state.zonePreviewLayer){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
+        }
+        updateDragLock();
+      }
+      renderMap();
+      renderTable();
+    });
+    el('btnKmzNvpRefresh')?.addEventListener('click', () => {
+      if(!state.map){
+        setNvpStatus("Charge d'abord un TXT ou un DXF pour afficher la carte.");
+        return;
+      }
+      if(state.measuring){
+        state.measuring = false;
+        const measureBtn = el('btnKmzMeasureToggle');
+        if(measureBtn) measureBtn.textContent = 'Mesurer une distance';
+      }
+      state.zoneTarget = 'nvp';
+      state.drawingZone = true;
+      state.zoneCorner1 = null;
+      state.map.getContainer().style.cursor = 'crosshair';
+      updateDragLock();
+      setNvpStatus('Clique un premier coin de la zone à charger.');
+    });
+
+    el('btnKmzAddressSearch')?.addEventListener('click', geocodeAddress);
+    el('kmzAddressInput')?.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){ e.preventDefault(); geocodeAddress(); }
     });
 
     el('btnKmzMeasureToggle')?.addEventListener('click', () => {
@@ -720,6 +984,8 @@
         if(state.zonePreviewLayer && state.map){ state.map.removeLayer(state.zonePreviewLayer); state.zonePreviewLayer = null; }
         state.measurePoints = [];
         state.measureDistanceMeters = 0;
+        state.measureTouchedReperes = [];
+        state.measureTouchedNvp = [];
         redrawMeasureLayer();
         setMeasureStatus('Clique sur la carte pour placer le premier point.');
         el('btnKmzMeasureClear')?.classList.remove('nf-space-hidden');
@@ -730,6 +996,8 @@
     el('btnKmzMeasureClear')?.addEventListener('click', () => {
       state.measurePoints = [];
       state.measureDistanceMeters = 0;
+      state.measureTouchedReperes = [];
+      state.measureTouchedNvp = [];
       redrawMeasureLayer();
       setMeasureStatus('');
       el('btnKmzMeasureClear')?.classList.add('nf-space-hidden');
@@ -740,11 +1008,21 @@
         setMeasureStatus('Mesure au moins 2 points avant d’exporter.');
         return;
       }
+      // Repères NGF + points topo transmis pour affichage en contexte sur la carte exportée, et
+      // fiches PDF des repères touchés pendant le tracé pour fusion dans le PDF final (voir
+      // ExportKmzMeasurePdfForUiAsync / NgfFicheMergeService.MergeFicheUrlsAsync côté C#).
       post({
         type: 'kmz_export_measure_pdf',
         distanceMeters: state.measureDistanceMeters,
         points: state.measurePoints,
-        basemap: el('kmzBasemap')?.value || 'plan'
+        basemap: el('kmzBasemap')?.value || 'plan',
+        ngfPoints: state.ngfEnabled ? state.ngfPoints : [],
+        nvpPoints: state.nvpEnabled ? state.nvpPoints : [],
+        topoPoints: (state.points || [])
+          .map(p => ({ id: p.id ?? p.Id ?? '', lat: Number(p.lat ?? p.Lat), lon: Number(p.lon ?? p.Lon) }))
+          .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon)),
+        ngfFicheUrls: state.measureTouchedReperes.map(r => r.ficheUrl),
+        nvpInfo: state.measureTouchedNvp
       });
     });
 
@@ -769,6 +1047,8 @@
           if(msg.type === 'kmz_txt_loaded') handleLoaded(msg);
           if(msg.type === 'kmz_dxf_loaded') handleDxfLoaded(msg);
           if(msg.type === 'kmz_ngf_loaded') handleNgfLoaded(msg);
+          if(msg.type === 'kmz_nvp_loaded') handleNvpLoaded(msg);
+          if(msg.type === 'kmz_geocode_result') handleGeocodeResult(msg);
           if(msg.type === 'kmz_error') setStatus('KMZ : erreur', 'err');
           if(msg.type === 'kmz_export_result'){
             if(msg.ok) setStatus(`KMZ exporte : ${msg.fileName || 'OK'}`, 'ok');

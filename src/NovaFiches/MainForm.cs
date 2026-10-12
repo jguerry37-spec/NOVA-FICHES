@@ -25,6 +25,11 @@ public class MainForm : Form
 {
     private readonly WebView2 _webView = new();
 
+    // Fenêtre d'aperçu PDF en direct "Contrôle de polygonale" (thème 5B) - créée à la demande au
+    // premier clic sur "Aperçu PDF", puis réutilisée (jamais recréée) ; Owner = this pour qu'elle se
+    // ferme automatiquement avec la fenêtre principale (voir CpolyPreviewForm.OnFormClosing).
+    private CpolyPreviewForm? _cpolyPreviewForm;
+
     private AppSettings _settings = new();
 
     private const long MaxImportTextBytes = 100L * 1024L * 1024L;
@@ -1072,7 +1077,63 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
         }
     }
 
-    private async Task ExportKmzMeasurePdfForUiAsync(double distanceMeters, IReadOnlyList<(double Lat, double Lon)> points, string basemap)
+    private async Task FetchNvpForUiAsync(double minLon, double minLat, double maxLon, double maxLat)
+    {
+        try
+        {
+            var benchmarks = await ParisNvpGeodesyService.FetchBenchmarksAsync(minLon, minLat, maxLon, maxLat);
+            SendToUi(new
+            {
+                type = "kmz_nvp_loaded",
+                points = benchmarks.Select(b => new
+                {
+                    numero = b.Numero,
+                    denomination = b.Denomination,
+                    typ = b.Typ,
+                    altitudeNvp = b.AltitudeNvp,
+                    altitudeIgn69 = b.AltitudeIgn69,
+                    lon = b.Lon,
+                    lat = b.Lat
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("KMZ: fetch repères NVP failed", ex);
+            SendToUi(new { type = "kmz_error", message = "Repères NVP (Ville de Paris) : " + ex.Message });
+        }
+    }
+
+    // "Rechercher une adresse" (export KMZ) : géocodage direct via Nominatim pour localiser une
+    // zone à interroger (repères NGF/NVP) sans avoir besoin d'importer un fichier de points.
+    private async Task GeocodeKmzAddressForUiAsync(string address)
+    {
+        try
+        {
+            var result = await NominatimGeocodingService.ForwardGeocodeAsync(address);
+            if (result is null)
+            {
+                SendToUi(new { type = "kmz_geocode_result", ok = false, error = "Adresse introuvable." });
+                return;
+            }
+            SendToUi(new { type = "kmz_geocode_result", ok = true, lat = result.Lat, lon = result.Lon, displayName = result.DisplayName });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("KMZ: geocode address failed", ex);
+            SendToUi(new { type = "kmz_geocode_result", ok = false, error = ex.Message });
+        }
+    }
+
+    private async Task ExportKmzMeasurePdfForUiAsync(
+        double distanceMeters,
+        IReadOnlyList<(double Lat, double Lon)> points,
+        string basemap,
+        IReadOnlyList<(double Lat, double Lon, string Etat, string Label)> ngfPoints,
+        IReadOnlyList<(double Lat, double Lon, string Label)> topoPoints,
+        IReadOnlyList<string> ngfFicheUrls,
+        IReadOnlyList<(double Lat, double Lon, string Label)> nvpPoints,
+        IReadOnlyList<NvpTouchedInfo> nvpInfo)
     {
         try
         {
@@ -1085,11 +1146,19 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
             string? mapImageDataUrl = null;
             if (points.Count >= 2)
             {
-                var mapResult = await KmzMeasureMapService.BuildMapFromPointsAsync(points, basemap).ConfigureAwait(true);
+                var mapResult = await KmzMeasureMapService.BuildMapFromPointsAsync(points, basemap, ngfPoints, topoPoints, nvpPoints).ConfigureAwait(true);
                 mapImageDataUrl = mapResult?.ImageDataUrl;
             }
 
-            var payloadJson = InjectBranding(JsonSerializer.Serialize(new { distanceMeters, mapImageDataUrl }));
+            var nvpInfoForPayload = nvpInfo.Select(n => new
+            {
+                numero = n.Numero,
+                denomination = n.Denomination,
+                altitudeNvp = n.AltitudeNvp,
+                altitudeIgn69 = n.AltitudeIgn69,
+                typ = n.Typ
+            });
+            var payloadJson = InjectBranding(JsonSerializer.Serialize(new { distanceMeters, mapImageDataUrl, nvpInfo = nvpInfoForPayload }));
 
             string? candidateDir = !string.IsNullOrWhiteSpace(_kmzTxtFilePath) ? Path.GetDirectoryName(_kmzTxtFilePath) : null;
             string initialDir = !string.IsNullOrWhiteSpace(candidateDir) && Directory.Exists(candidateDir) ? candidateDir! : ExportsDir;
@@ -1104,6 +1173,11 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
             if (sfd.ShowDialog(this) != DialogResult.OK) return;
 
             NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateDistanceMeasurePdf(sfd.FileName, payloadJson, GetPdfFooterVersion());
+            // Repère(s) NGF touché(s) pendant le tracé (début, fin, ou intermédiaire - possiblement
+            // plusieurs) : fiches officielles fusionnées APRÈS génération du PDF de mesure, AVANT
+            // l'ouverture dans le lecteur externe, pour que le fichier ouvert les contienne déjà.
+            if (ngfFicheUrls.Count > 0)
+                await NgfFicheMergeService.MergeFicheUrlsAsync(sfd.FileName, ngfFicheUrls).ConfigureAwait(true);
             try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
 
             SendToUi(new { type = "kmz_measure_pdf_result", ok = true, filePath = sfd.FileName, fileName = Path.GetFileName(sfd.FileName) });
@@ -1469,6 +1543,147 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
         }
     }
 
+    // Carte de situation "Contrôle de polygonale" - même principe que GenerateCpMapFromPointsAsync
+    // ci-dessus (ControlePolygonaleMapService) : système de coordonnées auto-détecté à partir des
+    // points GeoBase eux-mêmes (pas du champ Projection des Référentiels, texte déclaratif pour le
+    // rapport qui peut être "Autre (préciser)" ou tout simplement ne pas correspondre littéralement
+    // à ce que ToWgs84 reconnaît). Utilisée en repli dans les deux tiroirs GNSS et Optique quand
+    // leur photo de disposition manuelle est absente (photo manuelle toujours prioritaire).
+    private async Task GenerateCpolyMapForUiAsync(IReadOnlyList<(string Id, double X, double Y)> points, int? maxZoom)
+    {
+        try
+        {
+            var result = await ControlePolygonaleMapService.BuildMapFromPointsAsync(points, maxZoom);
+            if (result == null)
+            {
+                SendToUi(new { type = "cpoly_map_result", ok = false, error = "Impossible de géoréférencer les points (système de coordonnées non reconnu à partir des valeurs importées)." });
+                return;
+            }
+            SendToUi(new { type = "cpoly_map_result", ok = true, image = result.ImageDataUrl, coordinateSystem = result.CoordinateSystem, zoom = result.Zoom });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Contrôle de polygonale : génération de la carte échouée", ex);
+            SendToUi(new { type = "cpoly_map_result", ok = false, error = ex.Message });
+        }
+    }
+
+    // Extraction synchrone (JsonElement root invalide après retour du handler, voir
+    // cpoly_generate_map ci-dessus) des entrées nécessaires à la fusion des fiches NGF
+    // (identifiants saisis dans techniques.nivellement.ngfRepereIds, uniquement si
+    // ngfEnabled) + points GeoBase (pour calculer l'emprise géographique de recherche IGN,
+    // voir NgfFicheMergeService). Retourne des listes vides si l'intégration n'est pas activée
+    // ou si aucun identifiant n'a été saisi - le merge est alors simplement sauté (voir
+    // MergeSelectedFichesAsync, tolérant à une liste vide).
+    private static (List<string> RepereIds, List<(double X, double Y)> Points) ExtractNgfMergeInputs(JsonElement root)
+    {
+        var repereIds = new List<string>();
+        if (root.TryGetProperty("techniques", out var techEl) &&
+            techEl.TryGetProperty("nivellement", out var nivEl) &&
+            nivEl.TryGetProperty("ngfEnabled", out var ngfEnEl) &&
+            ngfEnEl.ValueKind == JsonValueKind.True &&
+            nivEl.TryGetProperty("ngfRepereIds", out var idsEl) &&
+            idsEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var r in idsEl.EnumerateArray())
+            {
+                string id = r.TryGetProperty("id", out var idEl) ? (idEl.GetString() ?? "") : "";
+                if (!string.IsNullOrWhiteSpace(id)) repereIds.Add(id);
+            }
+        }
+
+        var points = new List<(double X, double Y)>();
+        if (repereIds.Count > 0 && root.TryGetProperty("geobase", out var geobaseEl) && geobaseEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var p in geobaseEl.EnumerateArray())
+            {
+                double x = p.TryGetProperty("x", out var xEl) && xEl.TryGetDouble(out var xv) ? xv : 0;
+                double y = p.TryGetProperty("y", out var yEl) && yEl.TryGetDouble(out var yv) ? yv : 0;
+                points.Add((x, y));
+            }
+        }
+        return (repereIds, points);
+    }
+
+    // Extraction synchrone (même précaution que ExtractNgfMergeInputs) des annexes PDF choisies par
+    // l'utilisateur à l'étape "10. Annexes" - déjà lues en base64 côté JS (FileReader), juste
+    // décodées ici en tableaux d'octets prêts pour AnnexPdfMergeService.
+    private static List<byte[]> ExtractAnnexPdfBytes(JsonElement root)
+    {
+        var result = new List<byte[]>();
+        if (!root.TryGetProperty("annexes", out var annexesEl) || annexesEl.ValueKind != JsonValueKind.Array)
+            return result;
+        foreach (var a in annexesEl.EnumerateArray())
+        {
+            string dataUrl = a.TryGetProperty("dataUrl", out var urlEl) && urlEl.ValueKind == JsonValueKind.String ? (urlEl.GetString() ?? "") : "";
+            if (string.IsNullOrWhiteSpace(dataUrl)) continue;
+            int commaIdx = dataUrl.IndexOf(',');
+            string base64 = commaIdx >= 0 ? dataUrl[(commaIdx + 1)..] : dataUrl;
+            try { result.Add(Convert.FromBase64String(base64)); }
+            catch (FormatException ex) { AppLog.Error("Annexe PDF : data URL invalide", ex); }
+        }
+        return result;
+    }
+
+    // Fin de l'export "Contrôle de polygonale" : génère le PDF sur le chemin choisi par
+    // l'utilisateur, fusionne les fiches NGF sélectionnées puis les annexes PDF si applicable,
+    // PUIS seulement ouvre le fichier dans le lecteur externe - dans cet ordre précis, pour que le
+    // fichier ouvert contienne déjà toutes les pages fusionnées (pas de Process.Start avant la fin
+    // des fusions).
+    private async Task FinishCpolyExportAsync(string filePath, string payloadJson, string proof, List<string> ngfRepereIds, List<(double X, double Y)> ngfPoints, List<byte[]> annexPdfBytes)
+    {
+        try
+        {
+            NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateControlePolygonaleFromJson(filePath, payloadJson, proof);
+            if (ngfRepereIds.Count > 0)
+                await NgfFicheMergeService.MergeSelectedFichesAsync(filePath, ngfRepereIds, ngfPoints);
+            if (annexPdfBytes.Count > 0)
+                AnnexPdfMergeService.MergeRawPdfs(filePath, annexPdfBytes);
+            try { using var process = Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true }); } catch { }
+
+            SendToUi(new { type = "cpoly_export_result", ok = true, filePath });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Contrôle de polygonale : export échoué", ex);
+            SendToUi(new { type = "cpoly_export_result", ok = false, error = ex.Message });
+        }
+    }
+
+    // Aperçu PDF en direct "Contrôle de polygonale" (thème 5B) - même payload/renderer que
+    // cpoly_export, mais écrit vers un nom de fichier temporaire DIFFÉRENT à chaque appel
+    // (Guid) plutôt que vers l'emplacement choisi par l'utilisateur, et affiché dans
+    // CpolyPreviewForm (WebView2 sur une URL file://) au lieu d'être ouvert dans le lecteur PDF
+    // externe (pas de Process.Start/UseShellExecute ici). Le nom change à chaque appel
+    // spécifiquement pour éviter le cache de re-navigation de WebView2 sur une URL file://
+    // identique. Pas de ConfigureAwait(false) : cette méthode crée/manipule une Form WinForms,
+    // elle doit rester sur le thread UI (capturé implicitement par l'absence de
+    // ConfigureAwait, à la différence des méthodes de génération de carte ci-dessus).
+    private async Task ShowCpolyPreviewAsync(string payloadJsonRaw, List<string> ngfRepereIds, List<(double X, double Y)> ngfPoints, List<byte[]> annexPdfBytes)
+    {
+        try
+        {
+            var payloadJson = InjectBranding(payloadJsonRaw);
+            var tempPath = Path.Combine(Path.GetTempPath(), $"cpoly_preview_{Guid.NewGuid():N}.pdf");
+            var proof = GetPdfFooterVersion();
+            NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateControlePolygonaleFromJson(tempPath, payloadJson, proof);
+            if (ngfRepereIds.Count > 0)
+                await NgfFicheMergeService.MergeSelectedFichesAsync(tempPath, ngfRepereIds, ngfPoints);
+            if (annexPdfBytes.Count > 0)
+                AnnexPdfMergeService.MergeRawPdfs(tempPath, annexPdfBytes);
+
+            _cpolyPreviewForm ??= new CpolyPreviewForm { Owner = this };
+            await _cpolyPreviewForm.ShowPreviewAsync(tempPath);
+
+            SendToUi(new { type = "cpoly_preview_result", ok = true });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Contrôle de polygonale : aperçu PDF échoué", ex);
+            SendToUi(new { type = "cpoly_preview_result", ok = false, error = ex.Message });
+        }
+    }
+
     // "Une fiche par fichier" : le payload (déjà enrichi lon/lat + brandé) est tranché en un
     // sous-payload par ligne, chacun envoyé au même renderer que le mode "lot complet"
     // (FicheSignaletiqueRenderer ne connaît qu'un tableau de lignes, peu importe sa taille).
@@ -1617,6 +1832,7 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
             var layers = ReadJsonStringArray(root, "layers");
             var dxfKeys = ReadJsonStringArray(root, "dxfPointKeys");
             var ngfPoints = ReadJsonNgfPoints(root, "ngfPoints");
+            var nvpPoints = ReadJsonNvpPoints(root, "nvpPoints");
 
             var points = new List<KmzExportService.KmzPoint>();
             if (_kmzTxtPoints is { Count: > 0 })
@@ -1655,7 +1871,7 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
                     detectionPoints).CoordinateSystem;
             }
 
-            if (points.Count == 0 && lines.Count == 0 && texts.Count == 0 && ngfPoints.Count == 0)
+            if (points.Count == 0 && lines.Count == 0 && texts.Count == 0 && ngfPoints.Count == 0 && nvpPoints.Count == 0)
                 throw new InvalidOperationException("Aucun élément sélectionné pour l'export KMZ.");
 
             string basePath = !string.IsNullOrWhiteSpace(_kmzTxtFilePath) ? _kmzTxtFilePath! : _kmzDxfFilePath!;
@@ -1669,7 +1885,8 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
                 crs,
                 output,
                 Path.GetFileNameWithoutExtension(basePath),
-                ngfPoints);
+                ngfPoints,
+                nvpPoints);
             SendToUi(new { type = "kmz_export_result", ok = true, filePath = output, fileName = Path.GetFileName(output) });
             AfterSuccessfulExport(output);
         }
@@ -2061,6 +2278,35 @@ Nova-Fiches les a reconnues et importées comme des points XYZ.",
             double? altitude = item.TryGetProperty("altitude", out var altEl) && altEl.ValueKind == JsonValueKind.Number && altEl.TryGetDouble(out var alt) ? alt : null;
 
             result.Add(new KmzExportService.KmzNgfPoint(id, nom, etat, altitude, lonEl.GetDouble(), latEl.GetDouble()));
+        }
+
+        return result;
+    }
+
+    // Info d'un repère NVP touché pendant une mesure, transmise telle quelle (déjà connue côté JS,
+    // popup déjà affichée) jusqu'au renderer PDF - voir GenerateDistanceMeasurePdf, qui l'imprime
+    // en texte faute de fiche PDF officielle disponible pour ces repères (contrairement à NGF/IGN).
+    internal sealed record NvpTouchedInfo(string Numero, string Denomination, double? AltitudeNvp, double? AltitudeIgn69, string Typ);
+
+    private static List<KmzExportService.KmzNvpPoint> ReadJsonNvpPoints(JsonElement root, string property)
+    {
+        var result = new List<KmzExportService.KmzNvpPoint>();
+        if (!root.TryGetProperty(property, out var array) || array.ValueKind != JsonValueKind.Array)
+            return result;
+
+        foreach (var item in array.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            if (!item.TryGetProperty("lon", out var lonEl) || !item.TryGetProperty("lat", out var latEl)) continue;
+            if (lonEl.ValueKind != JsonValueKind.Number || latEl.ValueKind != JsonValueKind.Number) continue;
+
+            string numero = item.TryGetProperty("numero", out var numEl) && numEl.ValueKind == JsonValueKind.String ? numEl.GetString() ?? "" : "";
+            string denomination = item.TryGetProperty("denomination", out var denEl) && denEl.ValueKind == JsonValueKind.String ? denEl.GetString() ?? "" : "";
+            string? typ = item.TryGetProperty("typ", out var typEl) && typEl.ValueKind == JsonValueKind.String ? typEl.GetString() : null;
+            double? altNvp = item.TryGetProperty("altitudeNvp", out var nvpEl) && nvpEl.ValueKind == JsonValueKind.Number && nvpEl.TryGetDouble(out var nv) ? nv : null;
+            double? altIgn69 = item.TryGetProperty("altitudeIgn69", out var ignEl) && ignEl.ValueKind == JsonValueKind.Number && ignEl.TryGetDouble(out var iv) ? iv : null;
+
+            result.Add(new KmzExportService.KmzNvpPoint(numero, denomination, typ, altNvp, altIgn69, lonEl.GetDouble(), latEl.GetDouble()));
         }
 
         return result;
@@ -2594,7 +2840,78 @@ if (string.Equals(type, "nextDownloadName", StringComparison.OrdinalIgnoreCase))
                         }
                     }
                     string basemap = root.TryGetProperty("basemap", out var bmEl) ? (bmEl.GetString() ?? "plan") : "plan";
-                    _ = ExportKmzMeasurePdfForUiAsync(distanceMeters, measurePoints, basemap);
+
+                    // Repères NGF + points topo affichés en contexte sur la carte exportée (demande
+                    // utilisateur) - déjà connus côté JS (marqueurs affichés à l'écran), transmis
+                    // tels quels, pas de nouvelle recherche IGN nécessaire ici.
+                    var measureNgfPoints = new List<(double Lat, double Lon, string Etat, string Label)>();
+                    if (root.TryGetProperty("ngfPoints", out var mNgfPtsEl) && mNgfPtsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var p in mNgfPtsEl.EnumerateArray())
+                        {
+                            if (!p.TryGetProperty("lat", out var latEl) || !latEl.TryGetDouble(out var nlat)) continue;
+                            if (!p.TryGetProperty("lon", out var lonEl) || !lonEl.TryGetDouble(out var nlon)) continue;
+                            string etat = p.TryGetProperty("etat", out var etatEl) && etatEl.ValueKind == JsonValueKind.String ? (etatEl.GetString() ?? "") : "";
+                            string nom = p.TryGetProperty("nom", out var nomEl) && nomEl.ValueKind == JsonValueKind.String ? (nomEl.GetString() ?? "") : "";
+                            string ngfId = p.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.String ? (idEl.GetString() ?? "") : "";
+                            measureNgfPoints.Add((nlat, nlon, etat, string.IsNullOrWhiteSpace(nom) ? ngfId : nom));
+                        }
+                    }
+                    var measureTopoPoints = new List<(double Lat, double Lon, string Label)>();
+                    if (root.TryGetProperty("topoPoints", out var mTopoPtsEl) && mTopoPtsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var p in mTopoPtsEl.EnumerateArray())
+                        {
+                            if (!p.TryGetProperty("lat", out var latEl) || !latEl.TryGetDouble(out var tlat)) continue;
+                            if (!p.TryGetProperty("lon", out var lonEl) || !lonEl.TryGetDouble(out var tlon)) continue;
+                            string topoId = p.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.String ? (idEl.GetString() ?? "") : "";
+                            measureTopoPoints.Add((tlat, tlon, topoId));
+                        }
+                    }
+                    // Repères NVP affichés en contexte, même principe que les repères NGF - pas de
+                    // fiche PDF associée côté Ville de Paris (voir ParisNvpGeodesyService), donc pas
+                    // d'équivalent à ngfFicheUrls ici.
+                    var measureNvpPoints = new List<(double Lat, double Lon, string Label)>();
+                    if (root.TryGetProperty("nvpPoints", out var mNvpPtsEl) && mNvpPtsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var p in mNvpPtsEl.EnumerateArray())
+                        {
+                            if (!p.TryGetProperty("lat", out var latEl) || !latEl.TryGetDouble(out var vlat)) continue;
+                            if (!p.TryGetProperty("lon", out var lonEl) || !lonEl.TryGetDouble(out var vlon)) continue;
+                            string numero = p.TryGetProperty("numero", out var numEl) && numEl.ValueKind == JsonValueKind.String ? (numEl.GetString() ?? "") : "";
+                            measureNvpPoints.Add((vlat, vlon, numero));
+                        }
+                    }
+                    // Repère(s) touché(s) pendant le tracé (début, fin, ou point intermédiaire -
+                    // une même mesure peut en toucher plusieurs) : fiches PDF déjà identifiées côté
+                    // JS, à fusionner dans le PDF exporté (voir NgfFicheMergeService.MergeFicheUrlsAsync).
+                    var measureNgfFicheUrls = new List<string>();
+                    if (root.TryGetProperty("ngfFicheUrls", out var urlsEl) && urlsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var u in urlsEl.EnumerateArray())
+                            if (u.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(u.GetString()))
+                                measureNgfFicheUrls.Add(u.GetString()!);
+                    }
+
+                    // Repère(s) NVP touché(s) pendant le tracé : pas de fiche PDF côté Ville de
+                    // Paris (voir ParisNvpGeodesyService), donc l'info de la popup (déjà connue
+                    // côté JS) est transmise telle quelle pour être imprimée en texte dans le PDF
+                    // de mesure (voir ExportKmzMeasurePdfForUiAsync / GenerateDistanceMeasurePdf).
+                    var measureNvpInfo = new List<NvpTouchedInfo>();
+                    if (root.TryGetProperty("nvpInfo", out var nvpInfoEl) && nvpInfoEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var p in nvpInfoEl.EnumerateArray())
+                        {
+                            string numero = p.TryGetProperty("numero", out var numEl) && numEl.ValueKind == JsonValueKind.String ? (numEl.GetString() ?? "") : "";
+                            string denomination = p.TryGetProperty("denomination", out var denEl) && denEl.ValueKind == JsonValueKind.String ? (denEl.GetString() ?? "") : "";
+                            double? altNvp = p.TryGetProperty("altitudeNvp", out var nvEl) && nvEl.ValueKind == JsonValueKind.Number && nvEl.TryGetDouble(out var nv) ? nv : null;
+                            double? altIgn69 = p.TryGetProperty("altitudeIgn69", out var igEl) && igEl.ValueKind == JsonValueKind.Number && igEl.TryGetDouble(out var iv) ? iv : null;
+                            string typ = p.TryGetProperty("typ", out var typEl) && typEl.ValueKind == JsonValueKind.String ? (typEl.GetString() ?? "") : "";
+                            measureNvpInfo.Add(new NvpTouchedInfo(numero, denomination, altNvp, altIgn69, typ));
+                        }
+                    }
+
+                    _ = ExportKmzMeasurePdfForUiAsync(distanceMeters, measurePoints, basemap, measureNgfPoints, measureTopoPoints, measureNgfFicheUrls, measureNvpPoints, measureNvpInfo);
                     return;
                 }
 
@@ -2623,6 +2940,24 @@ if (string.Equals(type, "nextDownloadName", StringComparison.OrdinalIgnoreCase))
                     double maxLon = ReadJsonDouble(root, "maxLon");
                     double maxLat = ReadJsonDouble(root, "maxLat");
                     _ = FetchNgfForUiAsync(minLon, minLat, maxLon, maxLat);
+                    return;
+                }
+
+                if (string.Equals(type, "kmz_fetch_nvp", StringComparison.OrdinalIgnoreCase))
+                {
+                    double minLon = ReadJsonDouble(root, "minLon");
+                    double minLat = ReadJsonDouble(root, "minLat");
+                    double maxLon = ReadJsonDouble(root, "maxLon");
+                    double maxLat = ReadJsonDouble(root, "maxLat");
+                    _ = FetchNvpForUiAsync(minLon, minLat, maxLon, maxLat);
+                    return;
+                }
+
+                if (string.Equals(type, "kmz_geocode_address", StringComparison.OrdinalIgnoreCase))
+                {
+                    string address = root.TryGetProperty("address", out var addrEl) && addrEl.ValueKind == JsonValueKind.String
+                        ? (addrEl.GetString() ?? "") : "";
+                    _ = GeocodeKmzAddressForUiAsync(address);
                     return;
                 }
 
@@ -3750,6 +4085,29 @@ if (string.Equals(type, "cp_export", StringComparison.OrdinalIgnoreCase))
 // à ControlePrecision (dont l'état importé vit côté C#), ici l'état vit côté JS (même discipline
 // que cp_import_leve/cp_import_controle) : chaque import renvoie les données déjà entièrement
 // parsées au JS, qui les retransmet telles quelles dans le payload d'export.
+if (string.Equals(type, "cpoly_generate_map", StringComparison.OrdinalIgnoreCase))
+{
+    // Points déjà connus côté JS (GeoBase importé) - pas de géocodage, juste la reprojection
+    // (système auto-détecté à partir des valeurs X/Y, voir GenerateCpolyMapForUiAsync). Extraction
+    // synchrone obligatoire (JsonElement root invalide après retour du handler) avant le
+    // fire-and-forget vers le téléchargement des tuiles IGN.
+    var cpolyMapPoints = new List<(string Id, double X, double Y)>();
+    if (root.TryGetProperty("points", out var cpolyMapPtsArr) && cpolyMapPtsArr.ValueKind == JsonValueKind.Array)
+    {
+        foreach (var el in cpolyMapPtsArr.EnumerateArray())
+        {
+            if (el.ValueKind != JsonValueKind.Object) continue;
+            var id = el.TryGetProperty("id", out var idEl) ? (idEl.GetString() ?? "") : "";
+            double x = el.TryGetProperty("x", out var xEl) && xEl.TryGetDouble(out var xv) ? xv : 0;
+            double y = el.TryGetProperty("y", out var yEl) && yEl.TryGetDouble(out var yv) ? yv : 0;
+            cpolyMapPoints.Add((id, x, y));
+        }
+    }
+    int? cpolyMaxZoom = root.TryGetProperty("maxZoom", out var zoomEl) && zoomEl.TryGetInt32(out var zoomV) ? zoomV : null;
+    _ = GenerateCpolyMapForUiAsync(cpolyMapPoints, cpolyMaxZoom);
+    return;
+}
+
 if (string.Equals(type, "cpoly_import_xlsx", StringComparison.OrdinalIgnoreCase))
 {
     try
@@ -3813,6 +4171,35 @@ if (string.Equals(type, "cpoly_import_geobase", StringComparison.OrdinalIgnoreCa
     return;
 }
 
+if (string.Equals(type, "project_save", StringComparison.OrdinalIgnoreCase))
+{
+    // Raccourci vers le mécanisme générique déjà exposé par le menu natif "Fichier" (voir
+    // SaveProjectAsync/OpenProjectAsync ci-dessus) - ajouté ici car les utilisateurs ne pensent
+    // pas toujours à chercher ce menu depuis un module particulier (retour utilisateur direct).
+    // Enregistre TOUT le projet (tous les modules via NOVA_getState), pas seulement le module
+    // courant - d'où le libellé "Enregistrer le projet" côté JS plutôt qu'un nom de module.
+    _ = SaveProjectAsync(false);
+    return;
+}
+
+if (string.Equals(type, "project_open", StringComparison.OrdinalIgnoreCase))
+{
+    _ = OpenProjectAsync();
+    return;
+}
+
+if (string.Equals(type, "cpoly_preview", StringComparison.OrdinalIgnoreCase))
+{
+    // GetRawText() copie le JSON en une string indépendante avant le retour du handler -
+    // obligatoire, JsonElement root devient invalide après (voir cpoly_generate_map ci-dessus).
+    // Extraction synchrone des entrées NGF pour la même raison (ExtractNgfMergeInputs lit root).
+    string cpolyPreviewPayloadJson = root.GetRawText();
+    var (cpolyPreviewNgfIds, cpolyPreviewNgfPts) = ExtractNgfMergeInputs(root);
+    var cpolyPreviewAnnexBytes = ExtractAnnexPdfBytes(root);
+    _ = ShowCpolyPreviewAsync(cpolyPreviewPayloadJson, cpolyPreviewNgfIds, cpolyPreviewNgfPts, cpolyPreviewAnnexBytes);
+    return;
+}
+
 if (string.Equals(type, "cpoly_export", StringComparison.OrdinalIgnoreCase))
 {
     try
@@ -3836,10 +4223,14 @@ if (string.Equals(type, "cpoly_export", StringComparison.OrdinalIgnoreCase))
         if (sfd.ShowDialog(this) != DialogResult.OK) return;
 
         var proof = GetPdfFooterVersion();
-        NovaFiches.PdfSharpEngine.PdfSharpReports.GenerateControlePolygonaleFromJson(sfd.FileName, payloadJson, proof);
-        try { using var process = Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true }); } catch { }
-
-        SendToUi(new { type = "cpoly_export_result", ok = true, filePath = sfd.FileName });
+        // Extraction synchrone AVANT le fire-and-forget (root invalide après le retour du
+        // handler) - la génération PDF + fusion NGF + ouverture du fichier se déplacent dans
+        // une méthode async pour pouvoir attendre le téléchargement réseau des fiches IGN sans
+        // bloquer le thread UI, tout en garantissant que le fichier ouvert contient déjà les
+        // pages fusionnées (pas de course entre Process.Start et le merge).
+        var (cpolyExportNgfIds, cpolyExportNgfPts) = ExtractNgfMergeInputs(root);
+        var cpolyExportAnnexBytes = ExtractAnnexPdfBytes(root);
+        _ = FinishCpolyExportAsync(sfd.FileName, payloadJson, proof, cpolyExportNgfIds, cpolyExportNgfPts, cpolyExportAnnexBytes);
     }
     catch (Exception ex2)
     {

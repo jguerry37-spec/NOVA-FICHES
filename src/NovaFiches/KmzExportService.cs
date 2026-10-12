@@ -16,6 +16,7 @@ public static class KmzExportService
     public sealed record KmzPreviewText(string Id, string Layer, string Text, double Lon, double Lat);
     public sealed record CoordinateSystemDetection(string CoordinateSystem, string Method);
     public sealed record KmzNgfPoint(string Id, string Nom, string? Etat, double? Altitude, double Lon, double Lat);
+    public sealed record KmzNvpPoint(string Numero, string Denomination, string? Typ, double? AltitudeNvp, double? AltitudeIgn69, double Lon, double Lat);
 
     public static IReadOnlyList<string> CoordinateSystems { get; } = new[]
     {
@@ -202,17 +203,19 @@ public static class KmzExportService
         string sourceCrs,
         string outputPath,
         string documentName,
-        IEnumerable<KmzNgfPoint>? ngfPoints = null)
+        IEnumerable<KmzNgfPoint>? ngfPoints = null,
+        IEnumerable<KmzNvpPoint>? nvpPoints = null)
     {
         var pointList = points?.ToList() ?? new List<KmzPoint>();
         var lineList = lines?.ToList() ?? new List<KmzLine>();
         var textList = texts?.ToList() ?? new List<KmzText>();
         var ngfList = ngfPoints?.ToList() ?? new List<KmzNgfPoint>();
-        if (pointList.Count == 0 && lineList.Count == 0 && textList.Count == 0 && ngfList.Count == 0)
+        var nvpList = nvpPoints?.ToList() ?? new List<KmzNvpPoint>();
+        if (pointList.Count == 0 && lineList.Count == 0 && textList.Count == 0 && ngfList.Count == 0 && nvpList.Count == 0)
             throw new InvalidOperationException("Aucun élément à exporter en KMZ.");
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
-        var kml = BuildGeometryKml(pointList, lineList, textList, sourceCrs, documentName, ngfList);
+        var kml = BuildGeometryKml(pointList, lineList, textList, sourceCrs, documentName, ngfList, nvpList);
         if (File.Exists(outputPath))
             File.Delete(outputPath);
 
@@ -273,7 +276,8 @@ public static class KmzExportService
         IReadOnlyList<KmzText> texts,
         string sourceCrs,
         string documentName,
-        IReadOnlyList<KmzNgfPoint>? ngfPoints = null)
+        IReadOnlyList<KmzNgfPoint>? ngfPoints = null,
+        IReadOnlyList<KmzNvpPoint>? nvpPoints = null)
     {
         var sb = new StringBuilder();
         string docName = string.IsNullOrWhiteSpace(documentName) ? "Nova-Fiches KMZ" : documentName.Trim();
@@ -368,6 +372,27 @@ public static class KmzExportService
             sb.AppendLine("  </Folder>");
         }
 
+        if (nvpPoints is { Count: > 0 })
+        {
+            sb.AppendLine("  <Folder><name>Repères NVP (Ville de Paris)</name>");
+            foreach (var nvp in nvpPoints)
+            {
+                sb.AppendLine("    <Placemark>");
+                sb.AppendLine($"      <name>{Xml(nvp.Numero)}</name><visibility>1</visibility><styleUrl>#novaNvpPointStyle</styleUrl>");
+                sb.AppendLine("      <ExtendedData>");
+                Data(sb, "Numéro", nvp.Numero);
+                Data(sb, "Dénomination", nvp.Denomination);
+                Data(sb, "Altitude NVP", nvp.AltitudeNvp.HasValue ? F(nvp.AltitudeNvp.Value, 3) : "");
+                Data(sb, "Altitude NGF-IGN69", nvp.AltitudeIgn69.HasValue ? F(nvp.AltitudeIgn69.Value, 3) : "");
+                Data(sb, "État", nvp.Typ ?? "");
+                Data(sb, "Source", "Ville de Paris (Plan de voirie - repère de nivellement)");
+                sb.AppendLine("      </ExtendedData>");
+                sb.AppendLine($"      <Point><altitudeMode>clampToGround</altitudeMode><coordinates>{F(nvp.Lon, 12)},{F(nvp.Lat, 12)},0</coordinates></Point>");
+                sb.AppendLine("    </Placemark>");
+            }
+            sb.AppendLine("  </Folder>");
+        }
+
         sb.AppendLine("</Document>");
         sb.AppendLine("</kml>");
         return sb.ToString();
@@ -393,6 +418,13 @@ public static class KmzExportService
         sb.AppendLine("  </Style>");
         sb.AppendLine("  <Style id=\"novaNgfPointStyle\">");
         sb.AppendLine("    <IconStyle><color>ff1c3fdc</color><scale>0.9</scale>");
+        sb.AppendLine($"      <Icon><href>{circleIcon}</href></Icon></IconStyle>");
+        sb.AppendLine("    <LabelStyle><color>ffffffff</color><scale>0.82</scale></LabelStyle>");
+        sb.AppendLine("  </Style>");
+        // Violet, même couleur que le losange des repères NVP à l'écran (voir .kmz-nvp-diamond,
+        // #9c36b5) - KML encode la couleur en AABBGGRR (alpha puis bleu/vert/rouge), pas en RGB.
+        sb.AppendLine("  <Style id=\"novaNvpPointStyle\">");
+        sb.AppendLine("    <IconStyle><color>ffb5369c</color><scale>0.9</scale>");
         sb.AppendLine($"      <Icon><href>{circleIcon}</href></Icon></IconStyle>");
         sb.AppendLine("    <LabelStyle><color>ffffffff</color><scale>0.82</scale></LabelStyle>");
         sb.AppendLine("  </Style>");

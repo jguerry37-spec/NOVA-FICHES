@@ -109,4 +109,79 @@ public class NominatimGeocodingServiceTests
         Assert.NotNull(result);
         Assert.Equal("75013 Rue Test Paris", result!.Adresse);
     }
+
+    [Fact]
+    public void ParseForwardGeocodeResponse_FirstResult_ExtractsLatLonAndDisplayName()
+    {
+        const string json = """
+            [
+              { "lat": "48.8698264", "lon": "2.3072663", "display_name": "Port de Tolbiac, Paris, France" },
+              { "lat": "0", "lon": "0", "display_name": "Autre résultat, ignoré" }
+            ]
+            """;
+
+        var result = NominatimGeocodingService.ParseForwardGeocodeResponse(json);
+
+        Assert.NotNull(result);
+        Assert.Equal(48.8698264, result!.Lat, 6);
+        Assert.Equal(2.3072663, result.Lon, 6);
+        Assert.Equal("Port de Tolbiac, Paris, France", result.DisplayName);
+    }
+
+    [Fact]
+    public void ParseForwardGeocodeResponse_EmptyArray_ReturnsNull()
+    {
+        Assert.Null(NominatimGeocodingService.ParseForwardGeocodeResponse("[]"));
+    }
+
+    [Fact]
+    public void ParseForwardGeocodeResponse_MissingLatLon_ReturnsNull()
+    {
+        const string json = """[ { "display_name": "Sans coordonnées" } ]""";
+
+        Assert.Null(NominatimGeocodingService.ParseForwardGeocodeResponse(json));
+    }
+
+    [Fact]
+    public void ParseForwardGeocodeResponse_MalformedJson_ReturnsNullNotThrow()
+    {
+        var exception = Record.Exception(() => NominatimGeocodingService.ParseForwardGeocodeResponse("not json"));
+
+        Assert.Null(exception);
+        Assert.Null(NominatimGeocodingService.ParseForwardGeocodeResponse("not json"));
+    }
+
+    [Fact]
+    public void ParseForwardGeocodeResponse_NoDisplayName_FallsBackToLatLonText()
+    {
+        const string json = """[ { "lat": "45.0", "lon": "3.5" } ]""";
+
+        var result = NominatimGeocodingService.ParseForwardGeocodeResponse(json);
+
+        Assert.NotNull(result);
+        Assert.Equal("45, 3.5", result!.DisplayName);
+    }
+
+    [Theory]
+    [InlineData("Paris 01", "75001 Paris")]
+    [InlineData("paris 1", "75001 paris")]
+    [InlineData("Paris 15", "75015 Paris")]
+    [InlineData("Paris 20e", "75020 Paris")]
+    [InlineData("Paris 7eme arrondissement", "75007 Paris")]
+    [InlineData("Lyon 3", "69003 Lyon")]
+    [InlineData("Marseille 08", "13008 Marseille")]
+    public void TryNormalizeArrondissementQuery_KnownShorthand_ReturnsPostalCodeQuery(string input, string expected)
+    {
+        Assert.Equal(expected, NominatimGeocodingService.TryNormalizeArrondissementQuery(input));
+    }
+
+    [Theory]
+    [InlineData("12 rue de la Paix, Paris")]
+    [InlineData("Paris")]
+    [InlineData("Paris 21")] // n'existe pas (max 20)
+    [InlineData("Toulouse 3")] // pas une ville a arrondissements geree
+    public void TryNormalizeArrondissementQuery_NotAShorthand_ReturnsNull(string input)
+    {
+        Assert.Null(NominatimGeocodingService.TryNormalizeArrondissementQuery(input));
+    }
 }

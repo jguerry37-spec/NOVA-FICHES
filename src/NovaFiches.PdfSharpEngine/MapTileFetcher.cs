@@ -42,10 +42,13 @@ public static class MapTileFetcher
     // dans le budget (maxTilesPerSide) - évite de télécharger des dizaines de tuiles pour
     // une emprise large, tout en restant aussi net que possible pour une petite emprise. 19 :
     // zoom natif max à la fois d'OSM et du Plan IGN v2 (au-delà, tuiles inexistantes côté serveur).
+    // startZoom : plafond optionnel (ex. préférence utilisateur pour une vue plus large/moins
+    // détaillée) - la recherche démarre à ce niveau au lieu de 19, mais garde le même repli vers un
+    // zoom moins détaillé si l'emprise ne tient pas dans le budget de tuiles à ce niveau.
     public static (int z, int txMin, int tyMin, int txMax, int tyMax)? ComputeTileGrid(
-        double minLon, double minLat, double maxLon, double maxLat, int maxTilesPerSide = 6)
+        double minLon, double minLat, double maxLon, double maxLat, int maxTilesPerSide = 6, int startZoom = 19)
     {
-        for (int z = 19; z >= 2; z--)
+        for (int z = Math.Min(19, startZoom); z >= 2; z--)
         {
             double xA = LonToTileX(minLon, z), xB = LonToTileX(maxLon, z);
             double yA = LatToTileY(minLat, z), yB = LatToTileY(maxLat, z);

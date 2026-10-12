@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Nova-Fiches - package MSI pour deploiement entreprise (GPO Software Installation, Intune, SCCM...).
+  Complementaire du setup Inno Setup existant (NovaFiches_2.3.0.100.iss, a la racine du repo) : ce
+  dernier reste l'installeur "grand public" (assistant graphique, raccourci Bureau optionnel,
+  bootstrap WebView2 embarque). Le MSI ci-dessous est le pendant "poste de travail managed" -
+  install/desinstall silencieuses natives (msiexec), montee de version automatique (MajorUpgrade),
+  pas d'assistant graphique ni de bootstrap reseau au milieu de l'installation (GPO Software
+  Installation s'execute sous SYSTEM, generalement au demarrage de la machine, sans session
+  utilisateur ni acces reseau garanti - un Custom Action qui lance un executable de telechargement
+  au milieu de l'install serait fragile dans ce contexte). Le runtime Microsoft Edge WebView2 est
+  donc verifie en pre-requis bloquant (voir Launch Condition plus bas) plutot que bootstrappe.
+
+  Le runtime .NET 8, lui, n'a besoin d'aucune verification : src\NovaFiches\build.ps1 publie
+  l'application en mode self-contained (dotnet publish, option self-contained a true), le runtime
+  .NET est donc deja embarque dans Installer\staging\publish et se retrouve dans ce MSI via le
+  harvest par glob plus bas, sans dependance externe ni installation separee sur le poste cible.
+
+  Construit avec `wix build` (WiX Toolset v6, deja installe comme outil dotnet global)
+  par Installer\build_msi.ps1, qui documente aussi le deploiement GPO complet.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Id="NOVATLAS.NovaFiches"
+           Name="Nova-Fiches"
+           Manufacturer="NOVATLAS"
+           Version="$(var.Version)"
+           Language="1036"
+           Scope="perMachine"
+           InstallerVersion="500">
+
+    <SummaryInformation Manufacturer="NOVATLAS" Description="Nova-Fiches - Generation de rapports topographiques" />
+
+    <!-- Package Id stable ci-dessus (recommande depuis WiX v6 a la place d'un UpgradeCode explicite)
+         + version croissante = upgrade majeure automatique : desinstalle l'ancienne version puis
+         installe la nouvelle. C'est ce mecanisme qui permet a un service informatique de gerer les
+         montees de version via GPO en redeployant simplement un .msi de version superieure sous le
+         meme package assigne (voir Installer\build_msi.ps1 pour le detail du processus GPO). -->
+    <MajorUpgrade DowngradeErrorMessage="Une version plus recente de Nova-Fiches est deja installee sur ce poste. Desinstallez-la avant de deployer une version anterieure." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Pas d'assistant graphique (aucune WixUI referencee) : ce package est concu pour une
+         installation silencieuse (msiexec /quiet) via GPO/Intune/SCCM. Un double-clic manuel par un
+         administrateur montre la barre de progression minimale par defaut de Windows Installer,
+         sans ecran de configuration - comportement voulu, pas un oubli. -->
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Icon Id="AppIcon.ico" SourceFile="$(var.PublishDir)\assets\NovaFiches.ico" />
+
+    <!-- Garde-fou : Nova-Fiches ne peut pas fonctionner sans le runtime Microsoft Edge WebView2
+         (present nativement sur les postes Windows 10/11 a jour, ou deployable separement par le
+         service informatique - voir le README a cote de ce fichier). Bloque l'installation avec un
+         message clair plutot que de deployer silencieusement une application qui ne demarrera pas.
+         "Installed" laisse passer les reparations/desinstallations d'une version deja en place.
+
+         Bug corrige : la premiere version de ce garde-fou ne cherchait que la vue registre 64 bits
+         (Bitness="always64") - or EdgeUpdate.exe, qui enregistre cette cle, est lui-meme un service
+         32 bits, donc sur la grande majorite des postes la cle vit en realite dans la vue WOW6432Node
+         (32 bits), jamais interrogee. Resultat : un MSI qui refusait de s'installer sur des postes ou
+         WebView2 etait pourtant bien present. Les deux vues sont maintenant verifiees. Le
+         DirectorySearch sur le dossier d'installation a ete retire (memes limites, en plus fragile :
+         il ne regardait que Program Files 64 bits, jamais Program Files (x86) - la cle registre,
+         verifiee dans ses deux vues, est le signal fiable recommande par Microsoft, pas le chemin
+         d'installation qui varie selon le canal. -->
+    <Property Id="WEBVIEW2REGCLIENT64">
+      <RegistrySearch Id="WebView2RegClient64" Root="HKLM"
+                       Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+                       Name="pv" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="WEBVIEW2REGCLIENT32">
+      <RegistrySearch Id="WebView2RegClient32" Root="HKLM"
+                       Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+                       Name="pv" Type="raw" Bitness="always32" />
+    </Property>
+    <Launch Condition="Installed OR WEBVIEW2REGCLIENT64 OR WEBVIEW2REGCLIENT32"
+            Message="Le runtime Microsoft Edge WebView2 est requis mais introuvable sur ce poste. Deployez-le au prealable (present nativement sur la plupart des postes Windows 10/11 a jour ; sinon, cf. Installer\msi\README.md) puis relancez l'installation de Nova-Fiches." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="COMPANYDIR" Name="NOVATLAS">
+        <Directory Id="INSTALLFOLDER" Name="Nova-Fiches" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ProgramMenuCompanyDir" Name="NOVATLAS">
+        <Directory Id="AppMenuDir" Name="Nova-Fiches">
+          <Component Id="ApplicationShortcuts" Guid="*">
+            <Shortcut Id="StartMenuShortcut"
+                      Name="Nova-Fiches"
+                      Description="Generation de rapports topographiques"
+                      Target="[INSTALLFOLDER]NovaFiches.exe"
+                      WorkingDirectory="INSTALLFOLDER"
+                      Icon="AppIcon.ico" />
+            <Shortcut Id="UninstallShortcut"
+                      Name="Desinstaller Nova-Fiches"
+                      Target="[System64Folder]msiexec.exe"
+                      Arguments="/x [ProductCode]" />
+            <RemoveFolder Id="RemoveAppMenuDir" Directory="AppMenuDir" On="uninstall" />
+            <RemoveFolder Id="RemoveProgramMenuCompanyDir" Directory="ProgramMenuCompanyDir" On="uninstall" />
+            <RegistryValue Root="HKLM" Key="Software\NOVATLAS\Nova-Fiches" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Harvest par glob (WiX v5+, coeur open source - pas besoin de heat.exe ni d'extension
+         payante) : genere composants/fichiers pour tout Installer\staging\publish, sous-dossiers
+         compris (assets\app\modules, assets\vendor\leaflet, DLL WebView2Loader versionnees...) sans
+         avoir a lister chaque fichier a la main - PublishDir est le meme dossier que celui rempli
+         par src\NovaFiches\build.ps1 / BUILD_RELEASE.ps1, deja utilise par l'installeur Inno Setup. -->
+    <Feature Id="MainFeature" Title="Nova-Fiches" Level="1">
+      <Files Directory="INSTALLFOLDER" Include="$(var.PublishDir)\**" />
+      <ComponentRef Id="ApplicationShortcuts" />
+    </Feature>
+
+  </Package>
+</Wix>
